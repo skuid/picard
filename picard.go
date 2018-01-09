@@ -120,7 +120,7 @@ func (p Picard) upsert(data interface{}) error {
 		return errors.New("No table name specified in struct metadata")
 	}
 
-	results, err := p.checkForExisting(data, tableName, lookups)
+	results, err := p.checkForExisting(data, tableName, lookups, multitenancyKeyColumnName, primaryKeyColumnName)
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func (p Picard) upsert(data interface{}) error {
 	combinedOperations := append(updates, inserts...)
 
 	// Perform Child Upserts
-	err = p.performChildUpserts(combinedOperations, childOptions)
+	err = p.performChildUpserts(combinedOperations, primaryKeyColumnName, childOptions)
 
 	if err != nil {
 		return err
@@ -240,12 +240,14 @@ func (p Picard) checkForExisting(
 	data interface{},
 	tableName string,
 	lookups []Lookup,
+	multitenancyKeyColumnName string,
+	primaryKeyColumnName string,
 ) (
 	map[string]interface{},
 	error,
 ) {
 
-	query := p.getLookupQuery(data, tableName, lookups)
+	query := p.getLookupQuery(data, tableName, lookups, multitenancyKeyColumnName, primaryKeyColumnName)
 
 	rows, err := query.RunWith(p.transaction).Query()
 
@@ -256,15 +258,15 @@ func (p Picard) checkForExisting(
 	return getLookupQueryResults(rows, tableName, lookups)
 }
 
-func (p Picard) getLookupQuery(data interface{}, tableName string, lookups []Lookup) *squirrel.SelectBuilder {
-	query := squirrel.Select(fmt.Sprintf("%v.%v", tableName, "id"))
+func (p Picard) getLookupQuery(data interface{}, tableName string, lookups []Lookup, multitenancyKeyColumnName string, primaryKeyColumnName string) *squirrel.SelectBuilder {
+	query := squirrel.Select(fmt.Sprintf("%v.%v", tableName, primaryKeyColumnName))
 	query = query.From(tableName)
 	wheres := []string{}
 	whereValues := []string{}
 
 	for _, lookup := range lookups {
 		if lookup.JoinKey != "" && lookup.TableName != "" {
-			query = query.Join(fmt.Sprintf("%[1]v on %[1]v.id = %[2]v", lookup.TableName, lookup.JoinKey))
+			query = query.Join(fmt.Sprintf("%[1]v on %[1]v.%[2]v = %[3]v", lookup.TableName, primaryKeyColumnName, lookup.JoinKey))
 		}
 		tableToUse := tableName
 		if lookup.TableName != "" {
@@ -282,12 +284,12 @@ func (p Picard) getLookupQuery(data interface{}, tableName string, lookups []Loo
 	}
 
 	query = query.Where(strings.Join(wheres, " || '"+separator+"' || ")+" = ANY($1)", pq.Array(whereValues))
-	query = query.Where(fmt.Sprintf("%v.organization_id = $2", tableName), p.multitenancyValue)
+	query = query.Where(fmt.Sprintf("%v.%v = $2", tableName, multitenancyKeyColumnName), p.multitenancyValue)
 
 	return &query
 }
 
-func (p Picard) performChildUpserts(changeObjects []DBChange, children []Child) error {
+func (p Picard) performChildUpserts(changeObjects []DBChange, primaryKeyColumnName string, children []Child) error {
 
 	for _, child := range children {
 		// If it doesn't exist already, create an entry in the upserts map
@@ -301,7 +303,7 @@ func (p Picard) performChildUpserts(changeObjects []DBChange, children []Child) 
 			for i := 0; i < childValue.Len(); i++ {
 				value := childValue.Index(i)
 				keyField := value.FieldByName(child.ForeignKey)
-				foreignKeyValue := changeObject.changes["id"]
+				foreignKeyValue := changeObject.changes[primaryKeyColumnName]
 				keyField.SetString(foreignKeyValue.(string))
 				data = reflect.Append(data, value)
 			}
@@ -392,10 +394,6 @@ func (p Picard) processObject(
 ) (DBChange, error) {
 	returnObject := map[string]interface{}{}
 
-	if databaseObject != nil {
-		returnObject["id"] = databaseObject["id"]
-	}
-
 	// Apply Field Mappings
 	t := reflect.TypeOf(metadataObject.Interface())
 	for i := 0; i < t.NumField(); i++ {
@@ -410,7 +408,12 @@ func (p Picard) processObject(
 		}
 	}
 	picardTags := picardTagsFromType(metadataObject.Type())
+	primaryKeyColumnName := picardTags.PrimaryKeyColumnName()
 	multitenancyKeyColumnName := picardTags.MultitenancyKeyColumnName()
+
+	if databaseObject != nil {
+		returnObject[primaryKeyColumnName] = databaseObject[primaryKeyColumnName]
+	}
 
 	returnObject[multitenancyKeyColumnName] = p.multitenancyValue
 	returnObject["created_by_id"] = p.performedBy
