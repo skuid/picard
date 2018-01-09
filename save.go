@@ -8,7 +8,7 @@ import (
 )
 
 // SaveModel performs an upsert operation for the provided model.
-func (p Picard) SaveModel(model interface{}) error {
+func (p Picard) persistModel(model interface{}, alwaysInsert bool) error {
 	// This makes modelValue a reflect.Value of model whether model is a pointer or not.
 	modelValue := reflect.Indirect(reflect.ValueOf(model))
 	if modelValue.Kind() != reflect.Struct {
@@ -29,7 +29,7 @@ func (p Picard) SaveModel(model interface{}) error {
 	primaryKeyColumnName := picardTags.PrimaryKeyColumnName()
 	multitenancyKeyColumnName := picardTags.MultitenancyKeyColumnName()
 
-	if primaryKeyValue == uuid.Nil {
+	if primaryKeyValue == uuid.Nil || alwaysInsert {
 		// Empty UUID: the model needs to insert.
 		if err := p.insertModel(modelValue, tableName, columnNames, primaryKeyColumnName); err != nil {
 			tx.Rollback()

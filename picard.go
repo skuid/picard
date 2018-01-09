@@ -67,6 +67,50 @@ func getStructValue(v interface{}) (reflect.Value, error) {
 	return value, nil
 }
 
+// SaveModel performs an upsert operation for the provided model.
+func (p Picard) SaveModel(model interface{}) error {
+	return p.persistModel(model, false)
+}
+
+// CreateModel performs an insert operation for the provided model.
+func (p Picard) CreateModel(model interface{}) error {
+	return p.persistModel(model, true)
+}
+
+// // persistModel performs an upsert operation for the provided model.
+// func (p Picard) persistModel(model interface{}, alwaysInsert bool) error {
+// 	// This makes modelValue a reflect.Value of model whether model is a pointer or not.
+// 	modelValue := reflect.Indirect(reflect.ValueOf(model))
+// 	if modelValue.Kind() != reflect.Struct {
+// 		return errors.New("Models must be structs")
+// 	}
+// 	tx, err := GetConnection().Begin()
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	p.Transaction = tx
+
+// 	primaryKeyValue := getPrimaryKey(modelValue)
+// 	_, _, columnNames, tableName := getAdditionalOptionsFromSchema(modelValue.Type())
+
+// 	if primaryKeyValue == uuid.Nil || alwaysInsert {
+// 		// Empty UUID: the model needs to insert.
+// 		if err := p.insertModel(modelValue, tableName, columnNames); err != nil {
+// 			tx.Rollback()
+// 			return err
+// 		}
+// 	} else {
+// 		// Non-Empty UUID: the model needs to update.
+// 		if err := p.updateModel(modelValue, tableName, columnNames); err != nil {
+// 			tx.Rollback()
+// 			return err
+// 		}
+// 	}
+
+// 	return tx.Commit()
+// }
+
 func getPrimaryKeyColumnName(t reflect.Type) (string, bool) {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
