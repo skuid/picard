@@ -2,6 +2,8 @@ package picard
 
 import (
 	"database/sql/driver"
+	"encoding/json"
+	"io/ioutil"
 	"reflect"
 	"strconv"
 	"strings"
@@ -11,6 +13,27 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	uuid "github.com/satori/go.uuid"
 )
+
+// LoadFixturesFromFiles creates a slice of structs from a slice of file names
+func LoadFixturesFromFiles(names []string, path string, loadType reflect.Type) (interface{}, error) {
+
+	sliceOfStructs := reflect.New(reflect.SliceOf(loadType)).Elem()
+
+	for _, name := range names {
+		testObject := reflect.New(loadType).Interface()
+		raw, err := ioutil.ReadFile(path + name + ".json")
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal(raw, &testObject)
+		if err != nil {
+			return nil, err
+		}
+		sliceOfStructs = reflect.Append(sliceOfStructs, reflect.ValueOf(testObject).Elem())
+	}
+
+	return sliceOfStructs.Interface(), nil
+}
 
 // ExpectationHelper struct that contains expectations about a particular object
 type ExpectationHelper struct {

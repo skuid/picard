@@ -1,8 +1,6 @@
 package picard
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"reflect"
 	"testing"
 
@@ -51,27 +49,6 @@ var testChildObjectHelper = ExpectationHelper{
 	LookupFields:     []string{"ParentID", "Name"},
 	DBColumns:        []string{"organization_id", "parent_id", "name"},
 	DataFields:       []string{"OrganizationID", "ParentID", "Name"},
-}
-
-// LoadFixturesFromFiles creates a slice of structs from a slice of file names
-func LoadFixturesFromFiles(names []string, path string, loadType reflect.Type) (interface{}, error) {
-
-	sliceOfStructs := reflect.New(reflect.SliceOf(loadType)).Elem()
-
-	for _, name := range names {
-		testObject := reflect.New(loadType).Interface()
-		raw, err := ioutil.ReadFile(path + name + ".json")
-		if err != nil {
-			return nil, err
-		}
-		err = json.Unmarshal(raw, &testObject)
-		if err != nil {
-			return nil, err
-		}
-		sliceOfStructs = reflect.Append(sliceOfStructs, reflect.ValueOf(testObject).Elem())
-	}
-
-	return sliceOfStructs.Interface(), nil
 }
 
 // Loads in a fixture data source from file
