@@ -56,11 +56,7 @@ func (p Picard) updateModel(modelValue reflect.Value, tableName string, columnNa
 	if err != nil {
 		return err
 	}
-	err = p.performUpdates([]DBChange{change}, tableName, columnNames, multitenancyKeyColumnName, primaryKeyColumnName)
-	if err != nil {
-		return err
-	}
-	return nil
+	return p.performUpdates([]DBChange{change}, tableName, columnNames, multitenancyKeyColumnName, primaryKeyColumnName)
 }
 
 func (p Picard) insertModel(modelValue reflect.Value, tableName string, columnNames []string, primaryKeyColumnName string) error {
