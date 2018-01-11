@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"reflect"
 	"strings"
 	"time"
@@ -41,7 +43,9 @@ type DBChange struct {
 // Used as an embedded type on a model struct, and certain metadata can be added as struct tags.
 // Currently supported tags:
 //   tablename
-type StructMetadata bool
+type StructMetadata struct {
+	DefinedFields []string
+}
 
 // Picard provides the necessary configuration to perform an upsert of objects without IDs
 // into a relational database using lookup fields to match and field name transformations.
@@ -57,6 +61,19 @@ func New(multitenancyValue uuid.UUID, performerID uuid.UUID) Picard {
 		multitenancyValue: multitenancyValue,
 		performedBy:       performerID,
 	}
+}
+
+// Decode decodes a reader using a specified decoder, but also writes metadata to picard StructMetadata
+func Decode(body io.Reader, destination interface{}) error {
+	bytes, err := ioutil.ReadAll(body)
+	if err != nil {
+		return err
+	}
+	err = Unmarshal(bytes, destination)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func getStructValue(v interface{}) (reflect.Value, error) {
@@ -76,40 +93,6 @@ func (p Picard) SaveModel(model interface{}) error {
 func (p Picard) CreateModel(model interface{}) error {
 	return p.persistModel(model, true)
 }
-
-// // persistModel performs an upsert operation for the provided model.
-// func (p Picard) persistModel(model interface{}, alwaysInsert bool) error {
-// 	// This makes modelValue a reflect.Value of model whether model is a pointer or not.
-// 	modelValue := reflect.Indirect(reflect.ValueOf(model))
-// 	if modelValue.Kind() != reflect.Struct {
-// 		return errors.New("Models must be structs")
-// 	}
-// 	tx, err := GetConnection().Begin()
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	p.Transaction = tx
-
-// 	primaryKeyValue := getPrimaryKey(modelValue)
-// 	_, _, columnNames, tableName := getAdditionalOptionsFromSchema(modelValue.Type())
-
-// 	if primaryKeyValue == uuid.Nil || alwaysInsert {
-// 		// Empty UUID: the model needs to insert.
-// 		if err := p.insertModel(modelValue, tableName, columnNames); err != nil {
-// 			tx.Rollback()
-// 			return err
-// 		}
-// 	} else {
-// 		// Non-Empty UUID: the model needs to update.
-// 		if err := p.updateModel(modelValue, tableName, columnNames); err != nil {
-// 			tx.Rollback()
-// 			return err
-// 		}
-// 	}
-
-// 	return tx.Commit()
-// }
 
 func getPrimaryKeyColumnName(t reflect.Type) (string, bool) {
 	for i := 0; i < t.NumField(); i++ {

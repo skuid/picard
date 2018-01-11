@@ -14,6 +14,7 @@ type picardTags struct {
 	dataColumns           []string
 	lookups               []Lookup
 	children              []Child
+	fieldToColumnMap      map[string]string
 }
 
 func (pt picardTags) TableName() string {
@@ -42,6 +43,21 @@ func (pt picardTags) ColumnNames() []string {
 	return columnNames
 }
 
+func (pt picardTags) getColumnFromFieldName(fieldName string) string {
+
+	var columnName string
+	columnName, hasColumn := pt.fieldToColumnMap[fieldName]
+	if hasColumn {
+		return columnName
+	}
+	return ""
+}
+
+func addColumn(fieldToColumnMap map[string]string, dataColumns *[]string, columnName string, fieldName string) {
+	*dataColumns = append(*dataColumns, columnName)
+	fieldToColumnMap[fieldName] = columnName
+}
+
 func picardTagsFromType(t reflect.Type) picardTags {
 	var structMetadata StructMetadata
 	var (
@@ -51,7 +67,10 @@ func picardTagsFromType(t reflect.Type) picardTags {
 		dataColumns           []string
 		lookups               []Lookup
 		children              []Child
+		fieldToColumnMap      map[string]string
 	)
+
+	fieldToColumnMap = map[string]string{}
 
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
@@ -75,7 +94,7 @@ func picardTagsFromType(t reflect.Type) picardTags {
 
 		case isMultitenancyKey && hasColumnName:
 			multitenancyKeyColumn = columnName
-			dataColumns = append(dataColumns, columnName)
+			addColumn(fieldToColumnMap, &dataColumns, columnName, field.Name)
 
 		case isChild && kind == reflect.Slice:
 			children = append(children, Child{
@@ -91,11 +110,11 @@ func picardTagsFromType(t reflect.Type) picardTags {
 				Query:               true,
 			})
 			if hasColumnName {
-				dataColumns = append(dataColumns, columnName)
+				addColumn(fieldToColumnMap, &dataColumns, columnName, field.Name)
 			}
 
 		case hasColumnName && !isPK && !isChild:
-			dataColumns = append(dataColumns, columnName)
+			addColumn(fieldToColumnMap, &dataColumns, columnName, field.Name)
 
 		default:
 			// No known picard tags on this field
@@ -109,6 +128,7 @@ func picardTagsFromType(t reflect.Type) picardTags {
 		dataColumns:           dataColumns,
 		lookups:               lookups,
 		children:              children,
+		fieldToColumnMap:      fieldToColumnMap,
 	}
 }
 

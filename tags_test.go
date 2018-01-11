@@ -37,6 +37,12 @@ func TestPicardTagsFromType(t *testing.T) {
 						Query:               true,
 					},
 				},
+				fieldToColumnMap: map[string]string{
+					"TestMultitenancyColumn": "test_multitenancy_key",
+					"TestFieldOne":           "test_column_one",
+					"TestFieldTwo":           "test_column_two",
+					"TestLookup":             "test_lookup",
+				},
 			},
 		},
 	}

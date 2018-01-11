@@ -93,6 +93,36 @@ func TestSaveModel(t *testing.T) {
 			},
 			nil,
 		},
+		{
+			"should run partial update for model with primary key value and DefinedFields populated",
+			&struct {
+				StructMetadata `picard:"tablename=test_tablename"`
+
+				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
+				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne           string `picard:"column=test_column_one"`
+				TestFieldTwo           string `picard:"column=test_column_two"`
+			}{
+				StructMetadata: StructMetadata{
+					DefinedFields: []string{"TestFieldOne", "PrimaryKeyField"},
+				},
+				PrimaryKeyField: "00000000-0000-0000-0000-000000000001",
+				TestFieldOne:    "test value one",
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(`^SELECT test_tablename.primary_key_column FROM test_tablename WHERE test_tablename.primary_key_column = \$1 AND test_tablename.multitenancy_key_column = \$2$`).
+					WithArgs("00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000005").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
+					)
+				mock.ExpectExec(`^UPDATE test_tablename SET multitenancy_key_column = \$1, test_column_one = \$2 WHERE multitenancy_key_column = \$3 AND primary_key_column = \$4$`).
+					WithArgs("00000000-0000-0000-0000-000000000005", "test value one", "00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000001").
+					WillReturnResult(sqlmock.NewResult(0, 1))
+				mock.ExpectCommit()
+			},
+			nil,
+		},
 	}
 
 	for _, tc := range testCases {
