@@ -16,17 +16,17 @@ func (morm MockORM) FilterModel(filterModel interface{}) (interface{}, error) {
 	return morm.FilterModelReturns, nil
 }
 
-// SaveModel simply returns an error or return objects when set on the MockORM
+// SaveModel is not implemented yet.
 func (morm MockORM) SaveModel(model interface{}) error {
 	return errors.New("SaveModel not actually implemented for MockORM")
 }
 
-// CreateModel simply returns an error or return objects when set on the MockORM
+// CreateModel is not implemented yet.
 func (morm MockORM) CreateModel(model interface{}) error {
 	return errors.New("CreateModel not actually implemented for MockORM")
 }
 
-// Deploy simply returns an error or return objects when set on the MockORM
+// Deploy is not implemented yet.
 func (morm MockORM) Deploy(data interface{}) error {
 	return errors.New("Deploy not actually implemented for MockORM")
 }
