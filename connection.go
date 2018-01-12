@@ -27,6 +27,11 @@ func GetConnection() *sql.DB {
 	return conn
 }
 
+// SetConnection allows clients to place an external database connection into picard
+func SetConnection(db *sql.DB) {
+	conn = db
+}
+
 // CloseConnection closes the database connection
 func CloseConnection() {
 	if conn != nil {

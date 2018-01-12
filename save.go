@@ -8,7 +8,7 @@ import (
 )
 
 // SaveModel performs an upsert operation for the provided model.
-func (p Picard) persistModel(model interface{}, alwaysInsert bool) error {
+func (p PersistenceORM) persistModel(model interface{}, alwaysInsert bool) error {
 	// This makes modelValue a reflect.Value of model whether model is a pointer or not.
 	modelValue := reflect.Indirect(reflect.ValueOf(model))
 	if modelValue.Kind() != reflect.Struct {
@@ -46,7 +46,7 @@ func (p Picard) persistModel(model interface{}, alwaysInsert bool) error {
 	return tx.Commit()
 }
 
-func (p Picard) updateModel(modelValue reflect.Value, tableName string, columnNames []string, multitenancyKeyColumnName string, primaryKeyColumnName string) error {
+func (p PersistenceORM) updateModel(modelValue reflect.Value, tableName string, columnNames []string, multitenancyKeyColumnName string, primaryKeyColumnName string) error {
 	primaryKeyValue := getPrimaryKey(modelValue)
 	existingObject, err := p.getExistingObjectByID(tableName, multitenancyKeyColumnName, primaryKeyColumnName, primaryKeyValue)
 	if err != nil {
@@ -59,7 +59,7 @@ func (p Picard) updateModel(modelValue reflect.Value, tableName string, columnNa
 	return p.performUpdates([]DBChange{change}, tableName, columnNames, multitenancyKeyColumnName, primaryKeyColumnName)
 }
 
-func (p Picard) insertModel(modelValue reflect.Value, tableName string, columnNames []string, primaryKeyColumnName string) error {
+func (p PersistenceORM) insertModel(modelValue reflect.Value, tableName string, columnNames []string, primaryKeyColumnName string) error {
 	change, err := p.processObject(modelValue, nil)
 	if err != nil {
 		return err

@@ -146,7 +146,10 @@ func TestDoFilterSelect(t *testing.T) {
 			tc.expectationFunction(mock)
 
 			// Create the Picard instance
-			p := New(testMultitenancyValue, testPerformedByValue)
+			p := PersistenceORM{
+				multitenancyValue: testMultitenancyValue,
+				performedBy:       testPerformedByValue,
+			}
 
 			results, err := p.doFilterSelect(tc.filterModelType, tc.whereClauses)
 
@@ -390,7 +393,10 @@ func TestGenerateFilterWhereClauses(t *testing.T) {
 	}
 
 	// Create the Picard instance
-	p := New(testMultitenancyValue, testPerformedByValue)
+	p := PersistenceORM{
+		multitenancyValue: testMultitenancyValue,
+		performedBy:       testPerformedByValue,
+	}
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
