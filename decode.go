@@ -16,7 +16,10 @@ func Unmarshal(data []byte, v interface{}) error {
 	if bytes.HasPrefix(data, []byte("[")) {
 		return unmarshalArray(data, v)
 	}
-	return unmarshalObject(data, v)
+	if bytes.HasPrefix(data, []byte("{")) {
+		return unmarshalObject(data, v)
+	}
+	return json.Unmarshal(data, &v)
 }
 
 func unmarshalArray(data json.RawMessage, v interface{}) error {
@@ -37,7 +40,7 @@ func unmarshalArray(data json.RawMessage, v interface{}) error {
 	for _, obj := range JSONObjectList {
 		sliceElementType := reflectedValue.Type().Elem()
 		temporarySliceElement := reflect.New(sliceElementType).Interface()
-		err := unmarshalObject(obj, temporarySliceElement)
+		err := Unmarshal(obj, temporarySliceElement)
 		if err != nil {
 			return err
 		}

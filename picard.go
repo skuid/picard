@@ -39,14 +39,6 @@ type DBChange struct {
 	originalValue reflect.Value
 }
 
-// StructMetadata is a field type that can be easily detected by picard.
-// Used as an embedded type on a model struct, and certain metadata can be added as struct tags.
-// Currently supported tags:
-//   tablename
-type StructMetadata struct {
-	DefinedFields []string
-}
-
 // Picard provides the necessary configuration to perform an upsert of objects without IDs
 // into a relational database using lookup fields to match and field name transformations.
 type Picard struct {

@@ -37,14 +37,14 @@ func (p Picard) persistModel(model interface{}, alwaysInsert bool) error {
 		}
 	} else {
 		// Get Defined Fields if they exist
-		structMetadata := getMetadataFromPicardStruct(modelValue)
+		modelMetadata := getMetadataFromPicardStruct(modelValue)
 		var updateColumns []string
 
-		if len(structMetadata.DefinedFields) > 0 {
+		if len(modelMetadata.DefinedFields) > 0 {
 			updateColumns = []string{}
 			// Loop over columnNames
 			for _, columnName := range columnNames {
-				for _, fieldName := range structMetadata.DefinedFields {
+				for _, fieldName := range modelMetadata.DefinedFields {
 					if columnName == primaryKeyColumnName || columnName == multitenancyKeyColumnName {
 						updateColumns = append(updateColumns, columnName)
 						break
