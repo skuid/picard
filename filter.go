@@ -7,7 +7,7 @@ import (
 )
 
 // FilterModel returns models that match the provided struct, ignoring zero values.
-func (p Picard) FilterModel(filterModel interface{}) ([]interface{}, error) {
+func (p PersistenceORM) FilterModel(filterModel interface{}) ([]interface{}, error) {
 	filterModelValue, err := getStructValue(filterModel)
 	if err != nil {
 		return nil, err
@@ -22,7 +22,7 @@ func (p Picard) FilterModel(filterModel interface{}) ([]interface{}, error) {
 	return results, nil
 }
 
-func (p Picard) doFilterSelect(filterModelType reflect.Type, whereClauses []squirrel.Eq) ([]interface{}, error) {
+func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClauses []squirrel.Eq) ([]interface{}, error) {
 	var returnModels []interface{}
 
 	tx, err := GetConnection().Begin()
@@ -64,7 +64,7 @@ func (p Picard) doFilterSelect(filterModelType reflect.Type, whereClauses []squi
 	return returnModels, nil
 }
 
-func (p Picard) generateFilterWhereClauses(filterModelValue reflect.Value, zeroFields []string) []squirrel.Eq {
+func (p PersistenceORM) generateFilterWhereClauses(filterModelValue reflect.Value, zeroFields []string) []squirrel.Eq {
 	var returnClauses []squirrel.Eq
 
 	t := filterModelValue.Type()

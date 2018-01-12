@@ -39,17 +39,25 @@ type DBChange struct {
 	originalValue reflect.Value
 }
 
-// Picard provides the necessary configuration to perform an upsert of objects without IDs
+// ORM interface describes the behavior API of any picard ORM
+type ORM interface {
+	FilterModel(interface{}) ([]interface{}, error)
+	SaveModel(model interface{}) error
+	CreateModel(model interface{}) error
+	Deploy(data interface{}) error
+}
+
+// PersistenceORM provides the necessary configuration to perform an upsert of objects without IDs
 // into a relational database using lookup fields to match and field name transformations.
-type Picard struct {
+type PersistenceORM struct {
 	multitenancyValue uuid.UUID
 	performedBy       uuid.UUID
 	transaction       *sql.Tx
 }
 
 // New Creates a new Picard Object and handle defaults
-func New(multitenancyValue uuid.UUID, performerID uuid.UUID) Picard {
-	return Picard{
+func New(multitenancyValue uuid.UUID, performerID uuid.UUID) ORM {
+	return PersistenceORM{
 		multitenancyValue: multitenancyValue,
 		performedBy:       performerID,
 	}
@@ -77,12 +85,12 @@ func getStructValue(v interface{}) (reflect.Value, error) {
 }
 
 // SaveModel performs an upsert operation for the provided model.
-func (p Picard) SaveModel(model interface{}) error {
+func (p PersistenceORM) SaveModel(model interface{}) error {
 	return p.persistModel(model, false)
 }
 
 // CreateModel performs an insert operation for the provided model.
-func (p Picard) CreateModel(model interface{}) error {
+func (p PersistenceORM) CreateModel(model interface{}) error {
 	return p.persistModel(model, true)
 }
 
@@ -102,7 +110,7 @@ func getPrimaryKeyColumnName(t reflect.Type) (string, bool) {
 
 // Deploy is the public method to start a Picard deployment. Send in a table name and a slice of structs
 // and it will attempt a deployment.
-func (p Picard) Deploy(data interface{}) error {
+func (p PersistenceORM) Deploy(data interface{}) error {
 	tx, err := GetConnection().Begin()
 	if err != nil {
 		return err
@@ -119,7 +127,7 @@ func (p Picard) Deploy(data interface{}) error {
 
 // Upsert takes data in the form of a slice of structs and performs a series of database
 // operations that will sync the database with the state of that deployment payload
-func (p Picard) upsert(data interface{}) error {
+func (p PersistenceORM) upsert(data interface{}) error {
 
 	// Verify that we've been passed valid input
 	t := reflect.TypeOf(data)
@@ -173,7 +181,7 @@ func (p Picard) upsert(data interface{}) error {
 	return nil
 }
 
-func (p Picard) performUpdates(updates []DBChange, tableName string, columnNames []string, multitenancyKeyColumnName string, primaryKeyColumnName string) error {
+func (p PersistenceORM) performUpdates(updates []DBChange, tableName string, columnNames []string, multitenancyKeyColumnName string, primaryKeyColumnName string) error {
 	if len(updates) > 0 {
 
 		psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
@@ -201,7 +209,7 @@ func (p Picard) performUpdates(updates []DBChange, tableName string, columnNames
 	return nil
 }
 
-func (p Picard) performInserts(inserts []DBChange, tableName string, columnNames []string, primaryKeyColumnName string) error {
+func (p PersistenceORM) performInserts(inserts []DBChange, tableName string, columnNames []string, primaryKeyColumnName string) error {
 	if len(inserts) > 0 {
 
 		psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
@@ -234,7 +242,7 @@ func (p Picard) performInserts(inserts []DBChange, tableName string, columnNames
 	return nil
 }
 
-func (p Picard) getExistingObjectByID(tableName string, multitenancyColumn string, IDColumn string, IDValue uuid.UUID) (map[string]interface{}, error) {
+func (p PersistenceORM) getExistingObjectByID(tableName string, multitenancyColumn string, IDColumn string, IDValue uuid.UUID) (map[string]interface{}, error) {
 	rows, err := squirrel.Select(fmt.Sprintf("%v.%v", tableName, IDColumn)).PlaceholderFormat(squirrel.Dollar).
 		From(tableName).
 		Where(squirrel.Eq{fmt.Sprintf("%v.%v", tableName, IDColumn): IDValue}).
@@ -255,7 +263,7 @@ func (p Picard) getExistingObjectByID(tableName string, multitenancyColumn strin
 	return results[0], nil
 }
 
-func (p Picard) checkForExisting(
+func (p PersistenceORM) checkForExisting(
 	data interface{},
 	tableName string,
 	lookups []Lookup,
@@ -277,7 +285,7 @@ func (p Picard) checkForExisting(
 	return getLookupQueryResults(rows, tableName, lookups)
 }
 
-func (p Picard) getLookupQuery(data interface{}, tableName string, lookups []Lookup, multitenancyKeyColumnName string, primaryKeyColumnName string) *squirrel.SelectBuilder {
+func (p PersistenceORM) getLookupQuery(data interface{}, tableName string, lookups []Lookup, multitenancyKeyColumnName string, primaryKeyColumnName string) *squirrel.SelectBuilder {
 	query := squirrel.Select(fmt.Sprintf("%v.%v", tableName, primaryKeyColumnName))
 	query = query.From(tableName)
 	wheres := []string{}
@@ -308,7 +316,7 @@ func (p Picard) getLookupQuery(data interface{}, tableName string, lookups []Loo
 	return &query
 }
 
-func (p Picard) performChildUpserts(changeObjects []DBChange, primaryKeyColumnName string, children []Child) error {
+func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, primaryKeyColumnName string, children []Child) error {
 
 	for _, child := range children {
 		// If it doesn't exist already, create an entry in the upserts map
@@ -341,7 +349,7 @@ func (p Picard) performChildUpserts(changeObjects []DBChange, primaryKeyColumnNa
 // generateChanges takes results from performing lookup and foreign lookup
 // queries and creates a set of inserts, updates, and deletes to be
 // performed on the database.
-func (p Picard) generateChanges(
+func (p PersistenceORM) generateChanges(
 	data interface{},
 	results map[string]interface{},
 	lookups []Lookup,
@@ -407,7 +415,7 @@ func (p Picard) generateChanges(
 	return inserts, updates, deletes, nil
 }
 
-func (p Picard) processObject(
+func (p PersistenceORM) processObject(
 	metadataObject reflect.Value,
 	databaseObject map[string]interface{},
 ) (DBChange, error) {

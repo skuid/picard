@@ -135,7 +135,10 @@ func TestSaveModel(t *testing.T) {
 			tc.expectationFunction(mock)
 
 			// Create the Picard instance
-			p := New(testMultitenancyValue, testPerformedByValue)
+			p := PersistenceORM{
+				multitenancyValue: testMultitenancyValue,
+				performedBy:       testPerformedByValue,
+			}
 
 			err = p.SaveModel(tc.giveValue)
 
@@ -210,7 +213,10 @@ func TestUpdateModel(t *testing.T) {
 			}
 
 			// Create the Picard instance
-			p := New(testMultitenancyValue, testPerformedByValue)
+			p := PersistenceORM{
+				multitenancyValue: testMultitenancyValue,
+				performedBy:       testPerformedByValue,
+			}
 			p.transaction = tx
 
 			err = p.updateModel(tc.giveValue, tc.giveTableName, tc.giveColumnNames, tc.giveMultitenancyKeyColumnName, tc.givePrimaryKeyColumnName)
@@ -299,7 +305,10 @@ func TestInsertModel(t *testing.T) {
 			}
 
 			// Create the Picard instance
-			p := New(testMultitenancyValue, testPerformedByValue)
+			p := PersistenceORM{
+				multitenancyValue: testMultitenancyValue,
+				performedBy:       testPerformedByValue,
+			}
 			p.transaction = tx
 
 			err = p.insertModel(tc.giveValue, tc.giveTableName, tc.giveColumnNames, tc.givePrimaryKeyColumnName)
