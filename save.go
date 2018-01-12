@@ -36,8 +36,32 @@ func (p PersistenceORM) persistModel(model interface{}, alwaysInsert bool) error
 			return err
 		}
 	} else {
+		// Get Defined Fields if they exist
+		modelMetadata := getMetadataFromPicardStruct(modelValue)
+		var updateColumns []string
+
+		if len(modelMetadata.DefinedFields) > 0 {
+			updateColumns = []string{}
+			// Loop over columnNames
+			for _, columnName := range columnNames {
+				for _, fieldName := range modelMetadata.DefinedFields {
+					if columnName == primaryKeyColumnName || columnName == multitenancyKeyColumnName {
+						updateColumns = append(updateColumns, columnName)
+						break
+					}
+					definedColumnName := picardTags.getColumnFromFieldName(fieldName)
+					if definedColumnName != "" && definedColumnName == columnName {
+						updateColumns = append(updateColumns, columnName)
+						break
+					}
+				}
+			}
+		} else {
+			updateColumns = columnNames
+		}
+
 		// Non-Empty UUID: the model needs to update.
-		if err := p.updateModel(modelValue, tableName, columnNames, multitenancyKeyColumnName, primaryKeyColumnName); err != nil {
+		if err := p.updateModel(modelValue, tableName, updateColumns, multitenancyKeyColumnName, primaryKeyColumnName); err != nil {
 			tx.Rollback()
 			return err
 		}

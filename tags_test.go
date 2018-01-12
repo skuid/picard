@@ -16,7 +16,7 @@ func TestPicardTagsFromType(t *testing.T) {
 		{
 			"should populate with correct values",
 			reflect.TypeOf(struct {
-				StructMetadata `picard:"tablename=test_tablename"`
+				Metadata `picard:"tablename=test_tablename"`
 
 				TestPrimaryKeyField    string `picard:"primary_key,column=test_pk"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=test_multitenancy_key"`
@@ -36,6 +36,12 @@ func TestPicardTagsFromType(t *testing.T) {
 						MatchObjectProperty: "TestLookup",
 						Query:               true,
 					},
+				},
+				fieldToColumnMap: map[string]string{
+					"TestMultitenancyColumn": "test_multitenancy_key",
+					"TestFieldOne":           "test_column_one",
+					"TestFieldTwo":           "test_column_two",
+					"TestLookup":             "test_lookup",
 				},
 			},
 		},

@@ -11,16 +11,16 @@ import (
 )
 
 type modelMutitenantPKWithTwoFields struct {
-	Metadata              StructMetadata `picard:"tablename=test_table"`
-	TestMultitenancyField string         `picard:"multitenancy_key,column=test_multitenancy_column"`
-	TestPrimaryKeyField   string         `picard:"primary_key,column=primary_key_column"`
-	TestFieldOne          string         `picard:"column=test_column_one"`
-	TestFieldTwo          string         `picard:"column=test_column_two"`
+	Metadata              Metadata `picard:"tablename=test_table"`
+	TestMultitenancyField string   `picard:"multitenancy_key,column=test_multitenancy_column"`
+	TestPrimaryKeyField   string   `picard:"primary_key,column=primary_key_column"`
+	TestFieldOne          string   `picard:"column=test_column_one"`
+	TestFieldTwo          string   `picard:"column=test_column_two"`
 }
 
 type modelOneField struct {
-	Metadata     StructMetadata `picard:"tablename=test_table"`
-	TestFieldOne string         `picard:"column=test_column_one"`
+	Metadata     Metadata `picard:"tablename=test_table"`
+	TestFieldOne string   `picard:"column=test_column_one"`
 }
 
 type modelTwoField struct {
