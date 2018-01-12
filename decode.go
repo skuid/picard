@@ -94,16 +94,7 @@ func popValueByField(rawMap map[string]json.RawMessage, field reflect.StructFiel
 
 func decodeMatching(rawMap map[string]json.RawMessage, reflectedValue reflect.Value) error {
 	// First find the metadata field and get a reference to that
-	var metadataField reflect.Value
-	var structMetadata StructMetadata
-
-	for i := 0; i < reflectedValue.Type().NumField(); i++ {
-		field := reflectedValue.Type().Field(i)
-		if field.Type == reflect.TypeOf(structMetadata) {
-			metadataField = reflectedValue.FieldByName(field.Name)
-			break
-		}
-	}
+	metadataField := getMetadataValue(reflectedValue)
 
 	for i := 0; i < reflectedValue.Type().NumField(); i++ {
 		field := reflectedValue.Type().Field(i)
@@ -113,11 +104,7 @@ func decodeMatching(rawMap map[string]json.RawMessage, reflectedValue reflect.Va
 			continue
 		}
 
-		// Put Undefined values into the Undefined nested struct
-		if metadataField.IsValid() {
-			definedFields := metadataField.FieldByName("DefinedFields")
-			definedFields.Set(reflect.Append(definedFields, reflect.ValueOf(field.Name)))
-		}
+		addDefinedField(metadataField, field.Name)
 
 		temp := reflect.New(field.Type).Interface()
 

@@ -37,7 +37,7 @@ func (p Picard) persistModel(model interface{}, alwaysInsert bool) error {
 		}
 	} else {
 		// Get Defined Fields if they exist
-		structMetadata := getMetadataFromValue(modelValue)
+		structMetadata := getMetadataFromPicardStruct(modelValue)
 		var updateColumns []string
 
 		if len(structMetadata.DefinedFields) > 0 {

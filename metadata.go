@@ -4,16 +4,33 @@ import (
 	"reflect"
 )
 
-func getMetadataFromValue(t reflect.Value) StructMetadata {
-	var structMetadata StructMetadata
+func addDefinedField(metadataValue reflect.Value, fieldName string) {
+	// Put Undefined values into the Undefined nested struct
+	if metadataValue.IsValid() {
+		definedFields := metadataValue.FieldByName("DefinedFields")
+		definedFields.Set(reflect.Append(definedFields, reflect.ValueOf(fieldName)))
+	}
+	return
+}
 
-	for i := 0; i < t.Type().NumField(); i++ {
-		field := t.Type().Field(i)
+func getMetadataValue(picardStruct reflect.Value) reflect.Value {
+	var metadataValue reflect.Value
+	var structMetadata StructMetadata
+	for i := 0; i < picardStruct.Type().NumField(); i++ {
+		field := picardStruct.Type().Field(i)
 		if field.Type == reflect.TypeOf(structMetadata) {
-			structMetadata = t.FieldByName(field.Name).Interface().(StructMetadata)
+			metadataValue = picardStruct.FieldByName(field.Name)
 			break
 		}
 	}
+	return metadataValue
+}
 
+func getMetadataFromPicardStruct(picardStruct reflect.Value) StructMetadata {
+	var structMetadata StructMetadata
+	metadataValue := getMetadataValue(picardStruct)
+	if metadataValue.CanInterface() {
+		structMetadata = metadataValue.Interface().(StructMetadata)
+	}
 	return structMetadata
 }
