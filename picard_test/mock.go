@@ -9,7 +9,7 @@ type MockORM struct {
 }
 
 // FilterModel simply returns an error or return objects when set on the MockORM
-func (morm MockORM) FilterModel(filterModel interface{}) (interface{}, error) {
+func (morm MockORM) FilterModel(filterModel interface{}) ([]interface{}, error) {
 	if morm.FilterModelError != nil {
 		return nil, morm.FilterModelError
 	}
