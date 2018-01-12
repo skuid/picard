@@ -21,7 +21,7 @@ func TestSaveModel(t *testing.T) {
 		{
 			"should run insert for model without primary key value",
 			&struct {
-				ModelMetadata `picard:"tablename=test_tablename"`
+				Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -43,7 +43,7 @@ func TestSaveModel(t *testing.T) {
 		{
 			"should run update for model with primary key value",
 			&struct {
-				ModelMetadata `picard:"tablename=test_tablename"`
+				Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -69,7 +69,7 @@ func TestSaveModel(t *testing.T) {
 		{
 			"should run update for model with primary key value, and overwrite multitenancy key value given",
 			&struct {
-				ModelMetadata `picard:"tablename=test_tablename"`
+				Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -96,14 +96,14 @@ func TestSaveModel(t *testing.T) {
 		{
 			"should run partial update for model with primary key value and DefinedFields populated",
 			&struct {
-				ModelMetadata `picard:"tablename=test_tablename"`
+				Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
 				TestFieldOne           string `picard:"column=test_column_one"`
 				TestFieldTwo           string `picard:"column=test_column_two"`
 			}{
-				ModelMetadata: ModelMetadata{
+				Metadata: Metadata{
 					DefinedFields: []string{"TestFieldOne", "PrimaryKeyField"},
 				},
 				PrimaryKeyField: "00000000-0000-0000-0000-000000000001",

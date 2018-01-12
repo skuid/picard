@@ -23,7 +23,7 @@ func TestUnmarshal(t *testing.T) {
 			}`),
 			&TestObject{},
 			&TestObject{
-				Metadata: ModelMetadata{
+				Metadata: Metadata{
 					DefinedFields: []string{"ID", "Name"},
 				},
 				ID:       "myID",
@@ -43,14 +43,14 @@ func TestUnmarshal(t *testing.T) {
 			}`),
 			&TestObject{},
 			&TestObject{
-				Metadata: ModelMetadata{
+				Metadata: Metadata{
 					DefinedFields: []string{"ID", "Name", "Children"},
 				},
 				ID:   "anotherID",
 				Name: "anotherName",
 				Children: []ChildTestObject{
 					{
-						Metadata: ModelMetadata{
+						Metadata: Metadata{
 							DefinedFields: []string{"Name"},
 						},
 						Name: "childName",

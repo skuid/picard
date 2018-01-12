@@ -4,11 +4,11 @@ import (
 	"reflect"
 )
 
-// ModelMetadata is a field type that can be easily detected by picard.
+// Metadata is a field type that can be easily detected by picard.
 // Used as an embedded type on a model struct, and certain metadata can be added as struct tags.
 // Currently supported tags:
 //   tablename
-type ModelMetadata struct {
+type Metadata struct {
 	DefinedFields []string
 }
 
@@ -23,10 +23,10 @@ func addDefinedField(metadataValue reflect.Value, fieldName string) {
 
 func getMetadataValue(picardStruct reflect.Value) reflect.Value {
 	var metadataValue reflect.Value
-	var modelMetadata ModelMetadata
+	var metadata Metadata
 	for i := 0; i < picardStruct.Type().NumField(); i++ {
 		field := picardStruct.Type().Field(i)
-		if field.Type == reflect.TypeOf(modelMetadata) {
+		if field.Type == reflect.TypeOf(metadata) {
 			metadataValue = picardStruct.FieldByName(field.Name)
 			break
 		}
@@ -34,11 +34,11 @@ func getMetadataValue(picardStruct reflect.Value) reflect.Value {
 	return metadataValue
 }
 
-func getMetadataFromPicardStruct(picardStruct reflect.Value) ModelMetadata {
-	var modelMetadata ModelMetadata
+func getMetadataFromPicardStruct(picardStruct reflect.Value) Metadata {
+	var metadata Metadata
 	metadataValue := getMetadataValue(picardStruct)
 	if metadataValue.CanInterface() {
-		modelMetadata = metadataValue.Interface().(ModelMetadata)
+		metadata = metadataValue.Interface().(Metadata)
 	}
-	return modelMetadata
+	return metadata
 }

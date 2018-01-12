@@ -10,7 +10,7 @@ import (
 
 // TestObject sample parent object for tests
 type TestObject struct {
-	Metadata ModelMetadata `picard:"tablename=testobject"`
+	Metadata Metadata `picard:"tablename=testobject"`
 
 	ID             string `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string `picard:"multitenancy_key,column=organization_id"`
@@ -22,7 +22,7 @@ type TestObject struct {
 
 // ChildTestObject sample child object for tests
 type ChildTestObject struct {
-	Metadata ModelMetadata `picard:"tablename=childtest"`
+	Metadata Metadata `picard:"tablename=childtest"`
 
 	ID             string `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string `picard:"multitenancy_key,column=organization_id"`

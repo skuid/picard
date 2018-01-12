@@ -59,7 +59,7 @@ func addColumn(fieldToColumnMap map[string]string, dataColumns *[]string, column
 }
 
 func picardTagsFromType(t reflect.Type) picardTags {
-	var modelMetadata ModelMetadata
+	var metadata Metadata
 	var (
 		tableName             string
 		primaryKeyColumn      string
@@ -86,7 +86,7 @@ func picardTagsFromType(t reflect.Type) picardTags {
 
 		switch {
 
-		case field.Type == reflect.TypeOf(modelMetadata) && hasTableName:
+		case field.Type == reflect.TypeOf(metadata) && hasTableName:
 			tableName = tagsMap["tablename"]
 
 		case isPK && hasColumnName:

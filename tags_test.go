@@ -16,7 +16,7 @@ func TestPicardTagsFromType(t *testing.T) {
 		{
 			"should populate with correct values",
 			reflect.TypeOf(struct {
-				ModelMetadata `picard:"tablename=test_tablename"`
+				Metadata `picard:"tablename=test_tablename"`
 
 				TestPrimaryKeyField    string `picard:"primary_key,column=test_pk"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=test_multitenancy_key"`
