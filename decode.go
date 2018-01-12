@@ -108,7 +108,7 @@ func decodeMatching(rawMap map[string]json.RawMessage, reflectedValue reflect.Va
 
 		temp := reflect.New(field.Type).Interface()
 
-		if field.Type.Kind() == reflect.Struct {
+		if field.Type.Kind() == reflect.Struct || field.Type.Kind() == reflect.Slice {
 			err := Unmarshal(rawValue, temp)
 			if err != nil {
 				return err

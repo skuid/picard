@@ -32,6 +32,33 @@ func TestUnmarshal(t *testing.T) {
 			},
 			"",
 		},
+		{
+			"Unmarshal a testObject with a child object",
+			[]byte(`{
+				"id":"anotherID",
+				"name":"anotherName",
+				"children":[{
+					"name":"childName"
+				}]	
+			}`),
+			&TestObject{},
+			&TestObject{
+				Metadata: StructMetadata{
+					DefinedFields: []string{"ID", "Name", "Children"},
+				},
+				ID:   "anotherID",
+				Name: "anotherName",
+				Children: []ChildTestObject{
+					{
+						Metadata: StructMetadata{
+							DefinedFields: []string{"Name"},
+						},
+						Name: "childName",
+					},
+				},
+			},
+			"",
+		},
 	}
 
 	for _, tc := range testCases {
