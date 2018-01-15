@@ -1,9 +1,5 @@
 package picard_test
 
-import (
-	"errors"
-)
-
 // MockORM can be used to test client functionality that calls picard.ORM behavior.
 type MockORM struct {
 	FilterModelReturns    []interface{}
@@ -11,6 +7,10 @@ type MockORM struct {
 	FilterModelCalledWith interface{}
 	SaveModelError        error
 	SaveModelCalledWith   interface{}
+	CreateModelError      error
+	CreateModelCalledWith interface{}
+	DeployError           error
+	DeployCalledWith      interface{}
 }
 
 // FilterModel simply returns an error or return objects when set on the MockORM
@@ -29,11 +29,13 @@ func (morm *MockORM) SaveModel(model interface{}) error {
 }
 
 // CreateModel is not implemented yet.
-func (morm MockORM) CreateModel(model interface{}) error {
-	return errors.New("CreateModel not actually implemented for MockORM")
+func (morm *MockORM) CreateModel(model interface{}) error {
+	morm.CreateModelCalledWith = model
+	return morm.CreateModelError
 }
 
 // Deploy is not implemented yet.
-func (morm MockORM) Deploy(data interface{}) error {
-	return errors.New("Deploy not actually implemented for MockORM")
+func (morm *MockORM) Deploy(data interface{}) error {
+	morm.DeployCalledWith = data
+	return morm.DeployError
 }

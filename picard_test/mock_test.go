@@ -76,7 +76,7 @@ func TestMockSaveModel(t *testing.T) {
 			errors.New("Some error"),
 		},
 		{
-			"Should set FilterModelCalledWith",
+			"Should set SaveModelCalledWith",
 			"test filter interface",
 			nil,
 		},
@@ -95,6 +95,78 @@ func TestMockSaveModel(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.giveSaveModel, morm.SaveModelCalledWith)
+			}
+		})
+	}
+}
+
+func TestMockCreateModel(t *testing.T) {
+	testCases := []struct {
+		description     string
+		giveCreateModel interface{}
+		giveError       error
+	}{
+		{
+			"Should return error if present, regardless of returns set",
+			"test filter interface",
+			errors.New("Some error"),
+		},
+		{
+			"Should set CreateModelCalledWith",
+			"test filter interface",
+			nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			morm := picard_test.MockORM{
+				CreateModelError: tc.giveError,
+			}
+			err := morm.CreateModel(tc.giveCreateModel)
+
+			if tc.giveError != nil {
+				assert.Error(t, err)
+				assert.Equal(t, tc.giveError, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.giveCreateModel, morm.CreateModelCalledWith)
+			}
+		})
+	}
+}
+
+func TestMockDeploy(t *testing.T) {
+	testCases := []struct {
+		description    string
+		giveDeployData interface{}
+		giveError      error
+	}{
+		{
+			"Should return error if present, regardless of returns set",
+			"test filter interface",
+			errors.New("Some error"),
+		},
+		{
+			"Should set DeployCalledWith",
+			"test filter interface",
+			nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			morm := picard_test.MockORM{
+				DeployError: tc.giveError,
+			}
+			err := morm.Deploy(tc.giveDeployData)
+
+			if tc.giveError != nil {
+				assert.Error(t, err)
+				assert.Equal(t, tc.giveError, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.giveDeployData, morm.DeployCalledWith)
 			}
 		})
 	}
