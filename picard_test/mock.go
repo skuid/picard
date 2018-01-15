@@ -1,15 +1,19 @@
 package picard_test
 
-import "errors"
+import (
+	"errors"
+)
 
 // MockORM can be used to test client functionality that calls picard.ORM behavior.
 type MockORM struct {
-	FilterModelReturns []interface{}
-	FilterModelError   error
+	FilterModelReturns    []interface{}
+	FilterModelError      error
+	FilterModelCalledWith interface{}
 }
 
 // FilterModel simply returns an error or return objects when set on the MockORM
-func (morm MockORM) FilterModel(filterModel interface{}) ([]interface{}, error) {
+func (morm *MockORM) FilterModel(filterModel interface{}) ([]interface{}, error) {
+	morm.FilterModelCalledWith = filterModel
 	if morm.FilterModelError != nil {
 		return nil, morm.FilterModelError
 	}

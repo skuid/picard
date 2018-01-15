@@ -10,17 +10,37 @@ import (
 
 func TestMockFilterModel(t *testing.T) {
 	testCases := []struct {
-		description string
-		giveReturns []interface{}
-		giveError   error
+		description     string
+		giveFilterModel interface{}
+		giveReturns     []interface{}
+		giveError       error
 	}{
 		{
 			"Should return error if present, regardless of returns set",
+			nil,
 			[]interface{}{
 				"test 1",
 				"test 2",
 			},
 			errors.New("Some error"),
+		},
+		{
+			"Should return set return interfaces",
+			nil,
+			[]interface{}{
+				"test 1",
+				"test 2",
+			},
+			nil,
+		},
+		{
+			"Should set FilterModelCalledWith",
+			"test filter interface",
+			[]interface{}{
+				"test 1",
+				"test 2",
+			},
+			nil,
 		},
 	}
 
@@ -30,7 +50,7 @@ func TestMockFilterModel(t *testing.T) {
 				FilterModelReturns: tc.giveReturns,
 				FilterModelError:   tc.giveError,
 			}
-			results, err := morm.FilterModel(nil)
+			results, err := morm.FilterModel(tc.giveFilterModel)
 
 			if tc.giveError != nil {
 				assert.Error(t, err)
@@ -38,6 +58,7 @@ func TestMockFilterModel(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.giveReturns, results)
+				assert.Equal(t, tc.giveFilterModel, morm.FilterModelCalledWith)
 			}
 		})
 	}
