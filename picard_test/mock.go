@@ -9,6 +9,8 @@ type MockORM struct {
 	FilterModelReturns    []interface{}
 	FilterModelError      error
 	FilterModelCalledWith interface{}
+	SaveModelError        error
+	SaveModelCalledWith   interface{}
 }
 
 // FilterModel simply returns an error or return objects when set on the MockORM
@@ -21,8 +23,9 @@ func (morm *MockORM) FilterModel(filterModel interface{}) ([]interface{}, error)
 }
 
 // SaveModel is not implemented yet.
-func (morm MockORM) SaveModel(model interface{}) error {
-	return errors.New("SaveModel not actually implemented for MockORM")
+func (morm *MockORM) SaveModel(model interface{}) error {
+	morm.SaveModelCalledWith = model
+	return morm.SaveModelError
 }
 
 // CreateModel is not implemented yet.

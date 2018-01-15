@@ -63,3 +63,39 @@ func TestMockFilterModel(t *testing.T) {
 		})
 	}
 }
+
+func TestMockSaveModel(t *testing.T) {
+	testCases := []struct {
+		description   string
+		giveSaveModel interface{}
+		giveError     error
+	}{
+		{
+			"Should return error if present, regardless of returns set",
+			"test filter interface",
+			errors.New("Some error"),
+		},
+		{
+			"Should set FilterModelCalledWith",
+			"test filter interface",
+			nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			morm := picard_test.MockORM{
+				SaveModelError: tc.giveError,
+			}
+			err := morm.SaveModel(tc.giveSaveModel)
+
+			if tc.giveError != nil {
+				assert.Error(t, err)
+				assert.Equal(t, tc.giveError, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.giveSaveModel, morm.SaveModelCalledWith)
+			}
+		})
+	}
+}
