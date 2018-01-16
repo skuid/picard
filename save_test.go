@@ -1,7 +1,6 @@
 package picard
 
 import (
-	"errors"
 	"reflect"
 	"testing"
 
@@ -87,7 +86,7 @@ func TestSaveModel(t *testing.T) {
 						sqlmock.NewRows([]string{"primary_key_column"}),
 					)
 			},
-			errors.New("Could not find record to update"),
+			ModelNotFoundError,
 		},
 		{
 			"should run update for model with primary key value, and overwrite multitenancy key value given",
