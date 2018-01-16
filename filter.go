@@ -13,7 +13,7 @@ func (p PersistenceORM) FilterModel(filterModel interface{}) ([]interface{}, err
 		return nil, err
 	}
 
-	whereClauses := p.generateFilterWhereClauses(filterModelValue, nil)
+	whereClauses := p.generateWhereClausesFromModel(filterModelValue, nil)
 
 	results, err := p.doFilterSelect(filterModelValue.Type(), whereClauses)
 	if err != nil {
@@ -62,38 +62,6 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 	}
 
 	return returnModels, nil
-}
-
-func (p PersistenceORM) generateFilterWhereClauses(filterModelValue reflect.Value, zeroFields []string) []squirrel.Eq {
-	var returnClauses []squirrel.Eq
-
-	t := filterModelValue.Type()
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		fieldValue := filterModelValue.FieldByName(field.Name)
-
-		picardTags := getStructTagsMap(field, "picard")
-		column, hasColumn := picardTags["column"]
-		_, isMultitenancyColumn := picardTags["multitenancy_key"]
-		isZeroField := reflect.DeepEqual(fieldValue.Interface(), reflect.Zero(field.Type).Interface())
-
-		isZeroColumn := false
-		for _, zeroField := range zeroFields {
-			if field.Name == zeroField {
-				isZeroColumn = true
-			}
-		}
-
-		switch {
-		case hasColumn && isMultitenancyColumn:
-			returnClauses = append(returnClauses, squirrel.Eq{column: p.multitenancyValue})
-		case hasColumn && !isZeroField:
-			returnClauses = append(returnClauses, squirrel.Eq{column: fieldValue.Interface()})
-		case isZeroColumn:
-			returnClauses = append(returnClauses, squirrel.Eq{column: reflect.Zero(field.Type).Interface()})
-		}
-	}
-	return returnClauses
 }
 
 func hydrateModel(modelType reflect.Type, values map[string]interface{}) reflect.Value {
