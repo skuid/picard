@@ -258,7 +258,7 @@ func (p PersistenceORM) getExistingObjectByID(tableName string, multitenancyColu
 		return nil, err
 	}
 	if len(results) == 0 {
-		fmt.Println("Found no existing objects")
+		return nil, nil
 	}
 	return results[0], nil
 }
