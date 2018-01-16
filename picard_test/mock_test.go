@@ -136,6 +136,36 @@ func TestMockCreateModel(t *testing.T) {
 	}
 }
 
+func TestMockDeleteModel(t *testing.T) {
+	testCases := []struct {
+		description      string
+		giveDeleteModel  interface{}
+		giveRowsAffected int64
+		giveError        error
+	}{
+		{
+			"Should return rows affected & error if present",
+			"test filter interface",
+			1000,
+			errors.New("Some error"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			morm := picard_test.MockORM{
+				DeleteModelRowsAffected: tc.giveRowsAffected,
+				DeleteModelError:        tc.giveError,
+			}
+			rowsAffected, err := morm.DeleteModel(tc.giveDeleteModel)
+
+			assert.Equal(t, tc.giveError, err)
+			assert.Equal(t, tc.giveRowsAffected, rowsAffected)
+			assert.Equal(t, tc.giveDeleteModel, morm.DeleteModelCalledWith)
+		})
+	}
+}
+
 func TestMockDeploy(t *testing.T) {
 	testCases := []struct {
 		description    string
