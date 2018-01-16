@@ -1,6 +1,7 @@
 package picard
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 
@@ -65,6 +66,28 @@ func TestSaveModel(t *testing.T) {
 				mock.ExpectCommit()
 			},
 			nil,
+		},
+		{
+			"should fail update if model not found",
+			&struct {
+				Metadata `picard:"tablename=test_tablename"`
+
+				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
+				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne           string `picard:"column=test_column_one"`
+			}{
+				PrimaryKeyField: "00000000-0000-0000-0000-000000000001",
+				TestFieldOne:    "test value one",
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(`^SELECT test_tablename.primary_key_column FROM test_tablename WHERE test_tablename.primary_key_column = \$1 AND test_tablename.multitenancy_key_column = \$2$`).
+					WithArgs("00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000005").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}),
+					)
+			},
+			errors.New("Could not find record to update"),
 		},
 		{
 			"should run update for model with primary key value, and overwrite multitenancy key value given",

@@ -76,6 +76,9 @@ func (p PersistenceORM) updateModel(modelValue reflect.Value, tableName string, 
 	if err != nil {
 		return err
 	}
+	if existingObject == nil {
+		return errors.New("Could not find record to update")
+	}
 	change, err := p.processObject(modelValue, existingObject)
 	if err != nil {
 		return err
