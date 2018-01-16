@@ -30,8 +30,14 @@ func (p PersistenceORM) persistModel(model interface{}, alwaysInsert bool) error
 	multitenancyKeyColumnName := picardTags.MultitenancyKeyColumnName()
 
 	if primaryKeyValue == uuid.Nil || alwaysInsert {
-		// Empty UUID: the model needs to insert.
-		if err := p.insertModel(modelValue, tableName, columnNames, primaryKeyColumnName); err != nil {
+		var insertColumns []string
+		if primaryKeyValue != uuid.Nil {
+			insertColumns = append(columnNames, primaryKeyColumnName)
+		} else {
+			insertColumns = columnNames
+		}
+
+		if err := p.insertModel(modelValue, tableName, insertColumns, primaryKeyColumnName); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -44,11 +50,12 @@ func (p PersistenceORM) persistModel(model interface{}, alwaysInsert bool) error
 			updateColumns = []string{}
 			// Loop over columnNames
 			for _, columnName := range columnNames {
+				if columnName == primaryKeyColumnName || columnName == multitenancyKeyColumnName {
+					updateColumns = append(updateColumns, columnName)
+					continue
+				}
 				for _, fieldName := range modelMetadata.DefinedFields {
-					if columnName == primaryKeyColumnName || columnName == multitenancyKeyColumnName {
-						updateColumns = append(updateColumns, columnName)
-						break
-					}
+
 					definedColumnName := picardTags.getColumnFromFieldName(fieldName)
 					if definedColumnName != "" && definedColumnName == columnName {
 						updateColumns = append(updateColumns, columnName)

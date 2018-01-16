@@ -9,6 +9,94 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestCreateModel(t *testing.T) {
+	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000005")
+	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
+	testCases := []struct {
+		description         string
+		giveValue           interface{}
+		expectationFunction func(sqlmock.Sqlmock)
+		wantErr             error
+	}{
+		{
+			"should run insert for model without primary key value",
+			&struct {
+				Metadata `picard:"tablename=test_tablename"`
+
+				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
+				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne           string `picard:"column=test_column_one"`
+			}{
+				TestFieldOne: "test value one",
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(`^INSERT INTO test_tablename \(multitenancy_key_column,test_column_one\) VALUES \(\$1,\$2\) RETURNING "primary_key_column"$`).
+					WithArgs("00000000-0000-0000-0000-000000000005", "test value one").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
+					)
+				mock.ExpectCommit()
+			},
+			nil,
+		},
+		{
+			"should run insert for model with primary key value",
+			&struct {
+				Metadata `picard:"tablename=test_tablename"`
+
+				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
+				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne           string `picard:"column=test_column_one"`
+			}{
+				TestFieldOne:    "test value one",
+				PrimaryKeyField: "00000000-0000-0000-0000-000000000001",
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(`^INSERT INTO test_tablename \(multitenancy_key_column,test_column_one,primary_key_column\) VALUES \(\$1,\$2\,\$3\) RETURNING "primary_key_column"$`).
+					WithArgs("00000000-0000-0000-0000-000000000005", "test value one", "00000000-0000-0000-0000-000000000001").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
+					)
+				mock.ExpectCommit()
+			},
+			nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatal(err)
+			}
+			conn = db
+			tc.expectationFunction(mock)
+
+			// Create the Picard instance
+			p := PersistenceORM{
+				multitenancyValue: testMultitenancyValue,
+				performedBy:       testPerformedByValue,
+			}
+
+			err = p.CreateModel(tc.giveValue)
+
+			if tc.wantErr != nil {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+
+				// sqlmock expectations
+				if err := mock.ExpectationsWereMet(); err != nil {
+					t.Errorf("there were unmet sqlmock expectations: %s", err)
+				}
+			}
+
+		})
+	}
+}
+
 func TestSaveModel(t *testing.T) {
 	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000005")
 	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
