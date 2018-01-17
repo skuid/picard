@@ -44,6 +44,7 @@ type ORM interface {
 	FilterModel(interface{}) ([]interface{}, error)
 	SaveModel(model interface{}) error
 	CreateModel(model interface{}) error
+	DeleteModel(model interface{}) (int64, error)
 	Deploy(data interface{}) error
 }
 
@@ -546,4 +547,36 @@ func getColumnValues(columnNames []string, data map[string]interface{}) []interf
 		columnValues = append(columnValues, data[columnName])
 	}
 	return columnValues
+}
+
+func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.Value, zeroFields []string) []squirrel.Eq {
+	var returnClauses []squirrel.Eq
+
+	t := filterModelValue.Type()
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		fieldValue := filterModelValue.FieldByName(field.Name)
+
+		picardTags := getStructTagsMap(field, "picard")
+		column, hasColumn := picardTags["column"]
+		_, isMultitenancyColumn := picardTags["multitenancy_key"]
+		isZeroField := reflect.DeepEqual(fieldValue.Interface(), reflect.Zero(field.Type).Interface())
+
+		isZeroColumn := false
+		for _, zeroField := range zeroFields {
+			if field.Name == zeroField {
+				isZeroColumn = true
+			}
+		}
+
+		switch {
+		case hasColumn && isMultitenancyColumn:
+			returnClauses = append(returnClauses, squirrel.Eq{column: p.multitenancyValue})
+		case hasColumn && !isZeroField:
+			returnClauses = append(returnClauses, squirrel.Eq{column: fieldValue.Interface()})
+		case isZeroColumn:
+			returnClauses = append(returnClauses, squirrel.Eq{column: reflect.Zero(field.Type).Interface()})
+		}
+	}
+	return returnClauses
 }

@@ -5,7 +5,10 @@ import (
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/Masterminds/squirrel"
 	_ "github.com/lib/pq"
+	"github.com/magiconair/properties/assert"
+	uuid "github.com/satori/go.uuid"
 )
 
 // TestObject sample parent object for tests
@@ -153,4 +156,159 @@ func TestDeployments(t *testing.T) {
 		})
 	}
 
+}
+
+func TestGenerateWhereClausesFromModel(t *testing.T) {
+
+	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000001")
+	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
+
+	testCases := []struct {
+		description      string
+		filterModelValue reflect.Value
+		zeroFields       []string
+		wantClauses      []squirrel.Eq
+	}{
+		{
+			"Filter object with no values should add multitenancy key",
+			reflect.ValueOf(struct {
+				OrgID string `picard:"multitenancy_key,column=organization_id"`
+			}{}),
+			nil,
+			[]squirrel.Eq{
+				squirrel.Eq{
+					"organization_id": testMultitenancyValue,
+				},
+			},
+		},
+		{
+			"Filter object with no values and different multitenancy column should add multitenancy key",
+			reflect.ValueOf(struct {
+				TestMultitenancyColumn string `picard:"multitenancy_key,column=test_multitenancy_column"`
+			}{}),
+			nil,
+			[]squirrel.Eq{
+				squirrel.Eq{
+					"test_multitenancy_column": testMultitenancyValue,
+				},
+			},
+		},
+		{
+			"Filter object with value for multitenancy column should be overwritten with picard multitenancy value",
+			reflect.ValueOf(struct {
+				TestMultitenancyColumn string `picard:"multitenancy_key,column=test_multitenancy_column"`
+			}{
+				TestMultitenancyColumn: "this value should be ignored",
+			}),
+			nil,
+			[]squirrel.Eq{
+				squirrel.Eq{
+					"test_multitenancy_column": testMultitenancyValue,
+				},
+			},
+		},
+		{
+			"Filter object with one value and multitenancy column should add both where clauses",
+			reflect.ValueOf(struct {
+				TestMultitenancyColumn string `picard:"multitenancy_key,column=test_multitenancy_column"`
+				TestField              string `picard:"column=test_column_one"`
+			}{
+				TestField: "first test value",
+			}),
+			nil,
+			[]squirrel.Eq{
+				squirrel.Eq{
+					"test_multitenancy_column": testMultitenancyValue,
+				},
+				squirrel.Eq{
+					"test_column_one": "first test value",
+				},
+			},
+		},
+		{
+			"Filter object with two values and multitenancy column should add all where clauses",
+			reflect.ValueOf(struct {
+				TestMultitenancyColumn string `picard:"multitenancy_key,column=test_multitenancy_column"`
+				TestFieldOne           string `picard:"column=test_column_one"`
+				TestFieldTwo           string `picard:"column=test_column_two"`
+			}{
+				TestFieldOne: "first test value",
+				TestFieldTwo: "second test value",
+			}),
+			nil,
+			[]squirrel.Eq{
+				squirrel.Eq{
+					"test_multitenancy_column": testMultitenancyValue,
+				},
+				squirrel.Eq{
+					"test_column_one": "first test value",
+				},
+				squirrel.Eq{
+					"test_column_two": "second test value",
+				},
+			},
+		},
+		{
+			"Filter object with two values and only one is picard column should add only one where clause",
+			reflect.ValueOf(struct {
+				TestFieldOne string `picard:"column=test_column_one"`
+				TestFieldTwo string
+			}{
+				TestFieldOne: "first test value",
+				TestFieldTwo: "second test value",
+			}),
+			nil,
+			[]squirrel.Eq{
+				squirrel.Eq{
+					"test_column_one": "first test value",
+				},
+			},
+		},
+		{
+			"Filter object with two values and one is zero value should add only one where clause",
+			reflect.ValueOf(struct {
+				TestFieldOne string `picard:"column=test_column_one"`
+				TestFieldTwo string `picard:"column=test_column_two"`
+			}{
+				TestFieldOne: "first test value",
+			}),
+			nil,
+			[]squirrel.Eq{
+				squirrel.Eq{
+					"test_column_one": "first test value",
+				},
+			},
+		},
+		{
+			"Filter object with two values and one is zero value and in zeroFields list should add both where clauses",
+			reflect.ValueOf(struct {
+				TestFieldOne string `picard:"column=test_column_one"`
+				TestFieldTwo string `picard:"column=test_column_two"`
+			}{
+				TestFieldOne: "first test value",
+			}),
+			[]string{"TestFieldTwo"},
+			[]squirrel.Eq{
+				squirrel.Eq{
+					"test_column_one": "first test value",
+				},
+				squirrel.Eq{
+					"test_column_two": "",
+				},
+			},
+		},
+	}
+
+	// Create the Picard instance
+	p := PersistenceORM{
+		multitenancyValue: testMultitenancyValue,
+		performedBy:       testPerformedByValue,
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			results := p.generateWhereClausesFromModel(tc.filterModelValue, tc.zeroFields)
+			assert.Equal(t, tc.wantClauses, results)
+		})
+	}
 }
