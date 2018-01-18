@@ -7,8 +7,8 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/Masterminds/squirrel"
 	_ "github.com/lib/pq"
-	"github.com/magiconair/properties/assert"
 	uuid "github.com/satori/go.uuid"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestObject sample parent object for tests
@@ -168,6 +168,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 		filterModelValue reflect.Value
 		zeroFields       []string
 		wantClauses      []squirrel.Eq
+		wantErr          string
 	}{
 		{
 			"Filter object with no values should add multitenancy key",
@@ -180,6 +181,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 					"organization_id": testMultitenancyValue,
 				},
 			},
+			"",
 		},
 		{
 			"Filter object with no values and different multitenancy column should add multitenancy key",
@@ -192,6 +194,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 					"test_multitenancy_column": testMultitenancyValue,
 				},
 			},
+			"",
 		},
 		{
 			"Filter object with value for multitenancy column should be overwritten with picard multitenancy value",
@@ -206,6 +209,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 					"test_multitenancy_column": testMultitenancyValue,
 				},
 			},
+			"",
 		},
 		{
 			"Filter object with one value and multitenancy column should add both where clauses",
@@ -224,6 +228,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 					"test_column_one": "first test value",
 				},
 			},
+			"",
 		},
 		{
 			"Filter object with two values and multitenancy column should add all where clauses",
@@ -247,6 +252,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 					"test_column_two": "second test value",
 				},
 			},
+			"",
 		},
 		{
 			"Filter object with two values and only one is picard column should add only one where clause",
@@ -263,6 +269,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 					"test_column_one": "first test value",
 				},
 			},
+			"",
 		},
 		{
 			"Filter object with two values and one is zero value should add only one where clause",
@@ -278,6 +285,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 					"test_column_one": "first test value",
 				},
 			},
+			"",
 		},
 		{
 			"Filter object with two values and one is zero value and in zeroFields list should add both where clauses",
@@ -296,6 +304,19 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 					"test_column_two": "",
 				},
 			},
+			"",
+		},
+		{
+			"Filter object with value for encrypted field should return error",
+			reflect.ValueOf(struct {
+				TestMultitenancyColumn string `picard:"multitenancy_key,column=test_multitenancy_column"`
+				TestField              string `picard:"encrypted,column=test_column_one"`
+			}{
+				TestField: "first test value",
+			}),
+			nil,
+			nil,
+			"cannot perform queries with where clauses on encrypted fields",
 		},
 	}
 
@@ -307,8 +328,15 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			results := p.generateWhereClausesFromModel(tc.filterModelValue, tc.zeroFields)
-			assert.Equal(t, tc.wantClauses, results)
+			results, err := p.generateWhereClausesFromModel(tc.filterModelValue, tc.zeroFields)
+
+			if tc.wantErr != "" {
+				assert.Error(t, err)
+				assert.EqualError(t, err, tc.wantErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.wantClauses, results)
+			}
 		})
 	}
 }

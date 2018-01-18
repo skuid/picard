@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/magiconair/properties/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPicardTagsFromType(t *testing.T) {
@@ -20,7 +20,7 @@ func TestPicardTagsFromType(t *testing.T) {
 
 				TestPrimaryKeyField    string `picard:"primary_key,column=test_pk"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=test_multitenancy_key"`
-				TestFieldOne           string `picard:"column=test_column_one"`
+				TestFieldOne           string `picard:"encrypted,column=test_column_one"`
 				TestFieldTwo           string `picard:"column=test_column_two"`
 				TestUntaggedField      string
 				TestLookup             string `picard:"lookup,column=test_lookup"`
@@ -30,6 +30,7 @@ func TestPicardTagsFromType(t *testing.T) {
 				primaryKeyColumn:      "test_pk",
 				multitenancyKeyColumn: "test_multitenancy_key",
 				dataColumns:           []string{"test_multitenancy_key", "test_column_one", "test_column_two", "test_lookup"},
+				encryptedColumns:      []string{"test_column_one"},
 				lookups: []Lookup{
 					Lookup{
 						MatchDBColumn:       "test_lookup",

@@ -2,6 +2,7 @@ package picard
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -83,16 +84,6 @@ func getStructValue(v interface{}) (reflect.Value, error) {
 		return value, errors.New("Models must be structs")
 	}
 	return value, nil
-}
-
-// SaveModel performs an upsert operation for the provided model.
-func (p PersistenceORM) SaveModel(model interface{}) error {
-	return p.persistModel(model, false)
-}
-
-// CreateModel performs an insert operation for the provided model.
-func (p PersistenceORM) CreateModel(model interface{}) error {
-	return p.persistModel(model, true)
 }
 
 func getPrimaryKeyColumnName(t reflect.Type) (string, bool) {
@@ -443,11 +434,34 @@ func (p PersistenceORM) processObject(
 		returnObject[primaryKeyColumnName] = databaseObject[primaryKeyColumnName]
 	}
 
+	// Handle audit fields
+	// TODO: make audit fields somehow less hard-coded / configurable
+
 	returnObject[multitenancyKeyColumnName] = p.multitenancyValue
 	returnObject["created_by_id"] = p.performedBy
 	returnObject["updated_by_id"] = p.performedBy
 	returnObject["created_at"] = time.Now()
 	returnObject["updated_at"] = time.Now()
+
+	// Process encrypted columns
+
+	encryptedColumns := picardTags.EncryptedColumns()
+	for _, column := range encryptedColumns {
+		value := returnObject[column]
+		valueAsBytes, ok := value.([]byte)
+		if !ok {
+			return DBChange{}, errors.New("can only encrypt values that can be converted to bytes")
+		}
+		encryptedValue, err := EncryptBytes(valueAsBytes)
+		if err != nil {
+			return DBChange{}, err
+		}
+
+		// Base64 encode to get standard character set
+		encoded := base64.StdEncoding.EncodeToString(encryptedValue)
+
+		returnObject[column] = encoded
+	}
 
 	// TODO: Implement Foreign Key Merges
 
@@ -549,7 +563,7 @@ func getColumnValues(columnNames []string, data map[string]interface{}) []interf
 	return columnValues
 }
 
-func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.Value, zeroFields []string) []squirrel.Eq {
+func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.Value, zeroFields []string) ([]squirrel.Eq, error) {
 	var returnClauses []squirrel.Eq
 
 	t := filterModelValue.Type()
@@ -573,10 +587,15 @@ func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.V
 		case hasColumn && isMultitenancyColumn:
 			returnClauses = append(returnClauses, squirrel.Eq{column: p.multitenancyValue})
 		case hasColumn && !isZeroField:
+			_, isEncrypted := picardTags["encrypted"]
+			if isEncrypted {
+				return nil, errors.New("cannot perform queries with where clauses on encrypted fields")
+			}
+
 			returnClauses = append(returnClauses, squirrel.Eq{column: fieldValue.Interface()})
 		case isZeroColumn:
 			returnClauses = append(returnClauses, squirrel.Eq{column: reflect.Zero(field.Type).Interface()})
 		}
 	}
-	return returnClauses
+	return returnClauses, nil
 }
