@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -82,7 +83,7 @@ func nilIfEmptyString(checkValue string) driver.Value {
 	return checkValue
 }
 
-func getReturnDataForLookup(expect ExpectationHelper, foundObjects interface{}) [][]driver.Value {
+func GetReturnDataForLookup(expect ExpectationHelper, foundObjects interface{}) [][]driver.Value {
 
 	returnData := [][]driver.Value{}
 
@@ -133,10 +134,9 @@ func getLookupKeys(expect ExpectationHelper, objects interface{}) []string {
 
 // ExpectLookup Mocks a lookup request to the database. Makes a request for the lookup keys
 // and returns the rows privided in the returnKeys argument
-func ExpectLookup(mock sqlmock.Sqlmock, expect ExpectationHelper, objects interface{}, foundObjects interface{}) [][]driver.Value {
+func ExpectLookup(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects interface{}, returnData [][]driver.Value) {
 
 	lookupKeys := getLookupKeys(expect, objects)
-	returnData := getReturnDataForLookup(expect, foundObjects)
 
 	returnRows := sqlmock.NewRows(expect.LookupReturnCols)
 
@@ -145,17 +145,12 @@ func ExpectLookup(mock sqlmock.Sqlmock, expect ExpectationHelper, objects interf
 	}
 
 	expectSQL := `
-		SELECT ` + expect.LookupSelect + ` 
+		SELECT ` + regexp.QuoteMeta(expect.LookupSelect) + ` 
 		FROM ` + expect.TableName + ` 
-		WHERE ` + expect.LookupWhere + ` = ANY\(\$1\) AND ` + expect.TableName + `.organization_id = \$2
+		WHERE ` + regexp.QuoteMeta(expect.LookupWhere) + ` = ANY\(\$1\) AND ` + expect.TableName + `.organization_id = \$2
 	`
 
-	// fmt.Println("EXPECTING LOOKUP...")
-	// fmt.Println(expectSQL)
-
-	mock.ExpectQuery(expectSQL).WithArgs(pq.Array(lookupKeys), sampleOrgID).WillReturnRows(returnRows)
-
-	return returnData
+	(*mock).ExpectQuery(expectSQL).WithArgs(pq.Array(lookupKeys), sampleOrgID).WillReturnRows(returnRows)
 }
 
 func getReturnDataForInsert(expect ExpectationHelper, objects interface{}) [][]driver.Value {
@@ -174,7 +169,7 @@ func getReturnDataForInsert(expect ExpectationHelper, objects interface{}) [][]d
 }
 
 // ExpectInsert Mocks an insert request to the database.
-func ExpectInsert(mock sqlmock.Sqlmock, expect ExpectationHelper, objects interface{}) [][]driver.Value {
+func ExpectInsert(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects interface{}) [][]driver.Value {
 
 	returnData := getReturnDataForInsert(expect, objects)
 
@@ -219,13 +214,13 @@ func ExpectInsert(mock sqlmock.Sqlmock, expect ExpectationHelper, objects interf
 	// fmt.Println(expectSQL)
 	// fmt.Println(expectedArgs)
 
-	mock.ExpectQuery(expectSQL).WithArgs(expectedArgs...).WillReturnRows(returnRows)
+	(*mock).ExpectQuery(expectSQL).WithArgs(expectedArgs...).WillReturnRows(returnRows)
 
 	return returnData
 }
 
 // ExpectUpdate Mocks an update request to the database.
-func ExpectUpdate(mock sqlmock.Sqlmock, expect ExpectationHelper, objects interface{}, lookupResults [][]driver.Value) []driver.Result {
+func ExpectUpdate(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects interface{}, lookupResults [][]driver.Value) []driver.Result {
 
 	results := []driver.Result{}
 
@@ -256,7 +251,7 @@ func ExpectUpdate(mock sqlmock.Sqlmock, expect ExpectationHelper, objects interf
 			// fmt.Println(expectSQL)
 			// fmt.Println(expectedArgs)
 
-			mock.ExpectExec(expectSQL).WithArgs(expectedArgs...).WillReturnResult(result)
+			(*mock).ExpectExec(expectSQL).WithArgs(expectedArgs...).WillReturnResult(result)
 
 			results = append(results, result)
 		}
@@ -266,7 +261,7 @@ func ExpectUpdate(mock sqlmock.Sqlmock, expect ExpectationHelper, objects interf
 }
 
 // RunImportTest Runs a Test Object Import Test
-func RunImportTest(testObjects interface{}, testFunction func(sqlmock.Sqlmock, interface{})) error {
+func RunImportTest(testObjects interface{}, testFunction func(*sqlmock.Sqlmock, interface{})) error {
 	// Open new mock database
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -280,7 +275,7 @@ func RunImportTest(testObjects interface{}, testFunction func(sqlmock.Sqlmock, i
 
 	mock.ExpectBegin()
 
-	testFunction(mock, testObjects)
+	testFunction(&mock, testObjects)
 
 	mock.ExpectCommit()
 

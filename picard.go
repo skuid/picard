@@ -95,20 +95,6 @@ func (p PersistenceORM) CreateModel(model interface{}) error {
 	return p.persistModel(model, true)
 }
 
-func getPrimaryKeyColumnName(t reflect.Type) (string, bool) {
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		picardFieldTags := getStructTagsMap(field, "picard")
-
-		column, isColumn := picardFieldTags["column"]
-		_, isPrimaryKey := picardFieldTags["primary_key"]
-		if isPrimaryKey && isColumn {
-			return column, true
-		}
-	}
-	return "", false
-}
-
 // Deploy is the public method to start a Picard deployment. Send in a table name and a slice of structs
 // and it will attempt a deployment.
 func (p PersistenceORM) Deploy(data interface{}) error {
@@ -302,7 +288,7 @@ func (p PersistenceORM) getLookupQuery(data interface{}, tableName string, looku
 		}
 		query = query.Column(fmt.Sprintf("%[1]v.%[2]v as %[1]v_%[2]v", tableToUse, lookup.MatchDBColumn))
 		if lookup.Query {
-			wheres = append(wheres, fmt.Sprintf("%v.%v", tableToUse, lookup.MatchDBColumn))
+			wheres = append(wheres, fmt.Sprintf("COALESCE(%v.%v::\"varchar\",'')", tableToUse, lookup.MatchDBColumn))
 		}
 	}
 
@@ -464,7 +450,15 @@ func getObjectKey(objects map[string]interface{}, tableName string, lookups []Lo
 		if lookup.TableName != "" {
 			tableToUse = lookup.TableName
 		}
-		keyValue = append(keyValue, objects[fmt.Sprintf("%v_%v", tableToUse, lookup.MatchDBColumn)].(string))
+		keyPart := objects[fmt.Sprintf("%v_%v", tableToUse, lookup.MatchDBColumn)]
+		var keyString string
+		if keyPart == nil {
+			keyString = ""
+		} else {
+			keyString = keyPart.(string)
+		}
+		keyValue = append(keyValue, keyString)
+
 	}
 	return strings.Join(keyValue, separator)
 }
