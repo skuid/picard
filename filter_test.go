@@ -1,7 +1,9 @@
 package picard
 
 import (
+	"crypto/rand"
 	"reflect"
+	"strings"
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
@@ -21,6 +23,11 @@ type modelMutitenantPKWithTwoFields struct {
 type modelOneField struct {
 	Metadata     Metadata `picard:"tablename=test_table"`
 	TestFieldOne string   `picard:"column=test_column_one"`
+}
+
+type modelOneFieldEncrypted struct {
+	Metadata     Metadata `picard:"tablename=test_table"`
+	TestFieldOne string   `picard:"encrypted,column=test_column_one"`
 }
 
 type modelTwoField struct {
@@ -152,6 +159,82 @@ func TestDoFilterSelect(t *testing.T) {
 			}
 
 			results, err := p.doFilterSelect(tc.filterModelType, tc.whereClauses)
+
+			if tc.wantErr != nil {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.wantReturnInterfaces, results)
+
+				// sqlmock expectations
+				if err := mock.ExpectationsWereMet(); err != nil {
+					t.Errorf("there were unmet sqlmock expectations: %s", err)
+				}
+			}
+
+		})
+	}
+}
+
+func TestDoFilterSelectWithEncrypted(t *testing.T) {
+
+	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000001")
+	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
+	testCases := []struct {
+		description          string
+		filterModelType      reflect.Type
+		whereClauses         []squirrel.Eq
+		nonce                string
+		wantReturnInterfaces []interface{}
+		expectationFunction  func(sqlmock.Sqlmock)
+		wantErr              error
+	}{
+		{
+			"Should do query correctly and return correct values with single encrypted field",
+			reflect.TypeOf(modelOneFieldEncrypted{}),
+			nil,
+			"123412341234",
+			[]interface{}{
+				modelOneFieldEncrypted{
+					TestFieldOne: "some plaintext for encryption",
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("^SELECT test_column_one FROM test_table$").WillReturnRows(
+					sqlmock.NewRows([]string{"test_column_one"}).
+						AddRow("MTIzNDEyMzQxMjM0ibdgaIgpwjXpIQs645vZ8fXHC85nAKmvoh7MhF+9Bk/mLFTH3FcE4qTKAi5e"),
+				)
+			},
+			nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatal(err)
+			}
+			conn = db
+			encryptionKey = []byte("the-key-has-to-be-32-bytes-long!")
+
+			tc.expectationFunction(mock)
+
+			// Create the Picard instance
+			p := PersistenceORM{
+				multitenancyValue: testMultitenancyValue,
+				performedBy:       testPerformedByValue,
+			}
+
+			// Set up known nonce
+			oldReader := rand.Reader
+			rand.Reader = strings.NewReader(tc.nonce)
+
+			results, err := p.doFilterSelect(tc.filterModelType, tc.whereClauses)
+
+			// Tear down known nonce
+			rand.Reader = oldReader
 
 			if tc.wantErr != nil {
 				assert.Error(t, err)

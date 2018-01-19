@@ -12,6 +12,7 @@ type picardTags struct {
 	primaryKeyColumn      string
 	multitenancyKeyColumn string
 	dataColumns           []string
+	encryptedColumns      []string
 	lookups               []Lookup
 	children              []Child
 	fieldToColumnMap      map[string]string
@@ -28,6 +29,9 @@ func (pt picardTags) MultitenancyKeyColumnName() string {
 }
 func (pt picardTags) DataColumnNames() []string {
 	return pt.dataColumns
+}
+func (pt picardTags) EncryptedColumns() []string {
+	return pt.encryptedColumns
 }
 func (pt picardTags) Lookups() []Lookup {
 	return pt.lookups
@@ -65,6 +69,7 @@ func picardTagsFromType(t reflect.Type) picardTags {
 		primaryKeyColumn      string
 		multitenancyKeyColumn string
 		dataColumns           []string
+		encryptedColumns      []string
 		lookups               []Lookup
 		children              []Child
 		fieldToColumnMap      map[string]string
@@ -83,41 +88,40 @@ func picardTagsFromType(t reflect.Type) picardTags {
 		columnName, hasColumnName := tagsMap["column"]
 		_, isLookup := tagsMap["lookup"]
 		_, isChild := tagsMap["child"]
+		_, isEncrypted := tagsMap["encrypted"]
 
-		switch {
-
-		case field.Type == reflect.TypeOf(metadata) && hasTableName:
+		if field.Type == reflect.TypeOf(metadata) && hasTableName {
 			tableName = tagsMap["tablename"]
+		}
 
-		case isPK && hasColumnName:
-			primaryKeyColumn = columnName
+		if hasColumnName {
+			if isMultitenancyKey {
+				multitenancyKeyColumn = columnName
+			}
+			if isEncrypted {
+				encryptedColumns = append(encryptedColumns, columnName)
+			}
+			if isPK {
+				primaryKeyColumn = columnName
+			} else {
+				addColumn(fieldToColumnMap, &dataColumns, columnName, field.Name)
+			}
+		}
 
-		case isMultitenancyKey && hasColumnName:
-			multitenancyKeyColumn = columnName
-			addColumn(fieldToColumnMap, &dataColumns, columnName, field.Name)
-
-		case isChild && kind == reflect.Slice:
+		if isChild && kind == reflect.Slice {
 			children = append(children, Child{
 				FieldName:  field.Name,
 				FieldType:  field.Type,
 				ForeignKey: tagsMap["foreign_key"],
 			})
+		}
 
-		case isLookup:
+		if isLookup {
 			lookups = append(lookups, Lookup{
 				MatchDBColumn:       tagsMap["column"],
 				MatchObjectProperty: field.Name,
 				Query:               true,
 			})
-			if hasColumnName {
-				addColumn(fieldToColumnMap, &dataColumns, columnName, field.Name)
-			}
-
-		case hasColumnName && !isPK && !isChild:
-			addColumn(fieldToColumnMap, &dataColumns, columnName, field.Name)
-
-		default:
-			// No known picard tags on this field
 		}
 	}
 
@@ -126,6 +130,7 @@ func picardTagsFromType(t reflect.Type) picardTags {
 		primaryKeyColumn:      primaryKeyColumn,
 		multitenancyKeyColumn: multitenancyKeyColumn,
 		dataColumns:           dataColumns,
+		encryptedColumns:      encryptedColumns,
 		lookups:               lookups,
 		children:              children,
 		fieldToColumnMap:      fieldToColumnMap,

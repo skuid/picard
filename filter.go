@@ -1,6 +1,8 @@
 package picard
 
 import (
+	"encoding/base64"
+	"errors"
 	"reflect"
 
 	"github.com/Masterminds/squirrel"
@@ -13,7 +15,10 @@ func (p PersistenceORM) FilterModel(filterModel interface{}) ([]interface{}, err
 		return nil, err
 	}
 
-	whereClauses := p.generateWhereClausesFromModel(filterModelValue, nil)
+	whereClauses, err := p.generateWhereClausesFromModel(filterModelValue, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	results, err := p.doFilterSelect(filterModelValue.Type(), whereClauses)
 	if err != nil {
@@ -58,6 +63,31 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 	}
 
 	for _, result := range results {
+
+		// Decrypt any encrypted columns
+
+		encryptedColumns := picardTags.EncryptedColumns()
+		for _, column := range encryptedColumns {
+			value := result[column]
+
+			valueAsString, ok := value.(string)
+			if !ok {
+				return nil, errors.New("can only decrypt values which are stored as base64 strings")
+			}
+
+			valueAsBytes, err := base64.StdEncoding.DecodeString(valueAsString)
+			if err != nil {
+				return nil, errors.New("base64 decoding of value failed")
+			}
+
+			decryptedValue, err := DecryptBytes(valueAsBytes)
+			if err != nil {
+				return nil, err
+			}
+
+			result[column] = decryptedValue
+		}
+
 		returnModels = append(returnModels, hydrateModel(filterModelType, result).Interface())
 	}
 
@@ -73,7 +103,14 @@ func hydrateModel(modelType reflect.Type, values map[string]interface{}) reflect
 		column, hasColumn := picardTags["column"]
 		if hasColumn {
 			value, hasValue := values[column]
+			reflectedValue := reflect.ValueOf(value)
+
 			if hasValue && reflect.ValueOf(value).IsValid() {
+
+				if reflectedValue.Type().ConvertibleTo(field.Type) {
+					reflectedValue = reflectedValue.Convert(field.Type)
+					value = reflectedValue.Interface()
+				}
 				model.FieldByName(field.Name).Set(reflect.ValueOf(value))
 			}
 		}

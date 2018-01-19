@@ -8,6 +8,16 @@ import (
 )
 
 // SaveModel performs an upsert operation for the provided model.
+func (p PersistenceORM) SaveModel(model interface{}) error {
+	return p.persistModel(model, false)
+}
+
+// CreateModel performs an insert operation for the provided model.
+func (p PersistenceORM) CreateModel(model interface{}) error {
+	return p.persistModel(model, true)
+}
+
+// persistModel performs an upsert operation for the provided model.
 func (p PersistenceORM) persistModel(model interface{}, alwaysInsert bool) error {
 	// This makes modelValue a reflect.Value of model whether model is a pointer or not.
 	modelValue := reflect.Indirect(reflect.ValueOf(model))

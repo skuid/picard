@@ -10,7 +10,10 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 		return 0, err
 	}
 
-	whereClauses := porm.generateWhereClausesFromModel(modelValue, nil)
+	whereClauses, err := porm.generateWhereClausesFromModel(modelValue, nil)
+	if err != nil {
+		return 0, err
+	}
 
 	if porm.transaction == nil {
 		tx, err := GetConnection().Begin()
