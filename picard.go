@@ -434,10 +434,27 @@ func (p PersistenceORM) processObject(
 	encryptedColumns := picardTags.EncryptedColumns()
 	for _, column := range encryptedColumns {
 		value := returnObject[column]
-		valueAsBytes, ok := value.([]byte)
-		if !ok {
-			return DBChange{}, errors.New("can only encrypt values that can be converted to bytes")
+
+		// If value is nil, not point in encrypting it.
+		if value == nil {
+			continue
 		}
+
+		var valueAsBytes []byte
+
+		// Handle both non-interface and interface types as we convert to byte array
+		switch value.(type) {
+		case string:
+			valueAsBytes = []byte(value.(string))
+		default:
+			assertedBytes, ok := value.([]byte)
+			if !ok {
+				return DBChange{}, errors.New("can only encrypt values that can be converted to bytes")
+			}
+			valueAsBytes = assertedBytes
+		}
+
+		// Do encryption over bytes
 		encryptedValue, err := EncryptBytes(valueAsBytes)
 		if err != nil {
 			return DBChange{}, err
@@ -446,6 +463,7 @@ func (p PersistenceORM) processObject(
 		// Base64 encode to get standard character set
 		encoded := base64.StdEncoding.EncodeToString(encryptedValue)
 
+		// Replace the original value with the newly encrypted value.
 		returnObject[column] = encoded
 	}
 
