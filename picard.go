@@ -435,7 +435,7 @@ func (p PersistenceORM) processObject(
 	for _, column := range encryptedColumns {
 		value := returnObject[column]
 
-		// If value is nil, not point in encrypting it.
+		// If value is nil, no point in encrypting it.
 		if value == nil {
 			continue
 		}
