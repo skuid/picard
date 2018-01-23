@@ -1,7 +1,9 @@
 package picard
 
 import (
+	"crypto/rand"
 	"reflect"
+	"strings"
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
@@ -254,6 +256,162 @@ func TestSaveModel(t *testing.T) {
 
 			if tc.wantErr != nil {
 				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+
+				// sqlmock expectations
+				if err := mock.ExpectationsWereMet(); err != nil {
+					t.Errorf("there were unmet sqlmock expectations: %s", err)
+				}
+			}
+
+		})
+	}
+}
+
+func TestEncryptedSaveModel(t *testing.T) {
+	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000005")
+	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
+	testCases := []struct {
+		description         string
+		giveValue           interface{}
+		expectationFunction func(sqlmock.Sqlmock)
+		wantErr             string
+	}{
+		{
+			"should run insert for model without primary key value",
+			&struct {
+				Metadata `picard:"tablename=test_tablename"`
+
+				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
+				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne           string `picard:"encrypted,column=test_column_one"`
+			}{
+				TestFieldOne: "test value one",
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(`^INSERT INTO test_tablename \(multitenancy_key_column,test_column_one\) VALUES \(\$1,\$2\) RETURNING "primary_key_column"$`).
+					WithArgs("00000000-0000-0000-0000-000000000005", "MTIzNDEyMzQxMjM0jr1+eYgvzzj1Kl8w9Yrz7qDKxGXmqer4gTwJTDUi").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
+					)
+				mock.ExpectCommit()
+			},
+			"",
+		},
+		{
+			"should run update for model with primary key value",
+			&struct {
+				Metadata `picard:"tablename=test_tablename"`
+
+				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
+				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne           string `picard:"encrypted,column=test_column_one"`
+			}{
+				PrimaryKeyField: "00000000-0000-0000-0000-000000000001",
+				TestFieldOne:    "test value one",
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(`^SELECT test_tablename.primary_key_column FROM test_tablename WHERE test_tablename.primary_key_column = \$1 AND test_tablename.multitenancy_key_column = \$2$`).
+					WithArgs("00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000005").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
+					)
+				mock.ExpectExec(`^UPDATE test_tablename SET multitenancy_key_column = \$1, test_column_one = \$2 WHERE multitenancy_key_column = \$3 AND primary_key_column = \$4$`).
+					WithArgs("00000000-0000-0000-0000-000000000005", "MTIzNDEyMzQxMjM0jr1+eYgvzzj1Kl8w9Yrz7qDKxGXmqer4gTwJTDUi", "00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000001").
+					WillReturnResult(sqlmock.NewResult(0, 1))
+				mock.ExpectCommit()
+			},
+			"",
+		},
+		{
+			"should run partial update for model with primary key value and DefinedFields populated",
+			&struct {
+				Metadata `picard:"tablename=test_tablename"`
+
+				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
+				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne           string `picard:"encrypted,column=test_column_one"`
+				TestFieldTwo           string `picard:"column=test_column_two"`
+			}{
+				Metadata: Metadata{
+					DefinedFields: []string{"TestFieldOne", "PrimaryKeyField"},
+				},
+				PrimaryKeyField: "00000000-0000-0000-0000-000000000001",
+				TestFieldOne:    "test value one",
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(`^SELECT test_tablename.primary_key_column FROM test_tablename WHERE test_tablename.primary_key_column = \$1 AND test_tablename.multitenancy_key_column = \$2$`).
+					WithArgs("00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000005").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
+					)
+				mock.ExpectExec(`^UPDATE test_tablename SET multitenancy_key_column = \$1, test_column_one = \$2 WHERE multitenancy_key_column = \$3 AND primary_key_column = \$4$`).
+					WithArgs("00000000-0000-0000-0000-000000000005", "MTIzNDEyMzQxMjM0jr1+eYgvzzj1Kl8w9Yrz7qDKxGXmqer4gTwJTDUi", "00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000001").
+					WillReturnResult(sqlmock.NewResult(0, 1))
+				mock.ExpectCommit()
+			},
+			"",
+		},
+		{
+			"should run update with nil value when not doing partial update",
+			&struct {
+				Metadata `picard:"tablename=test_tablename"`
+
+				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
+				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne           string `picard:"encrypted,column=test_column_one"`
+			}{
+				PrimaryKeyField: "00000000-0000-0000-0000-000000000001",
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(`^SELECT test_tablename.primary_key_column FROM test_tablename WHERE test_tablename.primary_key_column = \$1 AND test_tablename.multitenancy_key_column = \$2$`).
+					WithArgs("00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000005").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
+					)
+				mock.ExpectExec(`^UPDATE test_tablename SET multitenancy_key_column = \$1, test_column_one = \$2 WHERE multitenancy_key_column = \$3 AND primary_key_column = \$4$`).
+					WithArgs("00000000-0000-0000-0000-000000000005", nil, "00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000001").
+					WillReturnResult(sqlmock.NewResult(0, 1))
+				mock.ExpectCommit()
+			},
+			"",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatal(err)
+			}
+			conn = db
+			encryptionKey = []byte("the-key-has-to-be-32-bytes-long!")
+
+			tc.expectationFunction(mock)
+
+			// Create the Picard instance
+			p := PersistenceORM{
+				multitenancyValue: testMultitenancyValue,
+				performedBy:       testPerformedByValue,
+			}
+
+			// Set up known nonce
+			oldReader := rand.Reader
+			rand.Reader = strings.NewReader("123412341234")
+
+			err = p.SaveModel(tc.giveValue)
+
+			// Tear down known nonce
+			rand.Reader = oldReader
+
+			if tc.wantErr != "" {
+				assert.Error(t, err)
+				assert.EqualError(t, err, tc.wantErr)
 			} else {
 				assert.NoError(t, err)
 
