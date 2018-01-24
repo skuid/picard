@@ -403,12 +403,12 @@ func (p PersistenceORM) processObject(
 	t := reflect.TypeOf(metadataObject.Interface())
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
-		value := metadataObject.FieldByName(field.Name).String()
+		value := metadataObject.FieldByName(field.Name).Interface()
 		picardTags := getStructTagsMap(field, "picard")
 
 		columnName, hasColumnName := picardTags["column"]
 
-		if value != "" && hasColumnName {
+		if hasColumnName {
 			returnObject[columnName] = value
 		}
 	}

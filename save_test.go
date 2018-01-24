@@ -549,7 +549,7 @@ func TestInsertModel(t *testing.T) {
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectQuery(`^INSERT INTO test_tablename \(primary_key_column,test_column_one\) VALUES \(\$1,\$2\) RETURNING "primary_key_column"$`).
-					WithArgs(nil, "test value one").
+					WithArgs("", "test value one").
 					WillReturnRows(
 						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
 					)

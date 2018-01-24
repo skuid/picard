@@ -22,6 +22,7 @@ type TestObject struct {
 	Name           string            `json:"name" picard:"lookup,column=name"`
 	NullableLookup string            `json:"nullableLookup" picard:"lookup,column=nullable_lookup"`
 	Type           string            `json:"type" picard:"column=type"`
+	IsActive       bool              `json:"is_active" picard:"column=is_active"`
 	Children       []ChildTestObject `json:"children" picard:"child,foreign_key=ParentID"`
 }
 
@@ -42,8 +43,8 @@ var testObjectHelper = ExpectationHelper{
 	LookupWhere:      `COALESCE(testobject.name::"varchar",'') || '|' || COALESCE(testobject.nullable_lookup::"varchar",'')`,
 	LookupReturnCols: []string{"id", "testobject_name", "testobject_nullable_lookup"},
 	LookupFields:     []string{"Name", "NullableLookup"},
-	DBColumns:        []string{"organization_id", "name", "nullable_lookup", "type"},
-	DataFields:       []string{"OrganizationID", "Name", "NullableLookup", "Type"},
+	DBColumns:        []string{"organization_id", "name", "nullable_lookup", "type", "is_active"},
+	DataFields:       []string{"OrganizationID", "Name", "NullableLookup", "Type", "IsActive"},
 }
 
 var testChildObjectHelper = ExpectationHelper{
