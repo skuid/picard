@@ -375,7 +375,7 @@ func TestEncryptedSaveModel(t *testing.T) {
 						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
 					)
 				mock.ExpectExec(`^UPDATE test_tablename SET multitenancy_key_column = \$1, test_column_one = \$2 WHERE multitenancy_key_column = \$3 AND primary_key_column = \$4$`).
-					WithArgs("00000000-0000-0000-0000-000000000005", nil, "00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000001").
+					WithArgs("00000000-0000-0000-0000-000000000005", "", "00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000001").
 					WillReturnResult(sqlmock.NewResult(0, 1))
 				mock.ExpectCommit()
 			},
@@ -549,7 +549,7 @@ func TestInsertModel(t *testing.T) {
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectQuery(`^INSERT INTO test_tablename \(primary_key_column,test_column_one\) VALUES \(\$1,\$2\) RETURNING "primary_key_column"$`).
-					WithArgs(nil, "test value one").
+					WithArgs("", "test value one").
 					WillReturnRows(
 						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
 					)

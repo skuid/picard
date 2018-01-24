@@ -400,15 +400,15 @@ func (p PersistenceORM) processObject(
 	returnObject := map[string]interface{}{}
 
 	// Apply Field Mappings
-	t := reflect.TypeOf(metadataObject.Interface())
+	t := metadataObject.Type()
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
-		value := metadataObject.FieldByName(field.Name).String()
+		value := metadataObject.FieldByName(field.Name).Interface()
 		picardTags := getStructTagsMap(field, "picard")
 
 		columnName, hasColumnName := picardTags["column"]
 
-		if value != "" && hasColumnName {
+		if hasColumnName {
 			returnObject[columnName] = value
 		}
 	}
@@ -435,8 +435,8 @@ func (p PersistenceORM) processObject(
 	for _, column := range encryptedColumns {
 		value := returnObject[column]
 
-		// If value is nil, no point in encrypting it.
-		if value == nil {
+		// If value is nil or an empty string, no point in encrypting it.
+		if value == nil || value == "" {
 			continue
 		}
 

@@ -68,19 +68,12 @@ func getTestColumnValues(expect ExpectationHelper, object reflect.Value) []drive
 			values = append(values, sqlmock.AnyArg())
 		} else {
 			field := object.FieldByName(dataField)
-			value := nilIfEmptyString(field.String())
+			value := field.Interface()
 			values = append(values, value)
 		}
 	}
 
 	return values
-}
-
-func nilIfEmptyString(checkValue string) driver.Value {
-	if checkValue == "" {
-		return nil
-	}
-	return checkValue
 }
 
 func GetReturnDataForLookup(expect ExpectationHelper, foundObjects interface{}) [][]driver.Value {

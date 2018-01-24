@@ -1,5 +1,6 @@
 {
 	"name": "Simple",
 	"type": "SimpleType",
+	"is_active": true,
 	"children": []
 }
