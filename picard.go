@@ -400,7 +400,7 @@ func (p PersistenceORM) processObject(
 	returnObject := map[string]interface{}{}
 
 	// Apply Field Mappings
-	t := reflect.TypeOf(metadataObject.Interface())
+	t := metadataObject.Type()
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		value := metadataObject.FieldByName(field.Name).Interface()
@@ -436,7 +436,7 @@ func (p PersistenceORM) processObject(
 		value := returnObject[column]
 
 		// If value is nil, no point in encrypting it.
-		if value == nil {
+		if value == nil || value == "" {
 			continue
 		}
 
