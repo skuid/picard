@@ -68,7 +68,6 @@ func getTestColumnValues(expect ExpectationHelper, object reflect.Value) []drive
 			values = append(values, sqlmock.AnyArg())
 		} else {
 			field := object.FieldByName(dataField)
-			//value := nilIfEmptyString(field.String())
 			value := field.Interface()
 			values = append(values, value)
 		}
