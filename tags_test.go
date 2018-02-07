@@ -28,6 +28,7 @@ func TestPicardTagsFromType(t *testing.T) {
 			picardTags{
 				tableName:             "test_tablename",
 				primaryKeyColumn:      "test_pk",
+				primaryKeyFieldName:   "TestPrimaryKeyField",
 				multitenancyKeyColumn: "test_multitenancy_key",
 				dataColumns:           []string{"test_multitenancy_key", "test_column_one", "test_column_two", "test_lookup"},
 				encryptedColumns:      []string{"test_column_one"},
