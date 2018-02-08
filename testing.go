@@ -154,10 +154,6 @@ func ExpectLookup(mock *sqlmock.Sqlmock, expect ExpectationHelper, lookupKeys []
 		sampleOrgID,
 	}
 
-	// fmt.Println("EXPECTING LOOKUP...")
-	// fmt.Println(expectSQL)
-	// fmt.Println(expectedArgs)
-
 	(*mock).ExpectQuery(expectSQL).WithArgs(expectedArgs...).WillReturnRows(returnRows)
 }
 
@@ -218,10 +214,6 @@ func ExpectInsert(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects inter
 		VALUES \(` + strings.Join(valueStrings, `\),\(`) + `\) RETURNING "id"
 	`
 
-	// fmt.Println("EXPECTING INSERT...")
-	// fmt.Println(expectSQL)
-	// fmt.Println(expectedArgs)
-
 	(*mock).ExpectQuery(expectSQL).WithArgs(expectedArgs...).WillReturnRows(returnRows)
 
 	return returnData
@@ -254,10 +246,6 @@ func ExpectUpdate(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects inter
 				UPDATE ` + expect.TableName + ` SET ` + strings.Join(setStrings, ", ") + `
 				WHERE organization_id = \$` + strconv.Itoa(index) + ` AND id = \$` + strconv.Itoa(index+1) + `
 			`
-
-			// fmt.Println("EXPECTING UPDATE...")
-			// fmt.Println(expectSQL)
-			// fmt.Println(expectedArgs)
 
 			(*mock).ExpectExec(expectSQL).WithArgs(expectedArgs...).WillReturnResult(result)
 

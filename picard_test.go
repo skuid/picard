@@ -49,6 +49,16 @@ var testObjectHelper = ExpectationHelper{
 	DataFields:       []string{"OrganizationID", "Name", "NullableLookup", "Type", "IsActive"},
 }
 
+var testObjectWithPKHelper = ExpectationHelper{
+	TableName:        "testobject",
+	LookupSelect:     "testobject.id, testobject.id as testobject_id",
+	LookupWhere:      `COALESCE(testobject.id::"varchar",'')`,
+	LookupReturnCols: []string{"id", "testobject_id"},
+	LookupFields:     []string{"ID"},
+	DBColumns:        []string{"organization_id", "name", "nullable_lookup", "type", "is_active"},
+	DataFields:       []string{"OrganizationID", "Name", "NullableLookup", "Type", "IsActive"},
+}
+
 var testChildObjectHelper = ExpectationHelper{
 	TableName:        "childtest",
 	LookupSelect:     "childtest.id, childtest.name as childtest_name, childtest.parent_id as childtest_parent_id",
@@ -91,6 +101,30 @@ func TestDeployments(t *testing.T) {
 		ExpectationFunction func(*sqlmock.Sqlmock, interface{})
 		WantErr             string
 	}{
+		{
+			"Single Import with Primary Key with Nothing Existing",
+			[]string{"SimpleWithPrimaryKey"},
+			TestObject{},
+			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
+				returnData := GetReturnDataForLookup(testObjectWithPKHelper, nil)
+				lookupKeys := GetLookupKeys(testObjectWithPKHelper, fixtures)
+				ExpectLookup(mock, testObjectWithPKHelper, lookupKeys, returnData)
+				ExpectInsert(mock, testObjectWithPKHelper, fixtures)
+			},
+			"",
+		},
+		{
+			"Single Import with Primary Key That Already Exists",
+			[]string{"SimpleWithPrimaryKey"},
+			TestObject{},
+			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
+				returnData := GetReturnDataForLookup(testObjectWithPKHelper, fixtures)
+				lookupKeys := GetLookupKeys(testObjectWithPKHelper, fixtures)
+				ExpectLookup(mock, testObjectWithPKHelper, lookupKeys, returnData)
+				ExpectUpdate(mock, testObjectWithPKHelper, fixtures, returnData)
+			},
+			"",
+		},
 		{
 			"Single Import with Nothing Existing",
 			[]string{"Simple"},

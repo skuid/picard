@@ -338,8 +338,8 @@ func getLookupsToUse(data interface{}, picardTags picardTags, dataPath string) [
 		// If any piece of data has a primary key we will assume that the data set
 		// contains records with the primary key included. We can then just use the
 		// primary key to do the lookup.
-		pkValue := item.FieldByName(primaryKeyColumnName)
-		if pkValue.IsValid() && !hasValidPK {
+		pkValue := item.FieldByName(primaryKeyFieldName)
+		if pkValue.IsValid() && pkValue.String() != "" && !hasValidPK {
 			hasValidPK = true
 			lookupsToUse = append([]Lookup{
 				{
@@ -662,7 +662,7 @@ func getObjectKeyReflect(value reflect.Value, lookups []Lookup) string {
 
 func getObjectProperty(value reflect.Value, lookupString string) string {
 	returnValue := ""
-	// If the MatchObjectProperty has a dot in it, recursively look up the property's value
+	// If the lookupString has a dot in it, recursively look up the property's value
 	propertyKeys := strings.Split(lookupString, ".")
 	if len(propertyKeys) > 1 {
 		subValue := value.FieldByName(propertyKeys[0])
