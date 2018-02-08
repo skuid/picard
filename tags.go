@@ -98,6 +98,7 @@ func picardTagsFromType(t reflect.Type) picardTags {
 		columnName, hasColumnName := tagsMap["column"]
 		_, isLookup := tagsMap["lookup"]
 		_, isChild := tagsMap["child"]
+		_, isRequired := tagsMap["required"]
 		_, isForeignKey := tagsMap["foreign_key"]
 		_, isEncrypted := tagsMap["encrypted"]
 
@@ -128,7 +129,7 @@ func picardTagsFromType(t reflect.Type) picardTags {
 			})
 		}
 
-		if isLookup {
+		if isLookup && !isForeignKey {
 			lookups = append(lookups, Lookup{
 				MatchDBColumn:       tagsMap["column"],
 				MatchObjectProperty: field.Name,
@@ -147,7 +148,8 @@ func picardTagsFromType(t reflect.Type) picardTags {
 					FieldName:        field.Name,
 					KeyColumn:        tagsMap["column"],
 					RelatedFieldName: relatedField.Name,
-					NeedsLookup:      true,
+					Required:         isRequired,
+					NeedsLookup:      isLookup,
 				})
 			}
 		}

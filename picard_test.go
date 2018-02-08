@@ -30,11 +30,13 @@ type TestObject struct {
 type ChildTestObject struct {
 	Metadata Metadata `picard:"tablename=childtest"`
 
-	ID             string     `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string     `picard:"multitenancy_key,column=organization_id"`
-	Name           string     `json:"name" picard:"lookup,column=name"`
-	ParentID       string     `picard:"foreign_key,related=Parent,column=parent_id"`
-	Parent         TestObject `json:"parent"`
+	ID               string     `json:"id" picard:"primary_key,column=id"`
+	OrganizationID   string     `picard:"multitenancy_key,column=organization_id"`
+	Name             string     `json:"name" picard:"lookup,column=name"`
+	ParentID         string     `picard:"foreign_key,lookup,required,related=Parent,column=parent_id"`
+	Parent           TestObject `json:"parent"`
+	OptionalParentID string     `picard:"foreign_key,related=OptionalParent,column=optional_parent_id"`
+	OptionalParent   TestObject `json:"optional_parent"`
 }
 
 var testObjectHelper = ExpectationHelper{
@@ -53,8 +55,8 @@ var testChildObjectHelper = ExpectationHelper{
 	LookupWhere:      `COALESCE(childtest.name::"varchar",'') || '|' || COALESCE(childtest.parent_id::"varchar",'')`,
 	LookupReturnCols: []string{"id", "childtest_name", "childtest_parent_id"},
 	LookupFields:     []string{"Name", "ParentID"},
-	DBColumns:        []string{"organization_id", "name", "parent_id"},
-	DataFields:       []string{"OrganizationID", "Name", "ParentID"},
+	DBColumns:        []string{"organization_id", "name", "parent_id", "optional_parent_id"},
+	DataFields:       []string{"OrganizationID", "Name", "ParentID", "OptionalParentID"},
 }
 
 var testChildObjectWithLookupHelper = ExpectationHelper{
@@ -64,8 +66,8 @@ var testChildObjectWithLookupHelper = ExpectationHelper{
 	LookupWhere:      `COALESCE(childtest.name::"varchar",'') || '|' || COALESCE(testobject_parent_id.name::"varchar",'') || '|' || COALESCE(testobject_parent_id.nullable_lookup::"varchar",'')`,
 	LookupReturnCols: []string{"id", "childtest_name", "testobject_parent_id_name", "testobject_parent_id_nullable_lookup"},
 	LookupFields:     []string{"Name", "ParentID"},
-	DBColumns:        []string{"organization_id", "name", "parent_id"},
-	DataFields:       []string{"OrganizationID", "Name", "ParentID"},
+	DBColumns:        []string{"organization_id", "name", "parent_id", "optional_parent_id"},
+	DataFields:       []string{"OrganizationID", "Name", "ParentID", "OptionalParentID"},
 }
 
 // Loads in a fixture data source from file
@@ -320,6 +322,50 @@ func TestDeployments(t *testing.T) {
 					[]driver.Value{
 						parentUUID,
 						"Simple",
+						"",
+					},
+				})
+
+				ExpectInsert(mock, testChildObjectWithLookupHelper, childObjects)
+			},
+			"",
+		},
+		{
+			"Import New Child with Reference to Parent Name And Optional Parent",
+			[]string{"ChildWithParentLookupAndOptionalLookup"},
+			ChildTestObject{},
+			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+				parentUUID := uuid.NewV4().String()
+				optionalParentUUID := uuid.NewV4().String()
+				fixtures := fixturesAbstract.([]ChildTestObject)
+				lookupKeys := []string{"ChildItem|Simple|"}
+				returnData := [][]driver.Value{}
+
+				childObjects := []ChildTestObject{}
+				for _, fixture := range fixtures {
+					childObjects = append(childObjects, ChildTestObject{
+						Name:             fixture.Name,
+						ParentID:         parentUUID,
+						OptionalParentID: optionalParentUUID,
+					})
+				}
+
+				ExpectLookup(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
+
+				// Expect the foreign key lookup next
+				ExpectLookup(mock, testObjectHelper, []string{"Simple|"}, [][]driver.Value{
+					[]driver.Value{
+						parentUUID,
+						"Simple",
+						"",
+					},
+				})
+
+				// Expect the foreign key lookup next
+				ExpectLookup(mock, testObjectHelper, []string{"Simple2|"}, [][]driver.Value{
+					[]driver.Value{
+						optionalParentUUID,
+						"Simple2",
 						"",
 					},
 				})

@@ -40,6 +40,7 @@ type ForeignKey struct {
 	FieldName        string
 	KeyColumn        string
 	RelatedFieldName string
+	Required         bool
 	NeedsLookup      bool
 	LookupResults    map[string]interface{}
 	LookupsUsed      []Lookup
@@ -143,15 +144,12 @@ func (p PersistenceORM) upsert(data interface{}) error {
 
 	for index := range foreignKeys {
 		foreignKey := &foreignKeys[index]
-
-		if foreignKey.NeedsLookup {
-			foreignResults, foreignLookupsUsed, err := p.checkForExisting(data, foreignKey.ObjectInfo, foreignKey.RelatedFieldName)
-			if err != nil {
-				return err
-			}
-			foreignKey.LookupResults = foreignResults
-			foreignKey.LookupsUsed = foreignLookupsUsed
+		foreignResults, foreignLookupsUsed, err := p.checkForExisting(data, foreignKey.ObjectInfo, foreignKey.RelatedFieldName)
+		if err != nil {
+			return err
 		}
+		foreignKey.LookupResults = foreignResults
+		foreignKey.LookupsUsed = foreignLookupsUsed
 	}
 
 	inserts, updates, _ /*deletes*/, err := p.generateChanges(data, results, lookupsToUse, foreignKeys)
@@ -278,6 +276,10 @@ func (p PersistenceORM) checkForExisting(
 	lookupsToUse := getLookupsToUse(data, picardTags, foreignFieldName)
 	lookupObjectKeys := getLookupObjectKeys(data, lookupsToUse, foreignFieldName)
 
+	if len(lookupObjectKeys) == 0 {
+		return map[string]interface{}{}, lookupsToUse, nil
+	}
+
 	query := p.getLookupQuery(data, tableName, picardTags.PrimaryKeyColumnName(), picardTags.MultitenancyKeyColumnName(), lookupsToUse, lookupObjectKeys)
 
 	rows, err := query.RunWith(p.transaction).Query()
@@ -380,6 +382,10 @@ func getLookupObjectKeys(data interface{}, lookupsToUse []Lookup, dataPath strin
 
 		if dataPath != "" {
 			item = item.FieldByName(dataPath)
+		}
+		isZeroField := reflect.DeepEqual(item.Interface(), reflect.Zero(item.Type()).Interface())
+		if isZeroField {
+			continue
 		}
 		// Determine the where values that we need for this lookup
 		keys = append(keys, getObjectKeyReflect(item, lookupsToUse))
@@ -595,17 +601,20 @@ func (p PersistenceORM) processObject(
 	}
 
 	for _, foreignKey := range foreignKeys {
-		if foreignKey.NeedsLookup {
-			foreignValue := metadataObject.FieldByName(foreignKey.RelatedFieldName)
-			key := getObjectKeyReflect(foreignValue, foreignKey.LookupsUsed)
-			lookupData, foundLookupData := foreignKey.LookupResults[key]
+		if returnObject[foreignKey.KeyColumn] != "" {
+			continue
+		}
+		foreignValue := metadataObject.FieldByName(foreignKey.RelatedFieldName)
+		key := getObjectKeyReflect(foreignValue, foreignKey.LookupsUsed)
+		lookupData, foundLookupData := foreignKey.LookupResults[key]
 
-			if foundLookupData {
-				lookupDataInterface := lookupData.(map[string]interface{})
-				lookupKeyColumnName := foreignKey.ObjectInfo.PrimaryKeyColumnName()
-				returnObject[foreignKey.KeyColumn] = lookupDataInterface[lookupKeyColumnName]
-			} else {
-				// If it's optional we can just keep going, if it's required, throw an error
+		if foundLookupData {
+			lookupDataInterface := lookupData.(map[string]interface{})
+			lookupKeyColumnName := foreignKey.ObjectInfo.PrimaryKeyColumnName()
+			returnObject[foreignKey.KeyColumn] = lookupDataInterface[lookupKeyColumnName]
+		} else {
+			// If it's optional we can just keep going, if it's required, throw an error
+			if foreignKey.Required {
 				return DBChange{}, errors.New("Missing Required Foreign Key Lookup")
 			}
 		}
