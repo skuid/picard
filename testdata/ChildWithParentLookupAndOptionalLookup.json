@@ -1,0 +1,9 @@
+{
+	"name": "ChildItem",
+	"parent": {
+		"name": "Simple"
+	},
+	"optional_parent": {
+		"name": "Simple2"
+	}
+}

@@ -34,6 +34,18 @@ type Child struct {
 	ForeignKey string
 }
 
+// ForeignKey structure
+type ForeignKey struct {
+	ObjectInfo       picardTags
+	FieldName        string
+	KeyColumn        string
+	RelatedFieldName string
+	Required         bool
+	NeedsLookup      bool
+	LookupResults    map[string]interface{}
+	LookupsUsed      []Lookup
+}
+
 // DBChange structure
 type DBChange struct {
 	changes       map[string]interface{}
@@ -114,7 +126,7 @@ func (p PersistenceORM) upsert(data interface{}) error {
 	}
 
 	picardTags := picardTagsFromType(t.Elem())
-	lookups := picardTags.Lookups()
+	foreignKeys := picardTags.ForeignKeys()
 	childOptions := picardTags.Children()
 	columnNames := picardTags.DataColumnNames()
 	tableName := picardTags.TableName()
@@ -125,12 +137,22 @@ func (p PersistenceORM) upsert(data interface{}) error {
 		return errors.New("No table name specified in struct metadata")
 	}
 
-	results, err := p.checkForExisting(data, tableName, lookups, multitenancyKeyColumnName, primaryKeyColumnName)
+	results, lookupsToUse, err := p.checkForExisting(data, picardTags, "")
 	if err != nil {
 		return err
 	}
 
-	inserts, updates, _ /*deletes*/, err := p.generateChanges(data, results, lookups)
+	for index := range foreignKeys {
+		foreignKey := &foreignKeys[index]
+		foreignResults, foreignLookupsUsed, err := p.checkForExisting(data, foreignKey.ObjectInfo, foreignKey.RelatedFieldName)
+		if err != nil {
+			return err
+		}
+		foreignKey.LookupResults = foreignResults
+		foreignKey.LookupsUsed = foreignLookupsUsed
+	}
+
+	inserts, updates, _ /*deletes*/, err := p.generateChanges(data, results, lookupsToUse, foreignKeys)
 	if err != nil {
 		return err
 	}
@@ -243,54 +265,163 @@ func (p PersistenceORM) getExistingObjectByID(tableName string, multitenancyColu
 
 func (p PersistenceORM) checkForExisting(
 	data interface{},
-	tableName string,
-	lookups []Lookup,
-	multitenancyKeyColumnName string,
-	primaryKeyColumnName string,
+	picardTags picardTags,
+	foreignFieldName string,
 ) (
 	map[string]interface{},
+	[]Lookup,
 	error,
 ) {
+	tableName := picardTags.TableName()
+	lookupsToUse := getLookupsToUse(data, picardTags, foreignFieldName)
+	lookupObjectKeys := getLookupObjectKeys(data, lookupsToUse, foreignFieldName)
 
-	query := p.getLookupQuery(data, tableName, lookups, multitenancyKeyColumnName, primaryKeyColumnName)
-
-	rows, err := query.RunWith(p.transaction).Query()
-
-	if err != nil {
-		return nil, err
+	if len(lookupObjectKeys) == 0 {
+		return map[string]interface{}{}, lookupsToUse, nil
 	}
 
-	return getLookupQueryResults(rows, tableName, lookups)
+	query := p.getLookupQuery(data, tableName, picardTags.PrimaryKeyColumnName(), picardTags.MultitenancyKeyColumnName(), lookupsToUse, lookupObjectKeys)
+
+	rows, err := query.RunWith(p.transaction).Query()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	results, err := getLookupQueryResults(rows, tableName, lookupsToUse)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return results, lookupsToUse, nil
 }
 
-func (p PersistenceORM) getLookupQuery(data interface{}, tableName string, lookups []Lookup, multitenancyKeyColumnName string, primaryKeyColumnName string) *squirrel.SelectBuilder {
+func getLookupsFromForeignKeys(foreignKeys []ForeignKey, baseJoinKey string, baseObjectProperty string) []Lookup {
+	lookupsToUse := []Lookup{}
+
+	for _, foreignKey := range foreignKeys {
+		if foreignKey.NeedsLookup {
+			objectInfo := foreignKey.ObjectInfo
+			for _, lookup := range objectInfo.Lookups() {
+				lookupsToUse = append(lookupsToUse, Lookup{
+					TableName:           objectInfo.TableName(),
+					MatchDBColumn:       lookup.MatchDBColumn,
+					MatchObjectProperty: foreignKey.RelatedFieldName + "." + lookup.MatchObjectProperty,
+					JoinKey:             foreignKey.KeyColumn,
+					Query:               true,
+				})
+			}
+			lookupsToUse = append(lookupsToUse, getLookupsFromForeignKeys(objectInfo.ForeignKeys(), objectInfo.TableName(), foreignKey.RelatedFieldName)...)
+		}
+	}
+	return lookupsToUse
+}
+
+func getLookupsToUse(data interface{}, picardTags picardTags, dataPath string) []Lookup {
+	lookupsToUse := []Lookup{}
+	tableName := picardTags.TableName()
+	primaryKeyColumnName := picardTags.PrimaryKeyColumnName()
+	primaryKeyFieldName := picardTags.PrimaryKeyFieldName()
+	foreignKeys := picardTags.ForeignKeys()
+	lookups := picardTags.Lookups()
+
+	hasValidPK := false
+	// Determine which lookups are necessary based on whether keys exist in the data
+	s := reflect.ValueOf(data)
+
+	for i := 0; i < s.Len(); i++ {
+		item := s.Index(i)
+
+		if dataPath != "" {
+			item = item.FieldByName(dataPath)
+		}
+
+		// If any piece of data has a primary key we will assume that the data set
+		// contains records with the primary key included. We can then just use the
+		// primary key to do the lookup.
+		pkValue := item.FieldByName(primaryKeyFieldName)
+		if pkValue.IsValid() && pkValue.String() != "" && !hasValidPK {
+			hasValidPK = true
+			lookupsToUse = append([]Lookup{
+				{
+					TableName:           tableName,
+					MatchDBColumn:       primaryKeyColumnName,
+					MatchObjectProperty: primaryKeyFieldName,
+					Query:               true,
+				},
+			}, lookupsToUse...)
+		}
+
+		for index := range foreignKeys {
+			foreignKey := &foreignKeys[index]
+			fkValue := item.FieldByName(foreignKey.FieldName)
+			if fkValue.IsValid() && fkValue.String() != "" && foreignKey.NeedsLookup {
+				foreignKey.NeedsLookup = false
+				lookupsToUse = append(lookupsToUse, Lookup{
+					MatchDBColumn:       foreignKey.KeyColumn,
+					MatchObjectProperty: foreignKey.FieldName,
+					Query:               true,
+				})
+			}
+		}
+	}
+
+	if !hasValidPK {
+		lookupsToUse = append(lookups, lookupsToUse...)
+	}
+
+	lookupsToUse = append(lookupsToUse, getLookupsFromForeignKeys(foreignKeys, "", "")...)
+
+	return lookupsToUse
+}
+
+func getLookupObjectKeys(data interface{}, lookupsToUse []Lookup, dataPath string) []string {
+	keys := []string{}
+	s := reflect.ValueOf(data)
+	for i := 0; i < s.Len(); i++ {
+		item := s.Index(i)
+
+		if dataPath != "" {
+			item = item.FieldByName(dataPath)
+		}
+		isZeroField := reflect.DeepEqual(item.Interface(), reflect.Zero(item.Type()).Interface())
+		if isZeroField {
+			continue
+		}
+		// Determine the where values that we need for this lookup
+		keys = append(keys, getObjectKeyReflect(item, lookupsToUse))
+	}
+	return keys
+}
+
+func (p PersistenceORM) getLookupQuery(data interface{}, tableName string, primaryKeyColumnName string, multitenancyKeyColumnName string, lookupsToUse []Lookup, lookupObjectKeys []string) *squirrel.SelectBuilder {
 	query := squirrel.Select(fmt.Sprintf("%v.%v", tableName, primaryKeyColumnName))
 	query = query.From(tableName)
 	wheres := []string{}
-	whereValues := []string{}
+	// Keeps track of which joins have already been made so we don't have duplicate join statements
+	joinMap := map[string]bool{}
 
-	for _, lookup := range lookups {
-		if lookup.JoinKey != "" && lookup.TableName != "" {
-			query = query.Join(fmt.Sprintf("%[1]v on %[1]v.%[2]v = %[3]v", lookup.TableName, primaryKeyColumnName, lookup.JoinKey))
-		}
+	for _, lookup := range lookupsToUse {
 		tableToUse := tableName
 		if lookup.TableName != "" {
 			tableToUse = lookup.TableName
 		}
-		query = query.Column(fmt.Sprintf("%[1]v.%[2]v as %[1]v_%[2]v", tableToUse, lookup.MatchDBColumn))
+		tableAlias := tableToUse
+		if lookup.JoinKey != "" && lookup.TableName != "" && tableToUse != tableName {
+			tableAlias = fmt.Sprintf("%[1]v_%[2]v", tableToUse, lookup.JoinKey)
+			_, alreadyAddedJoin := joinMap[tableAlias]
+			if !alreadyAddedJoin {
+				joinMap[tableAlias] = true
+				query = query.Join(fmt.Sprintf("%[1]v as %[4]v on %[4]v.%[2]v = %[3]v", tableToUse, primaryKeyColumnName, lookup.JoinKey, tableAlias))
+			}
+		}
+		query = query.Column(fmt.Sprintf("%[3]v.%[2]v as %[3]v_%[2]v", tableToUse, lookup.MatchDBColumn, tableAlias))
 		if lookup.Query {
-			wheres = append(wheres, fmt.Sprintf("COALESCE(%v.%v::\"varchar\",'')", tableToUse, lookup.MatchDBColumn))
+			wheres = append(wheres, fmt.Sprintf("COALESCE(%v.%v::\"varchar\",'')", tableAlias, lookup.MatchDBColumn))
 		}
 	}
 
-	s := reflect.ValueOf(data)
-	for i := 0; i < s.Len(); i++ {
-		whereValues = append(whereValues, getObjectKeyReflect(s.Index(i), lookups))
-	}
-
-	query = query.Where(strings.Join(wheres, " || '"+separator+"' || ")+" = ANY($1)", pq.Array(whereValues))
+	query = query.Where(strings.Join(wheres, " || '"+separator+"' || ")+" = ANY($1)", pq.Array(lookupObjectKeys))
 	query = query.Where(fmt.Sprintf("%v.%v = $2", tableName, multitenancyKeyColumnName), p.multitenancyValue)
-
 	return &query
 }
 
@@ -331,6 +462,7 @@ func (p PersistenceORM) generateChanges(
 	data interface{},
 	results map[string]interface{},
 	lookups []Lookup,
+	foreignKeys []ForeignKey,
 ) (
 	[]DBChange,
 	[]DBChange,
@@ -372,7 +504,7 @@ func (p PersistenceORM) generateChanges(
 			continue
 		}
 
-		dbChange, err := p.processObject(value, existingObj)
+		dbChange, err := p.processObject(value, existingObj, foreignKeys)
 
 		if err != nil {
 			return nil, nil, nil, err
@@ -396,6 +528,7 @@ func (p PersistenceORM) generateChanges(
 func (p PersistenceORM) processObject(
 	metadataObject reflect.Value,
 	databaseObject map[string]interface{},
+	foreignKeys []ForeignKey,
 ) (DBChange, error) {
 	returnObject := map[string]interface{}{}
 
@@ -467,7 +600,25 @@ func (p PersistenceORM) processObject(
 		returnObject[column] = encoded
 	}
 
-	// TODO: Implement Foreign Key Merges
+	for _, foreignKey := range foreignKeys {
+		if returnObject[foreignKey.KeyColumn] != "" {
+			continue
+		}
+		foreignValue := metadataObject.FieldByName(foreignKey.RelatedFieldName)
+		key := getObjectKeyReflect(foreignValue, foreignKey.LookupsUsed)
+		lookupData, foundLookupData := foreignKey.LookupResults[key]
+
+		if foundLookupData {
+			lookupDataInterface := lookupData.(map[string]interface{})
+			lookupKeyColumnName := foreignKey.ObjectInfo.PrimaryKeyColumnName()
+			returnObject[foreignKey.KeyColumn] = lookupDataInterface[lookupKeyColumnName]
+		} else {
+			// If it's optional we can just keep going, if it's required, throw an error
+			if foreignKey.Required {
+				return DBChange{}, errors.New("Missing Required Foreign Key Lookup")
+			}
+		}
+	}
 
 	return DBChange{
 		changes:       returnObject,
@@ -482,7 +633,13 @@ func getObjectKey(objects map[string]interface{}, tableName string, lookups []Lo
 		if lookup.TableName != "" {
 			tableToUse = lookup.TableName
 		}
-		keyPart := objects[fmt.Sprintf("%v_%v", tableToUse, lookup.MatchDBColumn)]
+
+		tableAlias := tableToUse
+		if lookup.JoinKey != "" && lookup.TableName != "" && tableToUse != tableName {
+			tableAlias = fmt.Sprintf("%[1]v_%[2]v", tableToUse, lookup.JoinKey)
+		}
+
+		keyPart := objects[fmt.Sprintf("%v_%v", tableAlias, lookup.MatchDBColumn)]
 		var keyString string
 		if keyPart == nil {
 			keyString = ""
@@ -498,9 +655,22 @@ func getObjectKey(objects map[string]interface{}, tableName string, lookups []Lo
 func getObjectKeyReflect(value reflect.Value, lookups []Lookup) string {
 	keyValue := []string{}
 	for _, lookup := range lookups {
-		keyValue = append(keyValue, value.FieldByName(lookup.MatchObjectProperty).String())
+		keyValue = append(keyValue, getObjectProperty(value, lookup.MatchObjectProperty))
 	}
 	return strings.Join(keyValue, separator)
+}
+
+func getObjectProperty(value reflect.Value, lookupString string) string {
+	returnValue := ""
+	// If the lookupString has a dot in it, recursively look up the property's value
+	propertyKeys := strings.Split(lookupString, ".")
+	if len(propertyKeys) > 1 {
+		subValue := value.FieldByName(propertyKeys[0])
+		returnValue = getObjectProperty(subValue, strings.Join(propertyKeys[1:], "."))
+	} else {
+		returnValue = value.FieldByName(lookupString).String()
+	}
+	return returnValue
 }
 
 func getQueryResults(rows *sql.Rows) ([]map[string]interface{}, error) {

@@ -1,0 +1,7 @@
+{
+	"id": "myId",
+	"name": "SimpleWithPrimaryKey",
+	"type": "SimpleType",
+	"is_active": true,
+	"children": []
+}

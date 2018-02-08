@@ -39,6 +39,7 @@ func LoadFixturesFromFiles(names []string, path string, loadType reflect.Type) (
 // ExpectationHelper struct that contains expectations about a particular object
 type ExpectationHelper struct {
 	TableName        string
+	LookupFrom       string
 	LookupSelect     string
 	LookupWhere      string
 	LookupReturnCols []string
@@ -76,6 +77,7 @@ func getTestColumnValues(expect ExpectationHelper, object reflect.Value) []drive
 	return values
 }
 
+// GetReturnDataForLookup creates sample return data from sample structs
 func GetReturnDataForLookup(expect ExpectationHelper, foundObjects interface{}) [][]driver.Value {
 
 	returnData := [][]driver.Value{}
@@ -101,7 +103,8 @@ func GetReturnDataForLookup(expect ExpectationHelper, foundObjects interface{}) 
 	return returnData
 }
 
-func getLookupKeys(expect ExpectationHelper, objects interface{}) []string {
+// GetLookupKeys returns sample object keys from sample objects
+func GetLookupKeys(expect ExpectationHelper, objects interface{}) []string {
 
 	returnKeys := []string{}
 
@@ -127,9 +130,7 @@ func getLookupKeys(expect ExpectationHelper, objects interface{}) []string {
 
 // ExpectLookup Mocks a lookup request to the database. Makes a request for the lookup keys
 // and returns the rows privided in the returnKeys argument
-func ExpectLookup(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects interface{}, returnData [][]driver.Value) {
-
-	lookupKeys := getLookupKeys(expect, objects)
+func ExpectLookup(mock *sqlmock.Sqlmock, expect ExpectationHelper, lookupKeys []string, returnData [][]driver.Value) {
 
 	returnRows := sqlmock.NewRows(expect.LookupReturnCols)
 
@@ -137,13 +138,23 @@ func ExpectLookup(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects inter
 		returnRows.AddRow(row...)
 	}
 
+	fromStatement := expect.LookupFrom
+	if fromStatement == "" {
+		fromStatement = expect.TableName
+	}
+
 	expectSQL := `
 		SELECT ` + regexp.QuoteMeta(expect.LookupSelect) + ` 
-		FROM ` + expect.TableName + ` 
+		FROM ` + regexp.QuoteMeta(fromStatement) + ` 
 		WHERE ` + regexp.QuoteMeta(expect.LookupWhere) + ` = ANY\(\$1\) AND ` + expect.TableName + `.organization_id = \$2
 	`
 
-	(*mock).ExpectQuery(expectSQL).WithArgs(pq.Array(lookupKeys), sampleOrgID).WillReturnRows(returnRows)
+	expectedArgs := []driver.Value{
+		pq.Array(lookupKeys),
+		sampleOrgID,
+	}
+
+	(*mock).ExpectQuery(expectSQL).WithArgs(expectedArgs...).WillReturnRows(returnRows)
 }
 
 func getReturnDataForInsert(expect ExpectationHelper, objects interface{}) [][]driver.Value {
@@ -203,10 +214,6 @@ func ExpectInsert(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects inter
 		VALUES \(` + strings.Join(valueStrings, `\),\(`) + `\) RETURNING "id"
 	`
 
-	// fmt.Println("EXPECTING INSERT...")
-	// fmt.Println(expectSQL)
-	// fmt.Println(expectedArgs)
-
 	(*mock).ExpectQuery(expectSQL).WithArgs(expectedArgs...).WillReturnRows(returnRows)
 
 	return returnData
@@ -239,10 +246,6 @@ func ExpectUpdate(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects inter
 				UPDATE ` + expect.TableName + ` SET ` + strings.Join(setStrings, ", ") + `
 				WHERE organization_id = \$` + strconv.Itoa(index) + ` AND id = \$` + strconv.Itoa(index+1) + `
 			`
-
-			// fmt.Println("EXPECTING UPDATE...")
-			// fmt.Println(expectSQL)
-			// fmt.Println(expectedArgs)
 
 			(*mock).ExpectExec(expectSQL).WithArgs(expectedArgs...).WillReturnResult(result)
 
