@@ -391,19 +391,26 @@ func (p PersistenceORM) getLookupQuery(data interface{}, tableName string, prima
 	query := squirrel.Select(fmt.Sprintf("%v.%v", tableName, primaryKeyColumnName))
 	query = query.From(tableName)
 	wheres := []string{}
+	// Keeps track of which joins have already been made so we don't have duplicate join statements
+	joinMap := map[string]bool{}
 
 	for _, lookup := range lookupsToUse {
-		// TODO: Eliminate duplicate join statements
-		if lookup.JoinKey != "" && lookup.TableName != "" && lookup.TableName != tableName {
-			query = query.Join(fmt.Sprintf("%[1]v on %[1]v.%[2]v = %[3]v", lookup.TableName, primaryKeyColumnName, lookup.JoinKey))
-		}
 		tableToUse := tableName
 		if lookup.TableName != "" {
 			tableToUse = lookup.TableName
 		}
-		query = query.Column(fmt.Sprintf("%[1]v.%[2]v as %[1]v_%[2]v", tableToUse, lookup.MatchDBColumn))
+		tableAlias := tableToUse
+		if lookup.JoinKey != "" && lookup.TableName != "" && tableToUse != tableName {
+			tableAlias = fmt.Sprintf("%[1]v_%[2]v", tableToUse, lookup.JoinKey)
+			_, alreadyAddedJoin := joinMap[tableAlias]
+			if !alreadyAddedJoin {
+				joinMap[tableAlias] = true
+				query = query.Join(fmt.Sprintf("%[1]v as %[4]v on %[4]v.%[2]v = %[3]v", tableToUse, primaryKeyColumnName, lookup.JoinKey, tableAlias))
+			}
+		}
+		query = query.Column(fmt.Sprintf("%[3]v.%[2]v as %[3]v_%[2]v", tableToUse, lookup.MatchDBColumn, tableAlias))
 		if lookup.Query {
-			wheres = append(wheres, fmt.Sprintf("COALESCE(%v.%v::\"varchar\",'')", tableToUse, lookup.MatchDBColumn))
+			wheres = append(wheres, fmt.Sprintf("COALESCE(%v.%v::\"varchar\",'')", tableAlias, lookup.MatchDBColumn))
 		}
 	}
 
@@ -617,7 +624,13 @@ func getObjectKey(objects map[string]interface{}, tableName string, lookups []Lo
 		if lookup.TableName != "" {
 			tableToUse = lookup.TableName
 		}
-		keyPart := objects[fmt.Sprintf("%v_%v", tableToUse, lookup.MatchDBColumn)]
+
+		tableAlias := tableToUse
+		if lookup.JoinKey != "" && lookup.TableName != "" && tableToUse != tableName {
+			tableAlias = fmt.Sprintf("%[1]v_%[2]v", tableToUse, lookup.JoinKey)
+		}
+
+		keyPart := objects[fmt.Sprintf("%v_%v", tableAlias, lookup.MatchDBColumn)]
 		var keyString string
 		if keyPart == nil {
 			keyString = ""
