@@ -494,7 +494,6 @@ func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, primaryKey
 				for index, key := range mapKeys {
 					value := childValue.MapIndex(key)
 					data = reflect.Append(data, value)
-					fmt.Println("DATA!!!??")
 					addressibleData := data.Index(index)
 					if child.ForeignKey != "" {
 						valueToChange := getValueFromLookupString(addressibleData, child.ForeignKey)
