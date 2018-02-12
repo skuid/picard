@@ -255,8 +255,10 @@ func TestDeployments(t *testing.T) {
 				for index, fixture := range fixtures {
 					for _, childObject := range fixture.ChildrenMap {
 						childObject.ParentID = insertRows[index][0].(string)
+						// Tests that the key mapping "Name" worked correctly
 						childObject.Name = "ChildRecord1"
-						childObject.OtherInfo = "SimpleWithChildrenType"
+						// Tests that the value mapping "Type->OtherInfo" worked correctly
+						childObject.OtherInfo = fixtures[0].Type
 						childObjects = append(childObjects, childObject)
 					}
 				}
