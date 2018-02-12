@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,9 +30,12 @@ type Lookup struct {
 
 // Child structure
 type Child struct {
-	FieldName  string
-	FieldType  reflect.Type
-	ForeignKey string
+	FieldName     string
+	FieldType     reflect.Type
+	FieldKind     reflect.Kind
+	ForeignKey    string
+	KeyMappings   []string
+	ValueMappings map[string]string
 }
 
 // ForeignKey structure
@@ -276,7 +280,7 @@ func (p PersistenceORM) checkForExisting(
 	lookupsToUse := getLookupsToUse(data, picardTags, foreignFieldName)
 	lookupObjectKeys := getLookupObjectKeys(data, lookupsToUse, foreignFieldName)
 
-	if len(lookupObjectKeys) == 0 {
+	if len(lookupObjectKeys) == 0 || len(lookupsToUse) == 0 {
 		return map[string]interface{}{}, lookupsToUse, nil
 	}
 
@@ -301,19 +305,52 @@ func getLookupsFromForeignKeys(foreignKeys []ForeignKey, baseJoinKey string, bas
 	for _, foreignKey := range foreignKeys {
 		if foreignKey.NeedsLookup {
 			objectInfo := foreignKey.ObjectInfo
+			var joinKey string
+
+			if baseJoinKey != "" {
+				joinKey = baseJoinKey + "." + foreignKey.KeyColumn
+			} else {
+				joinKey = foreignKey.KeyColumn
+			}
 			for _, lookup := range objectInfo.Lookups() {
+
+				var matchObjectProperty string
+
+				if baseObjectProperty != "" {
+					matchObjectProperty = baseObjectProperty + "." + foreignKey.RelatedFieldName + "." + lookup.MatchObjectProperty
+				} else {
+					matchObjectProperty = foreignKey.RelatedFieldName + "." + lookup.MatchObjectProperty
+				}
+
 				lookupsToUse = append(lookupsToUse, Lookup{
 					TableName:           objectInfo.TableName(),
 					MatchDBColumn:       lookup.MatchDBColumn,
-					MatchObjectProperty: foreignKey.RelatedFieldName + "." + lookup.MatchObjectProperty,
-					JoinKey:             foreignKey.KeyColumn,
+					MatchObjectProperty: matchObjectProperty,
+					JoinKey:             joinKey,
 					Query:               true,
 				})
 			}
-			lookupsToUse = append(lookupsToUse, getLookupsFromForeignKeys(objectInfo.ForeignKeys(), objectInfo.TableName(), foreignKey.RelatedFieldName)...)
+			newBaseJoinKey := getTableAlias(objectInfo.TableName(), joinKey)
+			lookupsToUse = append(lookupsToUse, getLookupsFromForeignKeys(objectInfo.ForeignKeys(), newBaseJoinKey, foreignKey.RelatedFieldName)...)
 		}
 	}
 	return lookupsToUse
+}
+
+var tableAliasMap = map[string]string{}
+var tableAliasCounter = 0
+
+func getTableAlias(table string, joinKey string) string {
+	// First try to find your table alias in the map
+	alias, foundAlias := tableAliasMap[table+"_"+joinKey]
+
+	if foundAlias {
+		return alias
+	}
+	tableAliasCounter = tableAliasCounter + 1
+	newAlias := "t" + strconv.Itoa(tableAliasCounter)
+	tableAliasMap[table+"_"+joinKey] = newAlias
+	return newAlias
 }
 
 func getLookupsToUse(data interface{}, picardTags picardTags, dataPath string) []Lookup {
@@ -407,7 +444,7 @@ func (p PersistenceORM) getLookupQuery(data interface{}, tableName string, prima
 		}
 		tableAlias := tableToUse
 		if lookup.JoinKey != "" && lookup.TableName != "" && tableToUse != tableName {
-			tableAlias = fmt.Sprintf("%[1]v_%[2]v", tableToUse, lookup.JoinKey)
+			tableAlias = getTableAlias(tableToUse, lookup.JoinKey)
 			_, alreadyAddedJoin := joinMap[tableAlias]
 			if !alreadyAddedJoin {
 				joinMap[tableAlias] = true
@@ -428,21 +465,57 @@ func (p PersistenceORM) getLookupQuery(data interface{}, tableName string, prima
 func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, primaryKeyColumnName string, children []Child) error {
 
 	for _, child := range children {
-		// If it doesn't exist already, create an entry in the upserts map
 
-		data := reflect.New(child.FieldType).Elem()
+		var data reflect.Value
+
+		if child.FieldKind == reflect.Slice {
+			data = reflect.New(child.FieldType).Elem()
+		} else if child.FieldKind == reflect.Map {
+			data = reflect.New(reflect.SliceOf(child.FieldType.Elem())).Elem()
+		}
 
 		for _, changeObject := range changeObjects {
 			// Add the id of the parent to any foreign keys on the child
 			originalValue := changeObject.originalValue
 			childValue := originalValue.FieldByName(child.FieldName)
-			for i := 0; i < childValue.Len(); i++ {
-				value := childValue.Index(i)
-				keyField := value.FieldByName(child.ForeignKey)
-				foreignKeyValue := changeObject.changes[primaryKeyColumnName]
-				keyField.SetString(foreignKeyValue.(string))
-				data = reflect.Append(data, value)
+			foreignKeyValue := changeObject.changes[primaryKeyColumnName]
+
+			if childValue.Kind() == reflect.Slice {
+				for i := 0; i < childValue.Len(); i++ {
+					value := childValue.Index(i)
+					if child.ForeignKey != "" {
+						keyField := getValueFromLookupString(value, child.ForeignKey)
+						keyField.SetString(foreignKeyValue.(string))
+					}
+					data = reflect.Append(data, value)
+				}
+			} else if childValue.Kind() == reflect.Map {
+				mapKeys := childValue.MapKeys()
+				for index, key := range mapKeys {
+					value := childValue.MapIndex(key)
+					data = reflect.Append(data, value)
+					fmt.Println("DATA!!!??")
+					addressibleData := data.Index(index)
+					if child.ForeignKey != "" {
+						valueToChange := getValueFromLookupString(addressibleData, child.ForeignKey)
+						valueToChange.SetString(foreignKeyValue.(string))
+					}
+					if len(child.KeyMappings) > 0 {
+						for _, keyMapping := range child.KeyMappings {
+							valueToChange := getValueFromLookupString(addressibleData, keyMapping)
+							valueToChange.SetString(key.String())
+						}
+					}
+					if len(child.ValueMappings) > 0 {
+						for valueLocation, valueDestination := range child.ValueMappings {
+							valueToChange := getValueFromLookupString(addressibleData, valueDestination)
+							valueToSet := getValueFromLookupString(originalValue, valueLocation)
+							valueToChange.SetString(valueToSet.String())
+						}
+					}
+				}
 			}
+
 		}
 
 		if data.Len() > 0 {
@@ -636,7 +709,7 @@ func getObjectKey(objects map[string]interface{}, tableName string, lookups []Lo
 
 		tableAlias := tableToUse
 		if lookup.JoinKey != "" && lookup.TableName != "" && tableToUse != tableName {
-			tableAlias = fmt.Sprintf("%[1]v_%[2]v", tableToUse, lookup.JoinKey)
+			tableAlias = getTableAlias(tableToUse, lookup.JoinKey)
 		}
 
 		keyPart := objects[fmt.Sprintf("%v_%v", tableAlias, lookup.MatchDBColumn)]
@@ -660,17 +733,18 @@ func getObjectKeyReflect(value reflect.Value, lookups []Lookup) string {
 	return strings.Join(keyValue, separator)
 }
 
-func getObjectProperty(value reflect.Value, lookupString string) string {
-	returnValue := ""
+func getValueFromLookupString(value reflect.Value, lookupString string) reflect.Value {
 	// If the lookupString has a dot in it, recursively look up the property's value
 	propertyKeys := strings.Split(lookupString, ".")
 	if len(propertyKeys) > 1 {
 		subValue := value.FieldByName(propertyKeys[0])
-		returnValue = getObjectProperty(subValue, strings.Join(propertyKeys[1:], "."))
-	} else {
-		returnValue = value.FieldByName(lookupString).String()
+		return getValueFromLookupString(subValue, strings.Join(propertyKeys[1:], "."))
 	}
-	return returnValue
+	return value.FieldByName(lookupString)
+}
+
+func getObjectProperty(value reflect.Value, lookupString string) string {
+	return getValueFromLookupString(value, lookupString).String()
 }
 
 func getQueryResults(rows *sql.Rows) ([]map[string]interface{}, error) {

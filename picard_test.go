@@ -71,10 +71,10 @@ var testChildObjectHelper = ExpectationHelper{
 
 var testChildObjectWithLookupHelper = ExpectationHelper{
 	TableName:        "childtest",
-	LookupFrom:       "childtest JOIN testobject as testobject_parent_id on testobject_parent_id.id = parent_id",
-	LookupSelect:     "childtest.id, childtest.name as childtest_name, testobject_parent_id.name as testobject_parent_id_name, testobject_parent_id.nullable_lookup as testobject_parent_id_nullable_lookup",
-	LookupWhere:      `COALESCE(childtest.name::"varchar",'') || '|' || COALESCE(testobject_parent_id.name::"varchar",'') || '|' || COALESCE(testobject_parent_id.nullable_lookup::"varchar",'')`,
-	LookupReturnCols: []string{"id", "childtest_name", "testobject_parent_id_name", "testobject_parent_id_nullable_lookup"},
+	LookupFrom:       "childtest JOIN testobject as t1 on t1.id = parent_id",
+	LookupSelect:     "childtest.id, childtest.name as childtest_name, t1.name as t1_name, t1.nullable_lookup as t1_nullable_lookup",
+	LookupWhere:      `COALESCE(childtest.name::"varchar",'') || '|' || COALESCE(t1.name::"varchar",'') || '|' || COALESCE(t1.nullable_lookup::"varchar",'')`,
+	LookupReturnCols: []string{"id", "childtest_name", "t1_name", "t1_nullable_lookup"},
 	LookupFields:     []string{"Name", "ParentID"},
 	DBColumns:        []string{"organization_id", "name", "parent_id", "optional_parent_id"},
 	DataFields:       []string{"OrganizationID", "Name", "ParentID", "OptionalParentID"},
