@@ -15,19 +15,20 @@ func (p PersistenceORM) FilterModel(filterModel interface{}) ([]interface{}, err
 		return nil, err
 	}
 
-	whereClauses, err := p.generateWhereClausesFromModel(filterModelValue, nil)
+	whereClauses, joinClauses, err := p.generateWhereClausesFromModel(filterModelValue, nil)
+
 	if err != nil {
 		return nil, err
 	}
 
-	results, err := p.doFilterSelect(filterModelValue.Type(), whereClauses)
+	results, err := p.doFilterSelect(filterModelValue.Type(), whereClauses, joinClauses)
 	if err != nil {
 		return nil, err
 	}
 	return results, nil
 }
 
-func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClauses []squirrel.Eq) ([]interface{}, error) {
+func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClauses []squirrel.Eq, joinClauses []string) ([]interface{}, error) {
 	var returnModels []interface{}
 
 	tx, err := GetConnection().Begin()
@@ -47,6 +48,10 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 		Select(columnNames...).
 		From(tableName).
 		RunWith(p.transaction)
+
+	for _, join := range joinClauses {
+		query = query.Join(join)
+	}
 
 	for _, where := range whereClauses {
 		query = query.Where(where)

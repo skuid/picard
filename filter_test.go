@@ -55,6 +55,7 @@ func TestDoFilterSelect(t *testing.T) {
 		description          string
 		filterModelType      reflect.Type
 		whereClauses         []squirrel.Eq
+		joinClauses          []string
 		wantReturnInterfaces []interface{}
 		expectationFunction  func(sqlmock.Sqlmock)
 		wantErr              error
@@ -62,6 +63,7 @@ func TestDoFilterSelect(t *testing.T) {
 		{
 			"Should do query correctly and return correct values with single field",
 			reflect.TypeOf(modelOneField{}),
+			nil,
 			nil,
 			[]interface{}{
 				modelOneField{
@@ -80,6 +82,7 @@ func TestDoFilterSelect(t *testing.T) {
 			"Should do query correctly with where clauses and return correct values with single field",
 			reflect.TypeOf(modelOneField{}),
 			[]squirrel.Eq{squirrel.Eq{"test_column_one": "test value 1"}},
+			nil,
 			[]interface{}{
 				modelOneField{
 					TestFieldOne: "test value 1",
@@ -94,8 +97,27 @@ func TestDoFilterSelect(t *testing.T) {
 			nil,
 		},
 		{
+			"Should do query correctly with where clauses and join clauses and return correct values with single field",
+			reflect.TypeOf(modelOneField{}),
+			[]squirrel.Eq{squirrel.Eq{"test_column_one": "test value 1"}},
+			[]string{"joinclause"},
+			[]interface{}{
+				modelOneField{
+					TestFieldOne: "test value 1",
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("^SELECT test_column_one FROM test_table JOIN joinclause WHERE test_column_one = \\$1$").WillReturnRows(
+					sqlmock.NewRows([]string{"test_column_one"}).AddRow("test value 1"),
+				)
+			},
+			nil,
+		},
+		{
 			"Should do query correctly and return correct values with two results",
 			reflect.TypeOf(modelOneField{}),
+			nil,
 			nil,
 			[]interface{}{
 				modelOneField{
@@ -116,6 +138,7 @@ func TestDoFilterSelect(t *testing.T) {
 		{
 			"Should do query correctly and return correct values with special fields",
 			reflect.TypeOf(modelMutitenantPKWithTwoFields{}),
+			nil,
 			nil,
 			[]interface{}{
 				modelMutitenantPKWithTwoFields{
@@ -158,7 +181,7 @@ func TestDoFilterSelect(t *testing.T) {
 				performedBy:       testPerformedByValue,
 			}
 
-			results, err := p.doFilterSelect(tc.filterModelType, tc.whereClauses)
+			results, err := p.doFilterSelect(tc.filterModelType, tc.whereClauses, tc.joinClauses)
 
 			if tc.wantErr != nil {
 				assert.Error(t, err)
@@ -231,7 +254,7 @@ func TestDoFilterSelectWithEncrypted(t *testing.T) {
 			oldReader := rand.Reader
 			rand.Reader = strings.NewReader(tc.nonce)
 
-			results, err := p.doFilterSelect(tc.filterModelType, tc.whereClauses)
+			results, err := p.doFilterSelect(tc.filterModelType, tc.whereClauses, []string{})
 
 			// Tear down known nonce
 			rand.Reader = oldReader

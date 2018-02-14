@@ -489,7 +489,6 @@ func TestDeployments(t *testing.T) {
 	}
 
 }
-
 func TestGenerateWhereClausesFromModel(t *testing.T) {
 
 	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000001")
@@ -499,75 +498,85 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 		description      string
 		filterModelValue reflect.Value
 		zeroFields       []string
-		wantClauses      []squirrel.Eq
+		wantWhereClauses []squirrel.Eq
+		wantJoinClauses  []string
 		wantErr          string
 	}{
 		{
 			"Filter object with no values should add multitenancy key",
 			reflect.ValueOf(struct {
-				OrgID string `picard:"multitenancy_key,column=organization_id"`
+				Metadata Metadata `picard:"tablename=test_table"`
+				OrgID    string   `picard:"multitenancy_key,column=organization_id"`
 			}{}),
 			nil,
 			[]squirrel.Eq{
 				squirrel.Eq{
-					"organization_id": testMultitenancyValue,
+					"test_table.organization_id": testMultitenancyValue,
 				},
 			},
+			[]string{},
 			"",
 		},
 		{
 			"Filter object with no values and different multitenancy column should add multitenancy key",
 			reflect.ValueOf(struct {
-				TestMultitenancyColumn string `picard:"multitenancy_key,column=test_multitenancy_column"`
+				Metadata               Metadata `picard:"tablename=test_table"`
+				TestMultitenancyColumn string   `picard:"multitenancy_key,column=test_multitenancy_column"`
 			}{}),
 			nil,
 			[]squirrel.Eq{
 				squirrel.Eq{
-					"test_multitenancy_column": testMultitenancyValue,
+					"test_table.test_multitenancy_column": testMultitenancyValue,
 				},
 			},
+			[]string{},
 			"",
 		},
 		{
 			"Filter object with value for multitenancy column should be overwritten with picard multitenancy value",
 			reflect.ValueOf(struct {
-				TestMultitenancyColumn string `picard:"multitenancy_key,column=test_multitenancy_column"`
+				Metadata               Metadata `picard:"tablename=test_table"`
+				TestMultitenancyColumn string   `picard:"multitenancy_key,column=test_multitenancy_column"`
 			}{
 				TestMultitenancyColumn: "this value should be ignored",
 			}),
 			nil,
 			[]squirrel.Eq{
 				squirrel.Eq{
-					"test_multitenancy_column": testMultitenancyValue,
+					"test_table.test_multitenancy_column": testMultitenancyValue,
 				},
 			},
+			[]string{},
 			"",
 		},
 		{
 			"Filter object with one value and multitenancy column should add both where clauses",
 			reflect.ValueOf(struct {
-				TestMultitenancyColumn string `picard:"multitenancy_key,column=test_multitenancy_column"`
-				TestField              string `picard:"column=test_column_one"`
+				Metadata               Metadata `picard:"tablename=test_table"`
+				TestMultitenancyColumn string   `picard:"multitenancy_key,column=test_multitenancy_column"`
+				TestField              string   `picard:"column=test_column_one"`
 			}{
 				TestField: "first test value",
 			}),
 			nil,
 			[]squirrel.Eq{
 				squirrel.Eq{
-					"test_multitenancy_column": testMultitenancyValue,
+					"test_table.test_multitenancy_column": testMultitenancyValue,
 				},
 				squirrel.Eq{
-					"test_column_one": "first test value",
+					"test_table.test_column_one": "first test value",
 				},
 			},
+			[]string{},
 			"",
 		},
 		{
 			"Filter object with two values and multitenancy column should add all where clauses",
 			reflect.ValueOf(struct {
-				TestMultitenancyColumn string `picard:"multitenancy_key,column=test_multitenancy_column"`
-				TestFieldOne           string `picard:"column=test_column_one"`
-				TestFieldTwo           string `picard:"column=test_column_two"`
+				Metadata               Metadata `picard:"tablename=test_table"`
+				TestMultitenancyColumn string   `picard:"multitenancy_key,column=test_multitenancy_column"`
+				TestFieldOne           string   `picard:"column=test_column_one"`
+				TestFieldTwo           string   `picard:"column=test_column_two"`
 			}{
 				TestFieldOne: "first test value",
 				TestFieldTwo: "second test value",
@@ -575,21 +584,23 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 			nil,
 			[]squirrel.Eq{
 				squirrel.Eq{
-					"test_multitenancy_column": testMultitenancyValue,
+					"test_table.test_multitenancy_column": testMultitenancyValue,
 				},
 				squirrel.Eq{
-					"test_column_one": "first test value",
+					"test_table.test_column_one": "first test value",
 				},
 				squirrel.Eq{
-					"test_column_two": "second test value",
+					"test_table.test_column_two": "second test value",
 				},
 			},
+			[]string{},
 			"",
 		},
 		{
 			"Filter object with two values and only one is picard column should add only one where clause",
 			reflect.ValueOf(struct {
-				TestFieldOne string `picard:"column=test_column_one"`
+				Metadata     Metadata `picard:"tablename=test_table"`
+				TestFieldOne string   `picard:"column=test_column_one"`
 				TestFieldTwo string
 			}{
 				TestFieldOne: "first test value",
@@ -598,57 +609,120 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 			nil,
 			[]squirrel.Eq{
 				squirrel.Eq{
-					"test_column_one": "first test value",
+					"test_table.test_column_one": "first test value",
 				},
 			},
+			[]string{},
 			"",
 		},
 		{
 			"Filter object with two values and one is zero value should add only one where clause",
 			reflect.ValueOf(struct {
-				TestFieldOne string `picard:"column=test_column_one"`
-				TestFieldTwo string `picard:"column=test_column_two"`
+				Metadata     Metadata `picard:"tablename=test_table"`
+				TestFieldOne string   `picard:"column=test_column_one"`
+				TestFieldTwo string   `picard:"column=test_column_two"`
 			}{
 				TestFieldOne: "first test value",
 			}),
 			nil,
 			[]squirrel.Eq{
 				squirrel.Eq{
-					"test_column_one": "first test value",
+					"test_table.test_column_one": "first test value",
 				},
 			},
+			[]string{},
 			"",
 		},
 		{
 			"Filter object with two values and one is zero value and in zeroFields list should add both where clauses",
 			reflect.ValueOf(struct {
-				TestFieldOne string `picard:"column=test_column_one"`
-				TestFieldTwo string `picard:"column=test_column_two"`
+				Metadata     Metadata `picard:"tablename=test_table"`
+				TestFieldOne string   `picard:"column=test_column_one"`
+				TestFieldTwo string   `picard:"column=test_column_two"`
 			}{
 				TestFieldOne: "first test value",
 			}),
 			[]string{"TestFieldTwo"},
 			[]squirrel.Eq{
 				squirrel.Eq{
-					"test_column_one": "first test value",
+					"test_table.test_column_one": "first test value",
 				},
 				squirrel.Eq{
-					"test_column_two": "",
+					"test_table.test_column_two": "",
 				},
 			},
+			[]string{},
 			"",
 		},
 		{
 			"Filter object with value for encrypted field should return error",
 			reflect.ValueOf(struct {
-				TestMultitenancyColumn string `picard:"multitenancy_key,column=test_multitenancy_column"`
-				TestField              string `picard:"encrypted,column=test_column_one"`
+				Metadata               Metadata `picard:"tablename=test_table"`
+				TestMultitenancyColumn string   `picard:"multitenancy_key,column=test_multitenancy_column"`
+				TestField              string   `picard:"encrypted,column=test_column_one"`
 			}{
 				TestField: "first test value",
 			}),
 			nil,
 			nil,
+			[]string{},
 			"cannot perform queries with where clauses on encrypted fields",
+		},
+		{
+			"Filter object with parent values",
+			reflect.ValueOf(ChildTestObject{
+				Parent: TestObject{
+					Name: "blah",
+				},
+			}),
+			nil,
+			[]squirrel.Eq{
+				squirrel.Eq{
+					"childtest.organization_id": testMultitenancyValue,
+				},
+				squirrel.Eq{
+					"t1.organization_id": testMultitenancyValue,
+				},
+				squirrel.Eq{
+					"t1.name": "blah",
+				},
+			},
+			[]string{"testobject as t1 on t1.id = parent_id"},
+			"",
+		},
+		{
+			"Filter object with multiple parent values",
+			reflect.ValueOf(ChildTestObject{
+				Parent: TestObject{
+					Name: "blah",
+				},
+				OptionalParent: TestObject{
+					Name: "woo",
+				},
+			}),
+			nil,
+			[]squirrel.Eq{
+				squirrel.Eq{
+					"childtest.organization_id": testMultitenancyValue,
+				},
+				squirrel.Eq{
+					"t1.organization_id": testMultitenancyValue,
+				},
+				squirrel.Eq{
+					"t1.name": "blah",
+				},
+				squirrel.Eq{
+					"t2.organization_id": testMultitenancyValue,
+				},
+				squirrel.Eq{
+					"t2.name": "woo",
+				},
+			},
+			[]string{
+				"testobject as t1 on t1.id = parent_id",
+				"testobject as t2 on t2.id = optional_parent_id",
+			},
+			"",
 		},
 	}
 
@@ -660,14 +734,15 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			results, err := p.generateWhereClausesFromModel(tc.filterModelValue, tc.zeroFields)
+			whereClauses, joinClauses, err := p.generateWhereClausesFromModel(tc.filterModelValue, tc.zeroFields)
 
 			if tc.wantErr != "" {
 				assert.Error(t, err)
 				assert.EqualError(t, err, tc.wantErr)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tc.wantClauses, results)
+				assert.Equal(t, tc.wantWhereClauses, whereClauses)
+				assert.Equal(t, tc.wantJoinClauses, joinClauses)
 			}
 		})
 	}

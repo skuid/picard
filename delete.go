@@ -1,6 +1,10 @@
 package picard
 
-import "github.com/Masterminds/squirrel"
+import (
+	"errors"
+
+	"github.com/Masterminds/squirrel"
+)
 
 // DeleteModel will delete models that match the provided struct, ignoring zero values.
 // Returns the number of rows affected or an error.
@@ -10,9 +14,13 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 		return 0, err
 	}
 
-	whereClauses, err := porm.generateWhereClausesFromModel(modelValue, nil)
+	whereClauses, joinClauses, err := porm.generateWhereClausesFromModel(modelValue, nil)
 	if err != nil {
 		return 0, err
+	}
+
+	if len(joinClauses) > 0 {
+		return 0, errors.New("Cannot filter on related data for deletes")
 	}
 
 	if porm.transaction == nil {

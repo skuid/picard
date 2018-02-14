@@ -26,6 +26,7 @@ type Lookup struct {
 	MatchObjectProperty string
 	JoinKey             string
 	Query               bool
+	Value               interface{}
 }
 
 // Child structure
@@ -277,14 +278,36 @@ func (p PersistenceORM) checkForExisting(
 	error,
 ) {
 	tableName := picardTags.TableName()
-	lookupsToUse := getLookupsToUse(data, picardTags, foreignFieldName)
+	primaryKeyColumnName := picardTags.PrimaryKeyColumnName()
+	multitenancyKeyColumnName := picardTags.MultitenancyKeyColumnName()
+	lookupsToUse := getLookupsForDeploy(data, picardTags, foreignFieldName)
 	lookupObjectKeys := getLookupObjectKeys(data, lookupsToUse, foreignFieldName)
 
 	if len(lookupObjectKeys) == 0 || len(lookupsToUse) == 0 {
 		return map[string]interface{}{}, lookupsToUse, nil
 	}
 
-	query := p.getLookupQuery(data, tableName, picardTags.PrimaryKeyColumnName(), picardTags.MultitenancyKeyColumnName(), lookupsToUse, lookupObjectKeys)
+	query := squirrel.Select(fmt.Sprintf("%v.%v", tableName, primaryKeyColumnName))
+	query = query.From(tableName)
+
+	columns, joins, whereFields := getQueryParts(tableName, primaryKeyColumnName, lookupsToUse)
+
+	wheres := []string{}
+
+	for _, join := range joins {
+		query = query.Join(join)
+	}
+
+	for _, whereField := range whereFields {
+		for whereFieldKey := range whereField {
+			wheres = append(wheres, fmt.Sprintf("COALESCE(%v::\"varchar\",'')", whereFieldKey))
+		}
+	}
+
+	query = query.Columns(columns...)
+
+	query = query.Where(strings.Join(wheres, " || '"+separator+"' || ")+" = ANY($1)", pq.Array(lookupObjectKeys))
+	query = query.Where(fmt.Sprintf("%v.%v = $2", tableName, multitenancyKeyColumnName), p.multitenancyValue)
 
 	rows, err := query.RunWith(p.transaction).Query()
 	if err != nil {
@@ -305,27 +328,12 @@ func getLookupsFromForeignKeys(foreignKeys []ForeignKey, baseJoinKey string, bas
 	for _, foreignKey := range foreignKeys {
 		if foreignKey.NeedsLookup {
 			objectInfo := foreignKey.ObjectInfo
-			var joinKey string
-
-			if baseJoinKey != "" {
-				joinKey = baseJoinKey + "." + foreignKey.KeyColumn
-			} else {
-				joinKey = foreignKey.KeyColumn
-			}
+			joinKey := getJoinKey(baseJoinKey, foreignKey.KeyColumn)
 			for _, lookup := range objectInfo.Lookups() {
-
-				var matchObjectProperty string
-
-				if baseObjectProperty != "" {
-					matchObjectProperty = baseObjectProperty + "." + foreignKey.RelatedFieldName + "." + lookup.MatchObjectProperty
-				} else {
-					matchObjectProperty = foreignKey.RelatedFieldName + "." + lookup.MatchObjectProperty
-				}
-
 				lookupsToUse = append(lookupsToUse, Lookup{
 					TableName:           objectInfo.TableName(),
 					MatchDBColumn:       lookup.MatchDBColumn,
-					MatchObjectProperty: matchObjectProperty,
+					MatchObjectProperty: getMatchObjectProperty(baseObjectProperty, foreignKey.RelatedFieldName, lookup.MatchObjectProperty),
 					JoinKey:             joinKey,
 					Query:               true,
 				})
@@ -353,7 +361,21 @@ func getTableAlias(table string, joinKey string) string {
 	return newAlias
 }
 
-func getLookupsToUse(data interface{}, picardTags picardTags, dataPath string) []Lookup {
+func getJoinKey(baseJoinKey string, keyColumn string) string {
+	if baseJoinKey != "" {
+		return baseJoinKey + "." + keyColumn
+	}
+	return keyColumn
+}
+
+func getMatchObjectProperty(baseObjectProperty string, relatedFieldName string, matchObjectProperty string) string {
+	if baseObjectProperty != "" {
+		return baseObjectProperty + "." + relatedFieldName + "." + matchObjectProperty
+	}
+	return relatedFieldName + "." + matchObjectProperty
+}
+
+func getLookupsForDeploy(data interface{}, picardTags picardTags, dataPath string) []Lookup {
 	lookupsToUse := []Lookup{}
 	tableName := picardTags.TableName()
 	primaryKeyColumnName := picardTags.PrimaryKeyColumnName()
@@ -430,12 +452,11 @@ func getLookupObjectKeys(data interface{}, lookupsToUse []Lookup, dataPath strin
 	return keys
 }
 
-func (p PersistenceORM) getLookupQuery(data interface{}, tableName string, primaryKeyColumnName string, multitenancyKeyColumnName string, lookupsToUse []Lookup, lookupObjectKeys []string) *squirrel.SelectBuilder {
-	query := squirrel.Select(fmt.Sprintf("%v.%v", tableName, primaryKeyColumnName))
-	query = query.From(tableName)
-	wheres := []string{}
-	// Keeps track of which joins have already been made so we don't have duplicate join statements
+func getQueryParts(tableName string, primaryKeyColumnName string, lookupsToUse []Lookup) ([]string, []string, []squirrel.Eq) {
 	joinMap := map[string]bool{}
+	columns := []string{}
+	joins := []string{}
+	whereFields := []squirrel.Eq{}
 
 	for _, lookup := range lookupsToUse {
 		tableToUse := tableName
@@ -448,18 +469,15 @@ func (p PersistenceORM) getLookupQuery(data interface{}, tableName string, prima
 			_, alreadyAddedJoin := joinMap[tableAlias]
 			if !alreadyAddedJoin {
 				joinMap[tableAlias] = true
-				query = query.Join(fmt.Sprintf("%[1]v as %[4]v on %[4]v.%[2]v = %[3]v", tableToUse, primaryKeyColumnName, lookup.JoinKey, tableAlias))
+				joins = append(joins, fmt.Sprintf("%[1]v as %[4]v on %[4]v.%[2]v = %[3]v", tableToUse, primaryKeyColumnName, lookup.JoinKey, tableAlias))
 			}
 		}
-		query = query.Column(fmt.Sprintf("%[3]v.%[2]v as %[3]v_%[2]v", tableToUse, lookup.MatchDBColumn, tableAlias))
+		columns = append(columns, fmt.Sprintf("%[3]v.%[2]v as %[3]v_%[2]v", tableToUse, lookup.MatchDBColumn, tableAlias))
 		if lookup.Query {
-			wheres = append(wheres, fmt.Sprintf("COALESCE(%v.%v::\"varchar\",'')", tableAlias, lookup.MatchDBColumn))
+			whereFields = append(whereFields, squirrel.Eq{fmt.Sprintf("%v.%v", tableAlias, lookup.MatchDBColumn): lookup.Value})
 		}
 	}
-
-	query = query.Where(strings.Join(wheres, " || '"+separator+"' || ")+" = ANY($1)", pq.Array(lookupObjectKeys))
-	query = query.Where(fmt.Sprintf("%v.%v = $2", tableName, multitenancyKeyColumnName), p.multitenancyValue)
-	return &query
+	return columns, joins, whereFields
 }
 
 func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, primaryKeyColumnName string, children []Child) error {
@@ -818,18 +836,20 @@ func getColumnValues(columnNames []string, data map[string]interface{}) []interf
 	return columnValues
 }
 
-func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.Value, zeroFields []string) ([]squirrel.Eq, error) {
-	var returnClauses []squirrel.Eq
+func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFields []string, parentPicardTags picardTags, joinKey string) ([]Lookup, error) {
+	filterModelType := filterModelValue.Type()
+	tableName := parentPicardTags.TableName()
+	lookups := []Lookup{}
 
-	t := filterModelValue.Type()
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
+	for i := 0; i < filterModelType.NumField(); i++ {
+		field := filterModelType.Field(i)
 		fieldValue := filterModelValue.FieldByName(field.Name)
 
 		picardTags := getStructTagsMap(field, "picard")
 		column, hasColumn := picardTags["column"]
 		_, isMultitenancyColumn := picardTags["multitenancy_key"]
 		isZeroField := reflect.DeepEqual(fieldValue.Interface(), reflect.Zero(field.Type).Interface())
+		kind := fieldValue.Kind()
 
 		isZeroColumn := false
 		for _, zeroField := range zeroFields {
@@ -840,17 +860,74 @@ func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.V
 
 		switch {
 		case hasColumn && isMultitenancyColumn:
-			returnClauses = append(returnClauses, squirrel.Eq{column: p.multitenancyValue})
+			lookups = append(lookups, Lookup{
+				MatchDBColumn:       column,
+				MatchObjectProperty: field.Name,
+				TableName:           tableName,
+				JoinKey:             joinKey,
+				Query:               true,
+				Value:               p.multitenancyValue,
+			})
 		case hasColumn && !isZeroField:
 			_, isEncrypted := picardTags["encrypted"]
 			if isEncrypted {
 				return nil, errors.New("cannot perform queries with where clauses on encrypted fields")
 			}
 
-			returnClauses = append(returnClauses, squirrel.Eq{column: fieldValue.Interface()})
+			lookups = append(lookups, Lookup{
+				MatchDBColumn:       column,
+				MatchObjectProperty: field.Name,
+				TableName:           tableName,
+				JoinKey:             joinKey,
+				Query:               true,
+				Value:               fieldValue.Interface(),
+			})
 		case isZeroColumn:
-			returnClauses = append(returnClauses, squirrel.Eq{column: reflect.Zero(field.Type).Interface()})
+			lookups = append(lookups, Lookup{
+				MatchDBColumn:       column,
+				MatchObjectProperty: field.Name,
+				TableName:           tableName,
+				JoinKey:             joinKey,
+				Query:               true,
+				Value:               reflect.Zero(field.Type).Interface(),
+			})
+		case kind == reflect.Struct && !isZeroField:
+			foreignKeyValue := ""
+			for _, foreignKey := range parentPicardTags.ForeignKeys() {
+				if foreignKey.RelatedFieldName == field.Name {
+					foreignKeyValue = foreignKey.KeyColumn
+					break
+				}
+			}
+
+			if foreignKeyValue == "" {
+				return nil, errors.New("No Foreign Key Value Found in Struct Tags")
+			}
+			relatedPicardTags := picardTagsFromType(fieldValue.Type())
+			relatedLookups, err := p.getFilterLookups(fieldValue, []string{}, relatedPicardTags, getJoinKey(joinKey, foreignKeyValue))
+			if err != nil {
+				return nil, err
+			}
+			lookups = append(lookups, relatedLookups...)
+
 		}
 	}
-	return returnClauses, nil
+	return lookups, nil
+}
+
+func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.Value, zeroFields []string) ([]squirrel.Eq, []string, error) {
+
+	filterModelType := filterModelValue.Type()
+	picardTags := picardTagsFromType(filterModelType)
+	primaryKeyColumnName := picardTags.PrimaryKeyColumnName()
+
+	lookups, err := p.getFilterLookups(filterModelValue, zeroFields, picardTags, "")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	_, joins, whereFields := getQueryParts(picardTags.TableName(), primaryKeyColumnName, lookups)
+
+	return whereFields, joins, nil
+
 }
