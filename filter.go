@@ -42,10 +42,16 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 	columnNames := picardTags.ColumnNames()
 	tableName := picardTags.TableName()
 
+	fullColumnNames := []string{}
+
+	for _, columnName := range columnNames {
+		fullColumnNames = append(fullColumnNames, tableName+"."+columnName)
+	}
+
 	// Do select query with provided where clauses and columns/tablename
 	query := squirrel.StatementBuilder.
 		PlaceholderFormat(squirrel.Dollar).
-		Select(columnNames...).
+		Select(fullColumnNames...).
 		From(tableName).
 		RunWith(p.transaction)
 

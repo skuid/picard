@@ -72,7 +72,7 @@ func TestDoFilterSelect(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectQuery("^SELECT test_column_one FROM test_table$").WillReturnRows(
+				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
 					sqlmock.NewRows([]string{"test_column_one"}).AddRow("test value 1"),
 				)
 			},
@@ -90,7 +90,7 @@ func TestDoFilterSelect(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectQuery("^SELECT test_column_one FROM test_table WHERE test_column_one = \\$1$").WillReturnRows(
+				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table WHERE test_column_one = \\$1$").WillReturnRows(
 					sqlmock.NewRows([]string{"test_column_one"}).AddRow("test value 1"),
 				)
 			},
@@ -108,7 +108,7 @@ func TestDoFilterSelect(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectQuery("^SELECT test_column_one FROM test_table JOIN joinclause WHERE test_column_one = \\$1$").WillReturnRows(
+				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table JOIN joinclause WHERE test_column_one = \\$1$").WillReturnRows(
 					sqlmock.NewRows([]string{"test_column_one"}).AddRow("test value 1"),
 				)
 			},
@@ -129,7 +129,7 @@ func TestDoFilterSelect(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectQuery("^SELECT test_column_one FROM test_table$").WillReturnRows(
+				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
 					sqlmock.NewRows([]string{"test_column_one"}).AddRow("test value 1").AddRow("test value 2"),
 				)
 			},
@@ -156,7 +156,7 @@ func TestDoFilterSelect(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectQuery("^SELECT test_multitenancy_column, test_column_one, test_column_two, primary_key_column FROM test_table$").WillReturnRows(
+				mock.ExpectQuery("^SELECT test_table.test_multitenancy_column, test_table.test_column_one, test_table.test_column_two, test_table.primary_key_column FROM test_table$").WillReturnRows(
 					sqlmock.NewRows([]string{"test_multitenancy_column", "test_column_one", "test_column_two", "primary_key_column"}).
 						AddRow("multitenancy value 1", "test value 1.1", "test value 1.2", "primary key value 1").
 						AddRow("multitenancy value 2", "test value 2.1", "test value 2.2", "primary key value 2"),
@@ -224,7 +224,7 @@ func TestDoFilterSelectWithEncrypted(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectQuery("^SELECT test_column_one FROM test_table$").WillReturnRows(
+				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
 					sqlmock.NewRows([]string{"test_column_one"}).
 						AddRow("MTIzNDEyMzQxMjM0ibdgaIgpwjXpIQs645vZ8fXHC85nAKmvoh7MhF+9Bk/mLFTH3FcE4qTKAi5e"),
 				)
