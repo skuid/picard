@@ -280,7 +280,8 @@ func (p PersistenceORM) checkForExisting(
 	tableName := picardTags.TableName()
 	primaryKeyColumnName := picardTags.PrimaryKeyColumnName()
 	multitenancyKeyColumnName := picardTags.MultitenancyKeyColumnName()
-	lookupsToUse := getLookupsForDeploy(data, picardTags, foreignFieldName)
+	tableAliasMap := map[string]string{}
+	lookupsToUse := getLookupsForDeploy(data, picardTags, foreignFieldName, tableAliasMap)
 	lookupObjectKeys := getLookupObjectKeys(data, lookupsToUse, foreignFieldName)
 
 	if len(lookupObjectKeys) == 0 || len(lookupsToUse) == 0 {
@@ -290,7 +291,7 @@ func (p PersistenceORM) checkForExisting(
 	query := squirrel.Select(fmt.Sprintf("%v.%v", tableName, primaryKeyColumnName))
 	query = query.From(tableName)
 
-	columns, joins, whereFields := getQueryParts(tableName, primaryKeyColumnName, lookupsToUse)
+	columns, joins, whereFields := getQueryParts(tableName, primaryKeyColumnName, lookupsToUse, tableAliasMap)
 
 	wheres := []string{}
 
@@ -314,7 +315,7 @@ func (p PersistenceORM) checkForExisting(
 		return nil, nil, err
 	}
 
-	results, err := getLookupQueryResults(rows, tableName, lookupsToUse)
+	results, err := getLookupQueryResults(rows, tableName, lookupsToUse, tableAliasMap)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -322,7 +323,7 @@ func (p PersistenceORM) checkForExisting(
 	return results, lookupsToUse, nil
 }
 
-func getLookupsFromForeignKeys(foreignKeys []ForeignKey, baseJoinKey string, baseObjectProperty string) []Lookup {
+func getLookupsFromForeignKeys(foreignKeys []ForeignKey, baseJoinKey string, baseObjectProperty string, tableAliasMap map[string]string) []Lookup {
 	lookupsToUse := []Lookup{}
 
 	for _, foreignKey := range foreignKeys {
@@ -338,24 +339,24 @@ func getLookupsFromForeignKeys(foreignKeys []ForeignKey, baseJoinKey string, bas
 					Query:               true,
 				})
 			}
-			newBaseJoinKey := getTableAlias(objectInfo.TableName(), joinKey)
-			lookupsToUse = append(lookupsToUse, getLookupsFromForeignKeys(objectInfo.ForeignKeys(), newBaseJoinKey, foreignKey.RelatedFieldName)...)
+			newBaseJoinKey := getTableAlias(objectInfo.TableName(), joinKey, tableAliasMap)
+			lookupsToUse = append(lookupsToUse, getLookupsFromForeignKeys(objectInfo.ForeignKeys(), newBaseJoinKey, foreignKey.RelatedFieldName, tableAliasMap)...)
 		}
 	}
 	return lookupsToUse
 }
 
-var tableAliasMap = map[string]string{}
-var tableAliasCounter = 0
-
-func getTableAlias(table string, joinKey string) string {
+func getTableAlias(table string, joinKey string, tableAliasMap map[string]string) string {
+	if table == "" || joinKey == "" {
+		return table
+	}
 	// First try to find your table alias in the map
 	alias, foundAlias := tableAliasMap[table+"_"+joinKey]
 
 	if foundAlias {
 		return alias
 	}
-	tableAliasCounter = tableAliasCounter + 1
+	tableAliasCounter := len(tableAliasMap) + 1
 	newAlias := "t" + strconv.Itoa(tableAliasCounter)
 	tableAliasMap[table+"_"+joinKey] = newAlias
 	return newAlias
@@ -375,7 +376,7 @@ func getMatchObjectProperty(baseObjectProperty string, relatedFieldName string, 
 	return relatedFieldName + "." + matchObjectProperty
 }
 
-func getLookupsForDeploy(data interface{}, picardTags picardTags, dataPath string) []Lookup {
+func getLookupsForDeploy(data interface{}, picardTags picardTags, dataPath string, tableAliasMap map[string]string) []Lookup {
 	lookupsToUse := []Lookup{}
 	tableName := picardTags.TableName()
 	primaryKeyColumnName := picardTags.PrimaryKeyColumnName()
@@ -428,7 +429,7 @@ func getLookupsForDeploy(data interface{}, picardTags picardTags, dataPath strin
 		lookupsToUse = append(lookups, lookupsToUse...)
 	}
 
-	lookupsToUse = append(lookupsToUse, getLookupsFromForeignKeys(foreignKeys, "", "")...)
+	lookupsToUse = append(lookupsToUse, getLookupsFromForeignKeys(foreignKeys, "", "", tableAliasMap)...)
 
 	return lookupsToUse
 }
@@ -452,7 +453,7 @@ func getLookupObjectKeys(data interface{}, lookupsToUse []Lookup, dataPath strin
 	return keys
 }
 
-func getQueryParts(tableName string, primaryKeyColumnName string, lookupsToUse []Lookup) ([]string, []string, []squirrel.Eq) {
+func getQueryParts(tableName string, primaryKeyColumnName string, lookupsToUse []Lookup, tableAliasMap map[string]string) ([]string, []string, []squirrel.Eq) {
 	joinMap := map[string]bool{}
 	columns := []string{}
 	joins := []string{}
@@ -465,7 +466,7 @@ func getQueryParts(tableName string, primaryKeyColumnName string, lookupsToUse [
 		}
 		tableAlias := tableToUse
 		if lookup.JoinKey != "" && lookup.TableName != "" && tableToUse != tableName {
-			tableAlias = getTableAlias(tableToUse, lookup.JoinKey)
+			tableAlias = getTableAlias(tableToUse, lookup.JoinKey, tableAliasMap)
 			_, alreadyAddedJoin := joinMap[tableAlias]
 			if !alreadyAddedJoin {
 				joinMap[tableAlias] = true
@@ -716,7 +717,7 @@ func (p PersistenceORM) processObject(
 	}, nil
 }
 
-func getObjectKey(objects map[string]interface{}, tableName string, lookups []Lookup) string {
+func getObjectKey(objects map[string]interface{}, tableName string, lookups []Lookup, tableAliasMap map[string]string) string {
 	keyValue := []string{}
 	for _, lookup := range lookups {
 		tableToUse := tableName
@@ -726,7 +727,7 @@ func getObjectKey(objects map[string]interface{}, tableName string, lookups []Lo
 
 		tableAlias := tableToUse
 		if lookup.JoinKey != "" && lookup.TableName != "" && tableToUse != tableName {
-			tableAlias = getTableAlias(tableToUse, lookup.JoinKey)
+			tableAlias = getTableAlias(tableToUse, lookup.JoinKey, tableAliasMap)
 		}
 
 		keyPart := objects[fmt.Sprintf("%v_%v", tableAlias, lookup.MatchDBColumn)]
@@ -812,7 +813,7 @@ func getQueryResults(rows *sql.Rows) ([]map[string]interface{}, error) {
 	return results, nil
 }
 
-func getLookupQueryResults(rows *sql.Rows, tableName string, lookups []Lookup) (map[string]interface{}, error) {
+func getLookupQueryResults(rows *sql.Rows, tableName string, lookups []Lookup, tableAliasMap map[string]string) (map[string]interface{}, error) {
 
 	results, err := getQueryResults(rows)
 	if err != nil {
@@ -822,7 +823,7 @@ func getLookupQueryResults(rows *sql.Rows, tableName string, lookups []Lookup) (
 	resultsMap := map[string]interface{}{}
 
 	for _, v := range results {
-		resultsMap[getObjectKey(v, tableName, lookups)] = v
+		resultsMap[getObjectKey(v, tableName, lookups, tableAliasMap)] = v
 	}
 
 	return resultsMap, nil
@@ -836,10 +837,12 @@ func getColumnValues(columnNames []string, data map[string]interface{}) []interf
 	return columnValues
 }
 
-func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFields []string, parentPicardTags picardTags, joinKey string) ([]Lookup, error) {
+func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFields []string, parentPicardTags picardTags, baseJoinKey string, joinKey string, tableAliasMap map[string]string) ([]Lookup, error) {
 	filterModelType := filterModelValue.Type()
 	tableName := parentPicardTags.TableName()
 	lookups := []Lookup{}
+
+	fullJoinKey := getJoinKey(baseJoinKey, joinKey)
 
 	for i := 0; i < filterModelType.NumField(); i++ {
 		field := filterModelType.Field(i)
@@ -864,7 +867,7 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 				MatchDBColumn:       column,
 				MatchObjectProperty: field.Name,
 				TableName:           tableName,
-				JoinKey:             joinKey,
+				JoinKey:             fullJoinKey,
 				Query:               true,
 				Value:               p.multitenancyValue,
 			})
@@ -878,7 +881,7 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 				MatchDBColumn:       column,
 				MatchObjectProperty: field.Name,
 				TableName:           tableName,
-				JoinKey:             joinKey,
+				JoinKey:             fullJoinKey,
 				Query:               true,
 				Value:               fieldValue.Interface(),
 			})
@@ -887,7 +890,7 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 				MatchDBColumn:       column,
 				MatchObjectProperty: field.Name,
 				TableName:           tableName,
-				JoinKey:             joinKey,
+				JoinKey:             fullJoinKey,
 				Query:               true,
 				Value:               reflect.Zero(field.Type).Interface(),
 			})
@@ -904,7 +907,11 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 				return nil, errors.New("No Foreign Key Value Found in Struct Tags")
 			}
 			relatedPicardTags := picardTagsFromType(fieldValue.Type())
-			relatedLookups, err := p.getFilterLookups(fieldValue, []string{}, relatedPicardTags, getJoinKey(joinKey, foreignKeyValue))
+			tableAlias := getTableAlias(tableName, fullJoinKey, tableAliasMap)
+			if tableAlias == tableName {
+				tableAlias = ""
+			}
+			relatedLookups, err := p.getFilterLookups(fieldValue, []string{}, relatedPicardTags, tableAlias, foreignKeyValue, tableAliasMap)
 			if err != nil {
 				return nil, err
 			}
@@ -920,13 +927,14 @@ func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.V
 	filterModelType := filterModelValue.Type()
 	picardTags := picardTagsFromType(filterModelType)
 	primaryKeyColumnName := picardTags.PrimaryKeyColumnName()
+	tableAliasMap := map[string]string{}
 
-	lookups, err := p.getFilterLookups(filterModelValue, zeroFields, picardTags, "")
+	lookups, err := p.getFilterLookups(filterModelValue, zeroFields, picardTags, "", "", tableAliasMap)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	_, joins, whereFields := getQueryParts(picardTags.TableName(), primaryKeyColumnName, lookups)
+	_, joins, whereFields := getQueryParts(picardTags.TableName(), primaryKeyColumnName, lookups, tableAliasMap)
 
 	return whereFields, joins, nil
 

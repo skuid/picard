@@ -1,0 +1,12 @@
+{
+	"name": "GrandParent",
+	"children": [{
+		"name": "SimpleWithChildren",
+		"type": "SimpleWithChildrenType",
+		"children": [
+			{
+				"name": "ChildRecord"
+			}
+		]
+	}]
+}

@@ -12,19 +12,30 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// ParentTestObject sample parent object for tests
+type ParentTestObject struct {
+	Metadata Metadata `picard:"tablename=parenttest"`
+
+	ID             string       `json:"id" picard:"primary_key,column=id"`
+	OrganizationID string       `picard:"multitenancy_key,column=organization_id"`
+	Name           string       `json:"name" picard:"column=name"`
+	Children       []TestObject `json:"children" picard:"child,foreign_key=ParentID"`
+}
+
 // TestObject sample parent object for tests
 type TestObject struct {
 	Metadata Metadata `picard:"tablename=testobject"`
 
-	ID             string `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string `picard:"multitenancy_key,column=organization_id"`
-
+	ID             string                     `json:"id" picard:"primary_key,column=id"`
+	OrganizationID string                     `picard:"multitenancy_key,column=organization_id"`
 	Name           string                     `json:"name" picard:"lookup,column=name"`
 	NullableLookup string                     `json:"nullableLookup" picard:"lookup,column=nullable_lookup"`
 	Type           string                     `json:"type" picard:"column=type"`
 	IsActive       bool                       `json:"is_active" picard:"column=is_active"`
 	Children       []ChildTestObject          `json:"children" picard:"child,foreign_key=ParentID"`
 	ChildrenMap    map[string]ChildTestObject `json:"childrenmap" picard:"child,foreign_key=ParentID,key_mappings=Name,value_mappings=Type->OtherInfo"`
+	ParentID       string                     `picard:"foreign_key,related=Parent,column=parent_id"`
+	Parent         ParentTestObject
 }
 
 // ChildTestObject sample child object for tests
@@ -41,14 +52,24 @@ type ChildTestObject struct {
 	OptionalParent   TestObject `json:"optional_parent"`
 }
 
+var parentObjectHelper = ExpectationHelper{
+	TableName:        "parenttest",
+	LookupSelect:     "",
+	LookupWhere:      "",
+	LookupReturnCols: []string{},
+	LookupFields:     []string{},
+	DBColumns:        []string{"organization_id", "name"},
+	DataFields:       []string{"OrganizationID", "Name"},
+}
+
 var testObjectHelper = ExpectationHelper{
 	TableName:        "testobject",
 	LookupSelect:     "testobject.id, testobject.name as testobject_name, testobject.nullable_lookup as testobject_nullable_lookup",
 	LookupWhere:      `COALESCE(testobject.name::"varchar",'') || '|' || COALESCE(testobject.nullable_lookup::"varchar",'')`,
 	LookupReturnCols: []string{"id", "testobject_name", "testobject_nullable_lookup"},
 	LookupFields:     []string{"Name", "NullableLookup"},
-	DBColumns:        []string{"organization_id", "name", "nullable_lookup", "type", "is_active"},
-	DataFields:       []string{"OrganizationID", "Name", "NullableLookup", "Type", "IsActive"},
+	DBColumns:        []string{"organization_id", "name", "nullable_lookup", "type", "is_active", "parent_id"},
+	DataFields:       []string{"OrganizationID", "Name", "NullableLookup", "Type", "IsActive", "ParentID"},
 }
 
 var testObjectWithPKHelper = ExpectationHelper{
@@ -57,8 +78,8 @@ var testObjectWithPKHelper = ExpectationHelper{
 	LookupWhere:      `COALESCE(testobject.id::"varchar",'')`,
 	LookupReturnCols: []string{"id", "testobject_id"},
 	LookupFields:     []string{"ID"},
-	DBColumns:        []string{"organization_id", "name", "nullable_lookup", "type", "is_active"},
-	DataFields:       []string{"OrganizationID", "Name", "NullableLookup", "Type", "IsActive"},
+	DBColumns:        []string{"organization_id", "name", "nullable_lookup", "type", "is_active", "parent_id"},
+	DataFields:       []string{"OrganizationID", "Name", "NullableLookup", "Type", "IsActive", "ParentID"},
 }
 
 var testChildObjectHelper = ExpectationHelper{
@@ -211,6 +232,45 @@ func TestDeployments(t *testing.T) {
 				ExpectInsert(mock, testObjectHelper, []TestObject{
 					fixtures[1],
 				})
+			},
+			"",
+		},
+		{
+			"Single Import with GrandChildren All Inserts",
+			[]string{"SimpleWithGrandChildren"},
+			ParentTestObject{},
+			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+				fixtures := fixturesAbstract.([]ParentTestObject)
+				//returnData := GetReturnDataForLookup(parentObjectHelper, nil)
+				insertRows := ExpectInsert(mock, parentObjectHelper, fixtures)
+
+				testObjects := []TestObject{}
+				for index, fixture := range fixtures {
+					for _, testObject := range fixture.Children {
+						testObject.ParentID = insertRows[index][0].(string)
+						testObjects = append(testObjects, testObject)
+					}
+				}
+
+				testReturnData := GetReturnDataForLookup(testObjectHelper, nil)
+				testLookupKeys := GetLookupKeys(testObjectHelper, testObjects)
+				ExpectLookup(mock, testObjectHelper, testLookupKeys, testReturnData)
+
+				childInsertRows := ExpectInsert(mock, testObjectHelper, testObjects)
+
+				childObjects := []ChildTestObject{}
+				for index, fixture := range fixtures {
+					for _, childObject := range fixture.Children[0].Children {
+						childObject.ParentID = childInsertRows[index][0].(string)
+						childObjects = append(childObjects, childObject)
+					}
+				}
+
+				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
+				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
+				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
+				ExpectInsert(mock, testChildObjectHelper, childObjects)
+
 			},
 			"",
 		},
@@ -489,6 +549,7 @@ func TestDeployments(t *testing.T) {
 	}
 
 }
+
 func TestGenerateWhereClausesFromModel(t *testing.T) {
 
 	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000001")
@@ -688,6 +749,33 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				},
 			},
 			[]string{"testobject as t1 on t1.id = parent_id"},
+			"",
+		},
+		{
+			"Filter object with grandparent values",
+			reflect.ValueOf(ChildTestObject{
+				Parent: TestObject{
+					Parent: ParentTestObject{
+						Name: "ugh",
+					},
+				},
+			}),
+			nil,
+			[]squirrel.Eq{
+				squirrel.Eq{
+					"childtest.organization_id": testMultitenancyValue,
+				},
+				squirrel.Eq{
+					"t1.organization_id": testMultitenancyValue,
+				},
+				squirrel.Eq{
+					"t2.organization_id": testMultitenancyValue,
+				},
+				squirrel.Eq{
+					"t2.name": "ugh",
+				},
+			},
+			[]string{"testobject as t1 on t1.id = parent_id", "parenttest as t2 on t2.id = t1.parent_id"},
 			"",
 		},
 		{
