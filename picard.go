@@ -131,7 +131,6 @@ func (p PersistenceORM) upsert(data interface{}) error {
 	}
 
 	picardTags := picardTagsFromType(t.Elem())
-	foreignKeys := picardTags.ForeignKeys()
 	childOptions := picardTags.Children()
 	columnNames := picardTags.DataColumnNames()
 	tableName := picardTags.TableName()
@@ -142,22 +141,7 @@ func (p PersistenceORM) upsert(data interface{}) error {
 		return errors.New("No table name specified in struct metadata")
 	}
 
-	results, lookupsToUse, err := p.checkForExisting(data, picardTags, "")
-	if err != nil {
-		return err
-	}
-
-	for index := range foreignKeys {
-		foreignKey := &foreignKeys[index]
-		foreignResults, foreignLookupsUsed, err := p.checkForExisting(data, foreignKey.ObjectInfo, foreignKey.RelatedFieldName)
-		if err != nil {
-			return err
-		}
-		foreignKey.LookupResults = foreignResults
-		foreignKey.LookupsUsed = foreignLookupsUsed
-	}
-
-	inserts, updates, _ /*deletes*/, err := p.generateChanges(data, results, lookupsToUse, foreignKeys)
+	inserts, updates, _ /*deletes*/, err := p.generateChanges(data, picardTags)
 	if err != nil {
 		return err
 	}
@@ -551,15 +535,30 @@ func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, primaryKey
 // performed on the database.
 func (p PersistenceORM) generateChanges(
 	data interface{},
-	results map[string]interface{},
-	lookups []Lookup,
-	foreignKeys []ForeignKey,
+	picardTags picardTags,
 ) (
 	[]DBChange,
 	[]DBChange,
 	[]DBChange,
 	error,
 ) {
+	foreignKeys := picardTags.ForeignKeys()
+
+	results, lookups, err := p.checkForExisting(data, picardTags, "")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	for index := range foreignKeys {
+		foreignKey := &foreignKeys[index]
+		foreignResults, foreignLookupsUsed, err := p.checkForExisting(data, foreignKey.ObjectInfo, foreignKey.RelatedFieldName)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		foreignKey.LookupResults = foreignResults
+		foreignKey.LookupsUsed = foreignLookupsUsed
+	}
+
 	inserts := []DBChange{}
 	updates := []DBChange{}
 	deletes := []DBChange{}
