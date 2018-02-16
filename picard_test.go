@@ -241,7 +241,6 @@ func TestDeployments(t *testing.T) {
 			ParentTestObject{},
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				fixtures := fixturesAbstract.([]ParentTestObject)
-				//returnData := GetReturnDataForLookup(parentObjectHelper, nil)
 				insertRows := ExpectInsert(mock, parentObjectHelper, fixtures)
 
 				testObjects := []TestObject{}
