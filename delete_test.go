@@ -34,7 +34,7 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE primary_key_column = \$1 AND multitenancy_key_column = \$2$`).
+				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.primary_key_column = \$1 AND test_tablename.multitenancy_key_column = \$2$`).
 					WithArgs("00000000-0000-0000-0000-000000000555", "00000000-0000-0000-0000-000000000001").
 					WillReturnResult(sqlmock.NewResult(0, 1))
 				mock.ExpectCommit()
@@ -56,7 +56,7 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE multitenancy_key_column = \$1 AND test_column_one = \$2$`).
+				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.multitenancy_key_column = \$1 AND test_tablename.test_column_one = \$2$`).
 					WithArgs("00000000-0000-0000-0000-000000000001", "test value 1").
 					WillReturnResult(sqlmock.NewResult(0, 2))
 				mock.ExpectCommit()
@@ -78,7 +78,7 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE multitenancy_key_column = \$1$`).
+				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.multitenancy_key_column = \$1$`).
 					WithArgs("00000000-0000-0000-0000-000000000001").
 					WillReturnResult(sqlmock.NewResult(0, 20))
 				mock.ExpectCommit()
@@ -120,7 +120,7 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE multitenancy_key_column = \$1$`).
+				mock.ExpectExec(`^DELETE FROM test_tablename WHERE  test_tablename.multitenancy_key_column = \$1$`).
 					WithArgs("00000000-0000-0000-0000-000000000001").
 					WillReturnError(errors.New("some test error 2"))
 			},
@@ -141,7 +141,7 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE multitenancy_key_column = \$1$`).
+				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.multitenancy_key_column = \$1$`).
 					WithArgs("00000000-0000-0000-0000-000000000001").
 					WillReturnResult(sqlmock.NewResult(0, 20))
 				mock.ExpectCommit().
