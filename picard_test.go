@@ -19,11 +19,12 @@ type TestObject struct {
 	ID             string `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string `picard:"multitenancy_key,column=organization_id"`
 
-	Name           string            `json:"name" picard:"lookup,column=name"`
-	NullableLookup string            `json:"nullableLookup" picard:"lookup,column=nullable_lookup"`
-	Type           string            `json:"type" picard:"column=type"`
-	IsActive       bool              `json:"is_active" picard:"column=is_active"`
-	Children       []ChildTestObject `json:"children" picard:"child,foreign_key=ParentID"`
+	Name           string                     `json:"name" picard:"lookup,column=name"`
+	NullableLookup string                     `json:"nullableLookup" picard:"lookup,column=nullable_lookup"`
+	Type           string                     `json:"type" picard:"column=type"`
+	IsActive       bool                       `json:"is_active" picard:"column=is_active"`
+	Children       []ChildTestObject          `json:"children" picard:"child,foreign_key=ParentID"`
+	ChildrenMap    map[string]ChildTestObject `json:"childrenmap" picard:"child,foreign_key=ParentID,key_mappings=Name,value_mappings=Type->OtherInfo"`
 }
 
 // ChildTestObject sample child object for tests
@@ -33,6 +34,7 @@ type ChildTestObject struct {
 	ID               string     `json:"id" picard:"primary_key,column=id"`
 	OrganizationID   string     `picard:"multitenancy_key,column=organization_id"`
 	Name             string     `json:"name" picard:"lookup,column=name"`
+	OtherInfo        string     `picard:"column=other_info"`
 	ParentID         string     `picard:"foreign_key,lookup,required,related=Parent,column=parent_id"`
 	Parent           TestObject `json:"parent"`
 	OptionalParentID string     `picard:"foreign_key,related=OptionalParent,column=optional_parent_id"`
@@ -65,19 +67,19 @@ var testChildObjectHelper = ExpectationHelper{
 	LookupWhere:      `COALESCE(childtest.name::"varchar",'') || '|' || COALESCE(childtest.parent_id::"varchar",'')`,
 	LookupReturnCols: []string{"id", "childtest_name", "childtest_parent_id"},
 	LookupFields:     []string{"Name", "ParentID"},
-	DBColumns:        []string{"organization_id", "name", "parent_id", "optional_parent_id"},
-	DataFields:       []string{"OrganizationID", "Name", "ParentID", "OptionalParentID"},
+	DBColumns:        []string{"organization_id", "name", "other_info", "parent_id", "optional_parent_id"},
+	DataFields:       []string{"OrganizationID", "Name", "OtherInfo", "ParentID", "OptionalParentID"},
 }
 
 var testChildObjectWithLookupHelper = ExpectationHelper{
 	TableName:        "childtest",
-	LookupFrom:       "childtest JOIN testobject as testobject_parent_id on testobject_parent_id.id = parent_id",
-	LookupSelect:     "childtest.id, childtest.name as childtest_name, testobject_parent_id.name as testobject_parent_id_name, testobject_parent_id.nullable_lookup as testobject_parent_id_nullable_lookup",
-	LookupWhere:      `COALESCE(childtest.name::"varchar",'') || '|' || COALESCE(testobject_parent_id.name::"varchar",'') || '|' || COALESCE(testobject_parent_id.nullable_lookup::"varchar",'')`,
-	LookupReturnCols: []string{"id", "childtest_name", "testobject_parent_id_name", "testobject_parent_id_nullable_lookup"},
+	LookupFrom:       "childtest JOIN testobject as t1 on t1.id = parent_id",
+	LookupSelect:     "childtest.id, childtest.name as childtest_name, t1.name as t1_name, t1.nullable_lookup as t1_nullable_lookup",
+	LookupWhere:      `COALESCE(childtest.name::"varchar",'') || '|' || COALESCE(t1.name::"varchar",'') || '|' || COALESCE(t1.nullable_lookup::"varchar",'')`,
+	LookupReturnCols: []string{"id", "childtest_name", "t1_name", "t1_nullable_lookup"},
 	LookupFields:     []string{"Name", "ParentID"},
-	DBColumns:        []string{"organization_id", "name", "parent_id", "optional_parent_id"},
-	DataFields:       []string{"OrganizationID", "Name", "ParentID", "OptionalParentID"},
+	DBColumns:        []string{"organization_id", "name", "other_info", "parent_id", "optional_parent_id"},
+	DataFields:       []string{"OrganizationID", "Name", "OtherInfo", "ParentID", "OptionalParentID"},
 }
 
 // Loads in a fixture data source from file
@@ -233,6 +235,37 @@ func TestDeployments(t *testing.T) {
 
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
+				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
+				ExpectInsert(mock, testChildObjectHelper, childObjects)
+			},
+			"",
+		},
+		{
+			"Single Import with ChildrenMap Insert New Parent",
+			[]string{"SimpleWithChildrenMap"},
+			TestObject{},
+			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+				fixtures := fixturesAbstract.([]TestObject)
+				returnData := GetReturnDataForLookup(testObjectHelper, nil)
+				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
+				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
+				insertRows := ExpectInsert(mock, testObjectHelper, fixtures)
+
+				childObjects := []ChildTestObject{}
+				for index, fixture := range fixtures {
+					for _, childObject := range fixture.ChildrenMap {
+						childObject.ParentID = insertRows[index][0].(string)
+						// Tests that the key mapping "Name" worked correctly
+						childObject.Name = "ChildRecord1"
+						// Tests that the value mapping "Type->OtherInfo" worked correctly
+						childObject.OtherInfo = fixtures[0].Type
+						childObjects = append(childObjects, childObject)
+					}
+				}
+
+				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
+				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
+
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 				ExpectInsert(mock, testChildObjectHelper, childObjects)
 			},

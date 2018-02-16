@@ -121,11 +121,31 @@ func picardTagsFromType(t reflect.Type) picardTags {
 			}
 		}
 
-		if isChild && kind == reflect.Slice {
+		if isChild && (kind == reflect.Slice || kind == reflect.Map) {
+			keyMappings := []string{}
+			valueMappingMap := map[string]string{}
+			keyMappingString := tagsMap["key_mappings"]
+			valueMappingString := tagsMap["value_mappings"]
+
+			if keyMappingString != "" {
+				keyMappings = strings.Split(keyMappingString, "&")
+			}
+
+			if valueMappingString != "" {
+				valueMappingArray := strings.Split(valueMappingString, "&")
+				for _, valueMap := range valueMappingArray {
+					valueMapSplit := strings.Split(valueMap, "->")
+					valueMappingMap[valueMapSplit[0]] = valueMapSplit[1]
+				}
+			}
+
 			children = append(children, Child{
-				FieldName:  field.Name,
-				FieldType:  field.Type,
-				ForeignKey: tagsMap["foreign_key"],
+				FieldName:     field.Name,
+				FieldType:     field.Type,
+				FieldKind:     kind,
+				ForeignKey:    tagsMap["foreign_key"],
+				KeyMappings:   keyMappings,
+				ValueMappings: valueMappingMap,
 			})
 		}
 
