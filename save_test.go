@@ -269,6 +269,139 @@ func TestSaveModel(t *testing.T) {
 	}
 }
 
+func TestJSONBSaveModel(t *testing.T) {
+	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000005")
+	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
+	testCases := []struct {
+		description         string
+		giveValue           interface{}
+		expectationFunction func(sqlmock.Sqlmock)
+		wantErr             string
+	}{
+		{
+			"should run insert for model with serialized field",
+			&struct {
+				Metadata `picard:"tablename=test_tablename"`
+
+				PrimaryKeyField        string               `picard:"primary_key,column=primary_key_column"`
+				TestMultitenancyColumn string               `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne           string               `picard:"column=test_column_one"`
+				TestFieldTwo           TestSerializedObject `picard:"jsonb,column=test_column_two"`
+			}{
+				TestFieldOne: "test value one",
+				TestFieldTwo: TestSerializedObject{
+					Name:               "Matt",
+					Active:             true,
+					NonSerializedField: "does not matter",
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(`^INSERT INTO test_tablename \(multitenancy_key_column,test_column_one,test_column_two\) VALUES \(\$1,\$2,\$3\) RETURNING "primary_key_column"$`).
+					WithArgs("00000000-0000-0000-0000-000000000005", "test value one", []byte(`{"name":"Matt","active":true}`)).
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
+					)
+				mock.ExpectCommit()
+			},
+			"",
+		},
+		{
+			"should run insert for model with array serialized field",
+			&struct {
+				Metadata `picard:"tablename=test_tablename"`
+
+				PrimaryKeyField        string                 `picard:"primary_key,column=primary_key_column"`
+				TestMultitenancyColumn string                 `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne           string                 `picard:"column=test_column_one"`
+				TestFieldTwo           []TestSerializedObject `picard:"jsonb,column=test_column_two"`
+			}{
+				TestFieldOne: "test value one",
+				TestFieldTwo: []TestSerializedObject{
+					TestSerializedObject{
+						Name:               "Matt",
+						Active:             true,
+						NonSerializedField: "does not matter", // This field is not json serialized
+					},
+					TestSerializedObject{
+						Name:               "Ben",
+						Active:             true,
+						NonSerializedField: "does not matter again",
+					},
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(`^INSERT INTO test_tablename \(multitenancy_key_column,test_column_one,test_column_two\) VALUES \(\$1,\$2,\$3\) RETURNING "primary_key_column"$`).
+					WithArgs("00000000-0000-0000-0000-000000000005", "test value one", []byte(`[{"name":"Matt","active":true},{"name":"Ben","active":true}]`)).
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
+					)
+				mock.ExpectCommit()
+			},
+			"",
+		},
+		{
+			"should run insert for model with pointer serialized field",
+			&struct {
+				Metadata `picard:"tablename=test_tablename"`
+
+				PrimaryKeyField        string                `picard:"primary_key,column=primary_key_column"`
+				TestMultitenancyColumn string                `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne           string                `picard:"column=test_column_one"`
+				TestFieldTwo           *TestSerializedObject `picard:"jsonb,column=test_column_two"`
+			}{
+				TestFieldOne: "test value one",
+				TestFieldTwo: &TestSerializedObject{
+					Name:               "Brian",
+					Active:             true,
+					NonSerializedField: "does not matter", // This field is not json serialized
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(`^INSERT INTO test_tablename \(multitenancy_key_column,test_column_one,test_column_two\) VALUES \(\$1,\$2,\$3\) RETURNING "primary_key_column"$`).
+					WithArgs("00000000-0000-0000-0000-000000000005", "test value one", []byte(`{"name":"Brian","active":true}`)).
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
+					)
+				mock.ExpectCommit()
+			},
+			"",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatal(err)
+			}
+			conn = db
+			tc.expectationFunction(mock)
+
+			// Create the Picard instance
+			p := PersistenceORM{
+				multitenancyValue: testMultitenancyValue,
+				performedBy:       testPerformedByValue,
+			}
+
+			err = p.SaveModel(tc.giveValue)
+
+			if tc.wantErr != "" {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+
+				// sqlmock expectations
+				if err := mock.ExpectationsWereMet(); err != nil {
+					t.Errorf("there were unmet sqlmock expectations: %s", err)
+				}
+			}
+
+		})
+	}
+}
 func TestEncryptedSaveModel(t *testing.T) {
 	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000005")
 	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")

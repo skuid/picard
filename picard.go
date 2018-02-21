@@ -3,6 +3,7 @@ package picard
 import (
 	"database/sql"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -617,6 +618,25 @@ func (p PersistenceORM) generateChanges(
 	return inserts, updates, deletes, nil
 }
 
+func serializeJSONBColumns(columns []string, returnObject map[string]interface{}) error {
+	for _, column := range columns {
+		value := returnObject[column]
+
+		// No value to process
+		if value == nil || value == "" {
+			continue
+		}
+
+		serializedValue, err := json.Marshal(value)
+		if err != nil {
+			return err
+		}
+
+		returnObject[column] = serializedValue
+	}
+	return nil
+}
+
 func (p PersistenceORM) processObject(
 	metadataObject reflect.Value,
 	databaseObject map[string]interface{},
@@ -691,6 +711,9 @@ func (p PersistenceORM) processObject(
 		// Replace the original value with the newly encrypted value.
 		returnObject[column] = encoded
 	}
+
+	// Process JSONB columns that need to be serialized prior to storage
+	serializeJSONBColumns(picardTags.JSONBColumns(), returnObject)
 
 	for _, foreignKey := range foreignKeys {
 		if returnObject[foreignKey.KeyColumn] != "" {
