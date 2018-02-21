@@ -40,6 +40,11 @@ type modelOnePointerFieldJSONB struct {
 	TestFieldOne *TestSerializedObject `picard:"jsonb,column=test_column_one"`
 }
 
+type modelOneArrayFieldJSONB struct {
+	Metadata     Metadata               `picard:"tablename=test_table"`
+	TestFieldOne []TestSerializedObject `picard:"jsonb,column=test_column_one"`
+}
+
 type modelTwoField struct {
 	TestFieldOne string `picard:"column=test_column_one"`
 	TestFieldTwo string `picard:"column=test_column_two"`
@@ -337,6 +342,35 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
 					sqlmock.NewRows([]string{"test_column_one"}).
 						AddRow(`{"name":"Ben","active":true}`),
+				)
+			},
+			nil,
+		},
+		{
+			"Should do query correctly and return correct values with array JSONB field",
+			reflect.TypeOf(modelOneArrayFieldJSONB{}),
+			nil,
+			[]interface{}{
+				modelOneArrayFieldJSONB{
+					TestFieldOne: []TestSerializedObject{
+						TestSerializedObject{
+							Name:               "Matt",
+							Active:             true,
+							NonSerializedField: "",
+						},
+						TestSerializedObject{
+							Name:               "Ben",
+							Active:             true,
+							NonSerializedField: "",
+						},
+					},
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
+					sqlmock.NewRows([]string{"test_column_one"}).
+						AddRow(`[{"name":"Matt","active":true},{"name":"Ben","active":true}]`),
 				)
 			},
 			nil,
