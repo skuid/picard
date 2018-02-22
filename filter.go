@@ -121,12 +121,13 @@ func hydrateModel(modelType reflect.Type, values map[string]interface{}) reflect
 
 			if hasValue && reflect.ValueOf(value).IsValid() {
 				if isJSONB {
-					valueString, ok := value.(string)
-					if ok {
-						destinationValue := reflect.New(field.Type).Interface()
-						json.Unmarshal([]byte(valueString), destinationValue)
-						value = reflect.Indirect(reflect.ValueOf(destinationValue)).Interface()
+					valueString, isString := value.(string)
+					if !isString {
+						valueString = string(value.([]byte))
 					}
+					destinationValue := reflect.New(field.Type).Interface()
+					json.Unmarshal([]byte(valueString), destinationValue)
+					value = reflect.Indirect(reflect.ValueOf(destinationValue)).Interface()
 				}
 
 				if reflectedValue.Type().ConvertibleTo(field.Type) {
