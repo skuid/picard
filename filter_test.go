@@ -319,6 +319,28 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 				mock.ExpectBegin()
 				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
 					sqlmock.NewRows([]string{"test_column_one"}).
+						AddRow([]byte(`{"name":"Matt","active":true}`)),
+				)
+			},
+			nil,
+		},
+		{
+			"Should do query correctly and return correct values with single JSONB field and string return",
+			reflect.TypeOf(modelOneFieldJSONB{}),
+			nil,
+			[]interface{}{
+				modelOneFieldJSONB{
+					TestFieldOne: TestSerializedObject{
+						Name:               "Matt",
+						Active:             true,
+						NonSerializedField: "",
+					},
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
+					sqlmock.NewRows([]string{"test_column_one"}).
 						AddRow(`{"name":"Matt","active":true}`),
 				)
 			},
@@ -341,7 +363,7 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 				mock.ExpectBegin()
 				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
 					sqlmock.NewRows([]string{"test_column_one"}).
-						AddRow(`{"name":"Ben","active":true}`),
+						AddRow([]byte(`{"name":"Ben","active":true}`)),
 				)
 			},
 			nil,
@@ -370,7 +392,7 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 				mock.ExpectBegin()
 				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
 					sqlmock.NewRows([]string{"test_column_one"}).
-						AddRow(`[{"name":"Matt","active":true},{"name":"Ben","active":true}]`),
+						AddRow([]byte(`[{"name":"Matt","active":true},{"name":"Ben","active":true}]`)),
 				)
 			},
 			nil,
