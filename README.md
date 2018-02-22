@@ -1,4 +1,7 @@
+![image](https://user-images.githubusercontent.com/865759/36548565-9eb1cae8-17be-11e8-9a87-f3d0663dfe68.png)
+
 # Picard
+
 Picard is a database interaction layer for go services.
 
 # Usages
