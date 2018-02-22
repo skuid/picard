@@ -14,6 +14,7 @@ type picardTags struct {
 	multitenancyKeyColumn string
 	dataColumns           []string
 	encryptedColumns      []string
+	jsonbColumns          []string
 	lookups               []Lookup
 	foreignKeys           []ForeignKey
 	children              []Child
@@ -37,6 +38,9 @@ func (pt picardTags) DataColumnNames() []string {
 }
 func (pt picardTags) EncryptedColumns() []string {
 	return pt.encryptedColumns
+}
+func (pt picardTags) JSONBColumns() []string {
+	return pt.jsonbColumns
 }
 func (pt picardTags) Lookups() []Lookup {
 	return pt.lookups
@@ -79,6 +83,7 @@ func picardTagsFromType(t reflect.Type) picardTags {
 		multitenancyKeyColumn string
 		dataColumns           []string
 		encryptedColumns      []string
+		jsonbColumns          []string
 		lookups               []Lookup
 		foreignKeys           []ForeignKey
 		children              []Child
@@ -101,6 +106,7 @@ func picardTagsFromType(t reflect.Type) picardTags {
 		_, isRequired := tagsMap["required"]
 		_, isForeignKey := tagsMap["foreign_key"]
 		_, isEncrypted := tagsMap["encrypted"]
+		_, isJSONB := tagsMap["jsonb"]
 
 		if field.Type == reflect.TypeOf(metadata) && hasTableName {
 			tableName = tagsMap["tablename"]
@@ -112,6 +118,9 @@ func picardTagsFromType(t reflect.Type) picardTags {
 			}
 			if isEncrypted {
 				encryptedColumns = append(encryptedColumns, columnName)
+			}
+			if isJSONB {
+				jsonbColumns = append(jsonbColumns, columnName)
 			}
 			if isPK {
 				primaryKeyColumn = columnName
@@ -186,6 +195,7 @@ func picardTagsFromType(t reflect.Type) picardTags {
 		foreignKeys:           foreignKeys,
 		children:              children,
 		fieldToColumnMap:      fieldToColumnMap,
+		jsonbColumns:          jsonbColumns,
 	}
 }
 

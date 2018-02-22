@@ -30,6 +30,21 @@ type modelOneFieldEncrypted struct {
 	TestFieldOne string   `picard:"encrypted,column=test_column_one"`
 }
 
+type modelOneFieldJSONB struct {
+	Metadata     Metadata             `picard:"tablename=test_table"`
+	TestFieldOne TestSerializedObject `picard:"jsonb,column=test_column_one"`
+}
+
+type modelOnePointerFieldJSONB struct {
+	Metadata     Metadata              `picard:"tablename=test_table"`
+	TestFieldOne *TestSerializedObject `picard:"jsonb,column=test_column_one"`
+}
+
+type modelOneArrayFieldJSONB struct {
+	Metadata     Metadata               `picard:"tablename=test_table"`
+	TestFieldOne []TestSerializedObject `picard:"jsonb,column=test_column_one"`
+}
+
 type modelTwoField struct {
 	TestFieldOne string `picard:"column=test_column_one"`
 	TestFieldTwo string `picard:"column=test_column_two"`
@@ -258,6 +273,127 @@ func TestDoFilterSelectWithEncrypted(t *testing.T) {
 
 			// Tear down known nonce
 			rand.Reader = oldReader
+
+			if tc.wantErr != nil {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.wantReturnInterfaces, results)
+
+				// sqlmock expectations
+				if err := mock.ExpectationsWereMet(); err != nil {
+					t.Errorf("there were unmet sqlmock expectations: %s", err)
+				}
+			}
+
+		})
+	}
+}
+
+func TestDoFilterSelectWithJSONBField(t *testing.T) {
+
+	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000001")
+	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
+	testCases := []struct {
+		description          string
+		filterModelType      reflect.Type
+		whereClauses         []squirrel.Eq
+		wantReturnInterfaces []interface{}
+		expectationFunction  func(sqlmock.Sqlmock)
+		wantErr              error
+	}{
+		{
+			"Should do query correctly and return correct values with single JSONB field",
+			reflect.TypeOf(modelOneFieldJSONB{}),
+			nil,
+			[]interface{}{
+				modelOneFieldJSONB{
+					TestFieldOne: TestSerializedObject{
+						Name:               "Matt",
+						Active:             true,
+						NonSerializedField: "",
+					},
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
+					sqlmock.NewRows([]string{"test_column_one"}).
+						AddRow(`{"name":"Matt","active":true}`),
+				)
+			},
+			nil,
+		},
+		{
+			"Should do query correctly and return correct values with single pointer JSONB field",
+			reflect.TypeOf(modelOnePointerFieldJSONB{}),
+			nil,
+			[]interface{}{
+				modelOnePointerFieldJSONB{
+					TestFieldOne: &TestSerializedObject{
+						Name:               "Ben",
+						Active:             true,
+						NonSerializedField: "",
+					},
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
+					sqlmock.NewRows([]string{"test_column_one"}).
+						AddRow(`{"name":"Ben","active":true}`),
+				)
+			},
+			nil,
+		},
+		{
+			"Should do query correctly and return correct values with array JSONB field",
+			reflect.TypeOf(modelOneArrayFieldJSONB{}),
+			nil,
+			[]interface{}{
+				modelOneArrayFieldJSONB{
+					TestFieldOne: []TestSerializedObject{
+						TestSerializedObject{
+							Name:               "Matt",
+							Active:             true,
+							NonSerializedField: "",
+						},
+						TestSerializedObject{
+							Name:               "Ben",
+							Active:             true,
+							NonSerializedField: "",
+						},
+					},
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
+					sqlmock.NewRows([]string{"test_column_one"}).
+						AddRow(`[{"name":"Matt","active":true},{"name":"Ben","active":true}]`),
+				)
+			},
+			nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatal(err)
+			}
+			conn = db
+
+			tc.expectationFunction(mock)
+
+			// Create the Picard instance
+			p := PersistenceORM{
+				multitenancyValue: testMultitenancyValue,
+				performedBy:       testPerformedByValue,
+			}
+
+			results, err := p.doFilterSelect(tc.filterModelType, tc.whereClauses, []string{})
 
 			if tc.wantErr != nil {
 				assert.Error(t, err)

@@ -2,6 +2,7 @@ package picard
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"reflect"
 
@@ -112,11 +113,21 @@ func hydrateModel(modelType reflect.Type, values map[string]interface{}) reflect
 
 		picardTags := getStructTagsMap(field, "picard")
 		column, hasColumn := picardTags["column"]
+		_, isJSONB := picardTags["jsonb"]
+
 		if hasColumn {
 			value, hasValue := values[column]
 			reflectedValue := reflect.ValueOf(value)
 
 			if hasValue && reflect.ValueOf(value).IsValid() {
+				if isJSONB {
+					valueString, ok := value.(string)
+					if ok {
+						destinationValue := reflect.New(field.Type).Interface()
+						json.Unmarshal([]byte(valueString), destinationValue)
+						value = reflect.Indirect(reflect.ValueOf(destinationValue)).Interface()
+					}
+				}
 
 				if reflectedValue.Type().ConvertibleTo(field.Type) {
 					reflectedValue = reflectedValue.Convert(field.Type)

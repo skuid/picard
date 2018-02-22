@@ -52,6 +52,20 @@ type ChildTestObject struct {
 	OptionalParent   TestObject `json:"optional_parent"`
 }
 
+type TestParentSerializedObject struct {
+	Metadata Metadata `picard:"tablename=parent_serialize`
+
+	ID               string                 `json:"id" picard:"primary_key,column=id"`
+	SerializedThings []TestSerializedObject `json:"serialized_things" picard:"jsonb,column=serialized_things"`
+}
+
+// SerializedObject sample object to be stored in a JSONB column
+type TestSerializedObject struct {
+	Name               string `json:"name"`
+	Active             bool   `json:"active"`
+	NonSerializedField string `json:"-"`
+}
+
 var parentObjectHelper = ExpectationHelper{
 	TableName:        "parenttest",
 	LookupSelect:     "",
@@ -101,6 +115,49 @@ var testChildObjectWithLookupHelper = ExpectationHelper{
 	LookupFields:     []string{"Name", "ParentID"},
 	DBColumns:        []string{"organization_id", "name", "other_info", "parent_id", "optional_parent_id"},
 	DataFields:       []string{"OrganizationID", "Name", "OtherInfo", "ParentID", "OptionalParentID"},
+}
+
+func TestSerializeJSONBColumns(t *testing.T) {
+	testCases := []struct {
+		testDescription string
+		giveColumns     []string
+		giveObject      map[string]interface{}
+		wantObject      map[string]interface{}
+		wantErrMsg      string
+	}{
+		{
+			testDescription: "serializes only columns provided into JSON format",
+			giveColumns: []string{
+				"column_one",
+			},
+			giveObject: map[string]interface{}{
+				"column_one": TestSerializedObject{
+					Name:               "Matt",
+					Active:             true,
+					NonSerializedField: "is this the real life?",
+				},
+				"column_two": "will not be serialized",
+			},
+			wantObject: map[string]interface{}{
+				"column_one": []byte(`{"name":"Matt","active":true}`),
+				"column_two": "will not be serialized",
+			},
+			wantErrMsg: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.testDescription, func(t *testing.T) {
+			err := serializeJSONBColumns(tc.giveColumns, tc.giveObject)
+			if tc.wantErrMsg != "" {
+				assert.Error(t, err)
+				assert.EqualError(t, err, tc.wantErrMsg)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.wantObject, tc.giveObject)
+			}
+		})
+	}
 }
 
 // Loads in a fixture data source from file
