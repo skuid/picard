@@ -32,12 +32,7 @@ func (p PersistenceORM) FilterModel(filterModel interface{}) ([]interface{}, err
 func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClauses []squirrel.Eq, joinClauses []string) ([]interface{}, error) {
 	var returnModels []interface{}
 
-	tx, err := GetConnection().Begin()
-	if err != nil {
-		return nil, err
-	}
-
-	p.transaction = tx
+	db := GetConnection()
 
 	picardTags := picardTagsFromType(filterModelType)
 	columnNames := picardTags.ColumnNames()
@@ -54,7 +49,7 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 		PlaceholderFormat(squirrel.Dollar).
 		Select(fullColumnNames...).
 		From(tableName).
-		RunWith(p.transaction)
+		RunWith(db)
 
 	for _, join := range joinClauses {
 		query = query.Join(join)
