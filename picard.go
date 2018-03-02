@@ -325,7 +325,7 @@ func getLookupsFromForeignKeys(foreignKeys []ForeignKey, baseJoinKey string, bas
 				})
 			}
 			newBaseJoinKey := getTableAlias(objectInfo.TableName(), joinKey, tableAliasCache)
-			lookupsToUse = append(lookupsToUse, getLookupsFromForeignKeys(objectInfo.ForeignKeys(), newBaseJoinKey, foreignKey.RelatedFieldName, tableAliasCache)...)
+			lookupsToUse = append(lookupsToUse, getLookupsFromForeignKeys(objectInfo.ForeignKeys(), newBaseJoinKey, getNewBaseObjectProperty(baseObjectProperty, foreignKey.RelatedFieldName), tableAliasCache)...)
 		}
 	}
 	return lookupsToUse
@@ -353,12 +353,15 @@ func getJoinKey(baseJoinKey string, keyColumn string) string {
 	}
 	return keyColumn
 }
+func getNewBaseObjectProperty(baseObjectProperty string, relatedFieldName string) string {
+	if baseObjectProperty != "" {
+		return baseObjectProperty + "." + relatedFieldName
+	}
+	return relatedFieldName
+}
 
 func getMatchObjectProperty(baseObjectProperty string, relatedFieldName string, matchObjectProperty string) string {
-	if baseObjectProperty != "" {
-		return baseObjectProperty + "." + relatedFieldName + "." + matchObjectProperty
-	}
-	return relatedFieldName + "." + matchObjectProperty
+	return getNewBaseObjectProperty(baseObjectProperty, relatedFieldName) + "." + matchObjectProperty
 }
 
 func getLookupsForDeploy(data interface{}, picardTags picardTags, dataPath string, tableAliasCache map[string]string) []Lookup {
