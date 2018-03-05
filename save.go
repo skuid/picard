@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	uuid "github.com/satori/go.uuid"
+	"github.com/skuid/warden/pkg/mapvalue"
 )
 
 // SaveModel performs an upsert operation for the provided model.
@@ -15,6 +16,38 @@ func (p PersistenceORM) SaveModel(model interface{}) error {
 // CreateModel performs an insert operation for the provided model.
 func (p PersistenceORM) CreateModel(model interface{}) error {
 	return p.persistModel(model, true)
+}
+
+func getColumnsToPersist(modelValue reflect.Value, picardTags picardTags) []string {
+	columnNames := picardTags.DataColumnNames()
+	primaryKeyColumnName := picardTags.PrimaryKeyColumnName()
+	multitenancyKeyColumnName := picardTags.MultitenancyKeyColumnName()
+	// Get Defined Fields if they exist
+	modelMetadata := getMetadataFromPicardStruct(modelValue)
+
+	// Check for nil here instead of the length of the slice.
+	// The decode method in picard sets defined fields to an empty slice if it has been run.
+	if modelMetadata.DefinedFields == nil {
+		return columnNames
+	}
+
+	updateColumns := []string{}
+	// Loop over columnNames
+	for _, columnName := range columnNames {
+		if columnName == primaryKeyColumnName || columnName == multitenancyKeyColumnName {
+			updateColumns = append(updateColumns, columnName)
+			continue
+		}
+		for _, fieldName := range modelMetadata.DefinedFields {
+
+			definedColumnName := picardTags.getColumnFromFieldName(fieldName)
+			if definedColumnName != "" && definedColumnName == columnName {
+				updateColumns = append(updateColumns, columnName)
+				break
+			}
+		}
+	}
+	return updateColumns
 }
 
 // persistModel performs an upsert operation for the provided model.
@@ -34,51 +67,24 @@ func (p PersistenceORM) persistModel(model interface{}, alwaysInsert bool) error
 	primaryKeyValue := getPrimaryKey(modelValue)
 
 	picardTags := picardTagsFromType(modelValue.Type())
-	columnNames := picardTags.DataColumnNames()
 	tableName := picardTags.TableName()
 	primaryKeyColumnName := picardTags.PrimaryKeyColumnName()
 	multitenancyKeyColumnName := picardTags.MultitenancyKeyColumnName()
 
+	persistColumns := getColumnsToPersist(modelValue, picardTags)
+
 	if primaryKeyValue == uuid.Nil || alwaysInsert {
-		var insertColumns []string
-		if primaryKeyValue != uuid.Nil {
-			insertColumns = append(columnNames, primaryKeyColumnName)
-		} else {
-			insertColumns = columnNames
+		if primaryKeyValue != uuid.Nil && !mapvalue.StringSliceContainsKey(persistColumns, primaryKeyColumnName) {
+			persistColumns = append(persistColumns, primaryKeyColumnName)
 		}
 
-		if err := p.insertModel(modelValue, tableName, insertColumns, primaryKeyColumnName); err != nil {
+		if err := p.insertModel(modelValue, tableName, persistColumns, primaryKeyColumnName); err != nil {
 			tx.Rollback()
 			return err
 		}
 	} else {
-		// Get Defined Fields if they exist
-		modelMetadata := getMetadataFromPicardStruct(modelValue)
-		var updateColumns []string
-
-		if len(modelMetadata.DefinedFields) > 0 {
-			updateColumns = []string{}
-			// Loop over columnNames
-			for _, columnName := range columnNames {
-				if columnName == primaryKeyColumnName || columnName == multitenancyKeyColumnName {
-					updateColumns = append(updateColumns, columnName)
-					continue
-				}
-				for _, fieldName := range modelMetadata.DefinedFields {
-
-					definedColumnName := picardTags.getColumnFromFieldName(fieldName)
-					if definedColumnName != "" && definedColumnName == columnName {
-						updateColumns = append(updateColumns, columnName)
-						break
-					}
-				}
-			}
-		} else {
-			updateColumns = columnNames
-		}
-
 		// Non-Empty UUID: the model needs to update.
-		if err := p.updateModel(modelValue, tableName, updateColumns, multitenancyKeyColumnName, primaryKeyColumnName); err != nil {
+		if err := p.updateModel(modelValue, tableName, persistColumns, multitenancyKeyColumnName, primaryKeyColumnName); err != nil {
 			tx.Rollback()
 			return err
 		}
