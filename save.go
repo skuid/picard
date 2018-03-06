@@ -5,7 +5,6 @@ import (
 	"reflect"
 
 	uuid "github.com/satori/go.uuid"
-	"github.com/skuid/warden/pkg/mapvalue"
 )
 
 // SaveModel performs an upsert operation for the provided model.
@@ -74,7 +73,7 @@ func (p PersistenceORM) persistModel(model interface{}, alwaysInsert bool) error
 	persistColumns := getColumnsToPersist(modelValue, picardTags)
 
 	if primaryKeyValue == uuid.Nil || alwaysInsert {
-		if primaryKeyValue != uuid.Nil && !mapvalue.StringSliceContainsKey(persistColumns, primaryKeyColumnName) {
+		if primaryKeyValue != uuid.Nil && !stringSliceContainsKey(persistColumns, primaryKeyColumnName) {
 			persistColumns = append(persistColumns, primaryKeyColumnName)
 		}
 
