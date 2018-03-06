@@ -131,6 +131,30 @@ func TestSaveModel(t *testing.T) {
 			nil,
 		},
 		{
+			"should insert nulls for missing values in model without primary key value",
+			&struct {
+				Metadata `picard:"tablename=test_tablename"`
+
+				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
+				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne           string `picard:"column=test_column_one"`
+			}{
+				Metadata: Metadata{
+					DefinedFields: []string{},
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(`^INSERT INTO test_tablename \(multitenancy_key_column\) VALUES \(\$1\) RETURNING "primary_key_column"$`).
+					WithArgs("00000000-0000-0000-0000-000000000005").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
+					)
+				mock.ExpectCommit()
+			},
+			nil,
+		},
+		{
 			"should run update for model with primary key value",
 			&struct {
 				Metadata `picard:"tablename=test_tablename"`

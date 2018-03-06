@@ -13,10 +13,18 @@ type Metadata struct {
 }
 
 func addDefinedField(metadataValue reflect.Value, fieldName string) {
-	// Put Undefined values into the Undefined nested struct
+	// Put Defined values into the Defined nested struct
 	if metadataValue.IsValid() {
 		definedFields := metadataValue.FieldByName("DefinedFields")
 		definedFields.Set(reflect.Append(definedFields, reflect.ValueOf(fieldName)))
+	}
+	return
+}
+
+func initializeDefinedFields(metadataValue reflect.Value) {
+	if metadataValue.IsValid() {
+		definedFields := metadataValue.FieldByName("DefinedFields")
+		definedFields.Set(reflect.ValueOf([]string{}))
 	}
 	return
 }

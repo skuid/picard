@@ -99,6 +99,11 @@ func decodeMatching(rawMap map[string]json.RawMessage, reflectedValue reflect.Va
 	// First find the metadata field and get a reference to that
 	metadataField := getMetadataValue(reflectedValue)
 
+	// Make sure that the Defined Fields part of the metadata is initialized.
+	// This way we can determine that even if we didn't find any defined fields, we
+	// can still know that defined fields were checked for.
+	initializeDefinedFields(metadataField)
+
 	for i := 0; i < reflectedValue.Type().NumField(); i++ {
 		field := reflectedValue.Type().Field(i)
 		// Attempt match by field.Name
