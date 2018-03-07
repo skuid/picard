@@ -16,6 +16,7 @@ import (
 	"github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
 	uuid "github.com/satori/go.uuid"
+	validator "gopkg.in/go-playground/validator.v9"
 )
 
 const separator = "|"
@@ -736,6 +737,10 @@ func (p PersistenceORM) processObject(
 				return DBChange{}, errors.New("Missing Required Foreign Key Lookup")
 			}
 		}
+	}
+
+	if err := validator.New().Struct(metadataObject.Interface()); err != nil {
+		return DBChange{}, err
 	}
 
 	return DBChange{
