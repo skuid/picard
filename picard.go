@@ -739,7 +739,6 @@ func (p PersistenceORM) processObject(
 		}
 	}
 
-	// Only Validate on Inserts
 	if err := validator.New().Struct(metadataObject.Interface()); err != nil {
 		return DBChange{}, err
 	}
