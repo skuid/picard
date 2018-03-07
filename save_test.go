@@ -2,6 +2,7 @@ package picard
 
 import (
 	"crypto/rand"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -155,6 +156,25 @@ func TestSaveModel(t *testing.T) {
 			nil,
 		},
 		{
+			"should fail validation for missing values in model",
+			&struct {
+				Metadata `picard:"tablename=test_tablename"`
+
+				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
+				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne           string `picard:"column=test_column_one" validate:"required"`
+			}{
+				Metadata: Metadata{
+					DefinedFields: []string{},
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectRollback()
+			},
+			errors.New("Key: 'TestFieldOne' Error:Field validation for 'TestFieldOne' failed on the 'required' tag"),
+		},
+		{
 			"should run update for model with primary key value",
 			&struct {
 				Metadata `picard:"tablename=test_tablename"`
@@ -279,7 +299,7 @@ func TestSaveModel(t *testing.T) {
 			err = p.SaveModel(tc.giveValue)
 
 			if tc.wantErr != nil {
-				assert.Error(t, err)
+				assert.EqualError(t, err, tc.wantErr.Error())
 			} else {
 				assert.NoError(t, err)
 

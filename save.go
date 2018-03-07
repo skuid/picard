@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	uuid "github.com/satori/go.uuid"
+	validator "gopkg.in/go-playground/validator.v9"
 )
 
 // SaveModel performs an upsert operation for the provided model.
@@ -75,6 +76,12 @@ func (p PersistenceORM) persistModel(model interface{}, alwaysInsert bool) error
 	if primaryKeyValue == uuid.Nil || alwaysInsert {
 		if primaryKeyValue != uuid.Nil && !stringSliceContainsKey(persistColumns, primaryKeyColumnName) {
 			persistColumns = append(persistColumns, primaryKeyColumnName)
+		}
+
+		// Only Validate on Inserts
+		if err := validator.New().Struct(model); err != nil {
+			tx.Rollback()
+			return err
 		}
 
 		if err := p.insertModel(modelValue, tableName, persistColumns, primaryKeyColumnName); err != nil {

@@ -28,14 +28,14 @@ type TestObject struct {
 
 	ID             string                     `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string                     `picard:"multitenancy_key,column=organization_id"`
-	Name           string                     `json:"name" picard:"lookup,column=name"`
+	Name           string                     `json:"name" picard:"lookup,column=name" validate:"required"`
 	NullableLookup string                     `json:"nullableLookup" picard:"lookup,column=nullable_lookup"`
 	Type           string                     `json:"type" picard:"column=type"`
 	IsActive       bool                       `json:"is_active" picard:"column=is_active"`
 	Children       []ChildTestObject          `json:"children" picard:"child,foreign_key=ParentID"`
 	ChildrenMap    map[string]ChildTestObject `json:"childrenmap" picard:"child,foreign_key=ParentID,key_mappings=Name,value_mappings=Type->OtherInfo"`
 	ParentID       string                     `picard:"foreign_key,related=Parent,column=parent_id"`
-	Parent         ParentTestObject
+	Parent         ParentTestObject           `validate:"-"`
 }
 
 // ChildTestObject sample child object for tests
@@ -47,9 +47,9 @@ type ChildTestObject struct {
 	Name             string     `json:"name" picard:"lookup,column=name"`
 	OtherInfo        string     `picard:"column=other_info"`
 	ParentID         string     `picard:"foreign_key,lookup,required,related=Parent,column=parent_id"`
-	Parent           TestObject `json:"parent"`
+	Parent           TestObject `json:"parent" validate:"-"`
 	OptionalParentID string     `picard:"foreign_key,related=OptionalParent,column=optional_parent_id"`
-	OptionalParent   TestObject `json:"optional_parent"`
+	OptionalParent   TestObject `json:"optional_parent" validate:"-"`
 }
 
 type TestParentSerializedObject struct {
@@ -228,6 +228,13 @@ func TestDeployments(t *testing.T) {
 				ExpectUpdate(mock, testObjectHelper, fixtures, returnData)
 			},
 			"",
+		},
+		{
+			"Single Import Missing Required Field",
+			[]string{"Empty"},
+			TestObject{},
+			func(mock *sqlmock.Sqlmock, fixtures interface{}) {},
+			"Key: 'TestObject.Name' Error:Field validation for 'Name' failed on the 'required' tag",
 		},
 		{
 			"Single Import with Null Matches Existing value with a Null lookup",
