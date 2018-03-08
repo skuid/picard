@@ -5,7 +5,6 @@ import (
 	"reflect"
 
 	uuid "github.com/satori/go.uuid"
-	validator "gopkg.in/go-playground/validator.v9"
 )
 
 // SaveModel performs an upsert operation for the provided model.
@@ -78,12 +77,6 @@ func (p PersistenceORM) persistModel(model interface{}, alwaysInsert bool) error
 			persistColumns = append(persistColumns, primaryKeyColumnName)
 		}
 
-		// Only Validate on Inserts
-		if err := validator.New().Struct(model); err != nil {
-			tx.Rollback()
-			return err
-		}
-
 		if err := p.insertModel(modelValue, tableName, persistColumns, primaryKeyColumnName); err != nil {
 			tx.Rollback()
 			return err
@@ -108,7 +101,7 @@ func (p PersistenceORM) updateModel(modelValue reflect.Value, tableName string, 
 	if existingObject == nil {
 		return ModelNotFoundError
 	}
-	change, err := p.processObject(modelValue, existingObject, nil)
+	change, err := p.processObject(modelValue, existingObject, nil, false)
 	if err != nil {
 		return err
 	}
@@ -116,7 +109,7 @@ func (p PersistenceORM) updateModel(modelValue reflect.Value, tableName string, 
 }
 
 func (p PersistenceORM) insertModel(modelValue reflect.Value, tableName string, columnNames []string, primaryKeyColumnName string) error {
-	change, err := p.processObject(modelValue, nil, nil)
+	change, err := p.processObject(modelValue, nil, nil, true)
 	if err != nil {
 		return err
 	}

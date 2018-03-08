@@ -601,7 +601,7 @@ func (p PersistenceORM) generateChanges(
 			continue
 		}
 
-		dbChange, err := p.processObject(value, existingObj, foreignKeys)
+		dbChange, err := p.processObject(value, existingObj, foreignKeys, true)
 
 		if err != nil {
 			return nil, nil, nil, err
@@ -645,6 +645,7 @@ func (p PersistenceORM) processObject(
 	metadataObject reflect.Value,
 	databaseObject map[string]interface{},
 	foreignKeys []ForeignKey,
+	doValidation bool,
 ) (DBChange, error) {
 	returnObject := map[string]interface{}{}
 
@@ -739,8 +740,10 @@ func (p PersistenceORM) processObject(
 		}
 	}
 
-	if err := validator.New().Struct(metadataObject.Interface()); err != nil {
-		return DBChange{}, err
+	if doValidation {
+		if err := validator.New().Struct(metadataObject.Interface()); err != nil {
+			return DBChange{}, err
+		}
 	}
 
 	return DBChange{
