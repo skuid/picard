@@ -69,8 +69,15 @@ func getTestColumnValues(expect ExpectationHelper, object reflect.Value) []drive
 			values = append(values, sqlmock.AnyArg())
 		} else {
 			field := object.FieldByName(dataField)
+			structField, _ := object.Type().FieldByName(dataField)
+			tagsMap := getStructTagsMap(structField, "picard")
+			_, isEncrypted := tagsMap["encrypted"]
 			value := field.Interface()
-			values = append(values, value)
+			if isEncrypted {
+				values = append(values, sqlmock.AnyArg())
+			} else {
+				values = append(values, value)
+			}
 		}
 	}
 
@@ -264,7 +271,8 @@ func RunImportTest(testObjects interface{}, testFunction func(*sqlmock.Sqlmock, 
 		return err
 	}
 
-	conn = db
+	SetEncryptionKey([]byte("the-key-has-to-be-32-bytes-long!"))
+	SetConnection(db)
 
 	orgID, _ := uuid.FromString(sampleOrgID)
 	userID, _ := uuid.FromString(sampleUserID)
