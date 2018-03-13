@@ -218,13 +218,13 @@ func TestMultiMockFilter(t *testing.T) {
 			picard_test.MultiMockORM{
 				MockORMs: []picard_test.MockORM{
 					{
-						FilterModelReturns:    nil,
+						FilterModelReturns:    []interface{}{},
 						FilterModelError:      nil,
 						FilterModelCalledWith: nil,
 					},
 					{
 						FilterModelReturns:    nil,
-						FilterModelError:      nil,
+						FilterModelError:      errors.New("An Error Here"),
 						FilterModelCalledWith: nil,
 					},
 				},

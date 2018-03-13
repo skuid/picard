@@ -59,6 +59,7 @@ type MultiMockORM struct {
 	index    int
 }
 
+// Returns the next mock in the series of mocks
 func (multi *MultiMockORM) next() (*MockORM, error) {
 	currentIndex := multi.index
 	if len(multi.MockORMs) > currentIndex {
