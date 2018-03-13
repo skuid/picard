@@ -201,3 +201,71 @@ func TestMockDeploy(t *testing.T) {
 		})
 	}
 }
+
+func TestMultiMockFilter(t *testing.T) {
+
+	type simpleObject struct {
+		Name string
+	}
+
+	testCases := []struct {
+		description          string
+		giveMultiMock        picard_test.MultiMockORM
+		giveExerciseFunction func(t *testing.T, mmorm picard_test.MultiMockORM)
+	}{
+		{
+			"Should run a series of mocks",
+			picard_test.MultiMockORM{
+				MockORMs: []picard_test.MockORM{
+					{
+						FilterModelReturns:    nil,
+						FilterModelError:      nil,
+						FilterModelCalledWith: nil,
+					},
+					{
+						FilterModelReturns:    nil,
+						FilterModelError:      nil,
+						FilterModelCalledWith: nil,
+					},
+				},
+			},
+			func(t *testing.T, mmorm picard_test.MultiMockORM) {
+				callWith1 := simpleObject{
+					Name: "Object1",
+				}
+				callWith2 := simpleObject{
+					Name: "Object2",
+				}
+
+				result1, err := mmorm.FilterModel(callWith1)
+				assert.Equal(t, result1, mmorm.MockORMs[0].FilterModelReturns)
+				assert.Equal(t, err, mmorm.MockORMs[0].FilterModelError)
+				assert.Equal(t, callWith1, mmorm.MockORMs[0].FilterModelCalledWith)
+				result2, err := mmorm.FilterModel(callWith2)
+				assert.Equal(t, result2, mmorm.MockORMs[1].FilterModelReturns)
+				assert.Equal(t, err, mmorm.MockORMs[1].FilterModelError)
+				assert.Equal(t, callWith2, mmorm.MockORMs[1].FilterModelCalledWith)
+			},
+		},
+		{
+			"Should return error if too many mocks called",
+			picard_test.MultiMockORM{},
+			func(t *testing.T, mmorm picard_test.MultiMockORM) {
+				callWith := simpleObject{
+					Name: "Object1",
+				}
+				result, err := mmorm.FilterModel(callWith)
+				var expectedResult []interface{}
+				assert.Equal(t, result, expectedResult)
+				assert.Equal(t, err, errors.New("Mock Function was called but not expected"))
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			mmorm := tc.giveMultiMock
+			tc.giveExerciseFunction(t, mmorm)
+		})
+	}
+}
