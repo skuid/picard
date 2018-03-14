@@ -187,7 +187,9 @@ func (p PersistenceORM) performUpdates(updates []DBChange, tableName string, col
 				updateQuery = updateQuery.Set(columnName, values[index])
 			}
 
-			updateQuery = updateQuery.Where(squirrel.Eq{multitenancyKeyColumnName: p.multitenancyValue})
+			if multitenancyKeyColumnName != "" {
+				updateQuery = updateQuery.Where(squirrel.Eq{multitenancyKeyColumnName: p.multitenancyValue})
+			}
 			updateQuery = updateQuery.Where(squirrel.Eq{primaryKeyColumnName: changes[primaryKeyColumnName]})
 
 			_, err := updateQuery.RunWith(p.transaction).Exec()
@@ -294,7 +296,10 @@ func (p PersistenceORM) checkForExisting(
 	query = query.Columns(columns...)
 
 	query = query.Where(strings.Join(wheres, " || '"+separator+"' || ")+" = ANY($1)", pq.Array(lookupObjectKeys))
-	query = query.Where(fmt.Sprintf("%v.%v = $2", tableName, multitenancyKeyColumnName), p.multitenancyValue)
+
+	if multitenancyKeyColumnName != "" {
+		query = query.Where(fmt.Sprintf("%v.%v = $2", tableName, multitenancyKeyColumnName), p.multitenancyValue)
+	}
 
 	rows, err := query.RunWith(p.transaction).Query()
 	if err != nil {
