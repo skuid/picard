@@ -55,34 +55,31 @@ func getTestColumnValues(expect ExpectationHelper, object reflect.Value, isUpdat
 	values := []driver.Value{}
 
 	for _, dataField := range expect.DataFields {
-
-		// Add in Checks for Special Values
-		if dataField == "OrganizationID" {
+		field := object.FieldByName(dataField)
+		structField, _ := object.Type().FieldByName(dataField)
+		tagsMap := getStructTagsMap(structField, "picard")
+		_, isEncrypted := tagsMap["encrypted"]
+		_, isMultiTenancyValue := tagsMap["multitenancy_key"]
+		auditType, hasAuditType := tagsMap["audit"]
+		value := field.Interface()
+		if isMultiTenancyValue {
 			values = append(values, sampleOrgID)
-		} else {
-			field := object.FieldByName(dataField)
-			structField, _ := object.Type().FieldByName(dataField)
-			tagsMap := getStructTagsMap(structField, "picard")
-			_, isEncrypted := tagsMap["encrypted"]
-			auditType, hasAuditType := tagsMap["audit"]
-			value := field.Interface()
-			if isEncrypted {
+		} else if isEncrypted {
+			values = append(values, sqlmock.AnyArg())
+		} else if hasAuditType {
+			// TODO: Uncomment the !isUpdate checks we shouldn't be updating the
+			// createdby audit fields on update
+			if auditType == "createdby" /*&& !isUpdate*/ {
+				values = append(values, sampleUserID)
+			} else if auditType == "updatedby" {
+				values = append(values, sampleUserID)
+			} else if auditType == "createddate" /*&& !isUpdate*/ {
 				values = append(values, sqlmock.AnyArg())
-			} else if hasAuditType {
-				// TODO: Uncomment the !isUpdate checks we shouldn't be updating the
-				// createdby audit fields on update
-				if auditType == "createdby" /*&& !isUpdate*/ {
-					values = append(values, sampleUserID)
-				} else if auditType == "updatedby" {
-					values = append(values, sampleUserID)
-				} else if auditType == "createddate" /*&& !isUpdate*/ {
-					values = append(values, sqlmock.AnyArg())
-				} else if auditType == "updateddate" {
-					values = append(values, sqlmock.AnyArg())
-				}
-			} else {
-				values = append(values, value)
+			} else if auditType == "updateddate" {
+				values = append(values, sqlmock.AnyArg())
 			}
+		} else {
+			values = append(values, value)
 		}
 	}
 
