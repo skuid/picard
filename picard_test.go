@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"reflect"
 	"testing"
+	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/Masterminds/squirrel"
@@ -36,6 +37,10 @@ type TestObject struct {
 	ChildrenMap    map[string]ChildTestObject `json:"childrenmap" picard:"child,foreign_key=ParentID,key_mappings=Name,value_mappings=Type->OtherInfo"`
 	ParentID       string                     `picard:"foreign_key,related=Parent,column=parent_id"`
 	Parent         ParentTestObject           `validate:"-"`
+	CreatedByID    string                     `picard:"column=created_by_id,audit=createdby"`
+	UpdatedByID    string                     `picard:"column=updated_by_id,audit=updatedby"`
+	CreatedDate    time.Time                  `picard:"column=created_at,audit=createddate"`
+	UpdatedDate    time.Time                  `picard:"column=updated_at,audit=updateddate"`
 }
 
 // ChildTestObject sample child object for tests
@@ -53,7 +58,7 @@ type ChildTestObject struct {
 }
 
 type TestParentSerializedObject struct {
-	Metadata Metadata `picard:"tablename=parent_serialize`
+	Metadata Metadata `picard:"tablename=parent_serialize"`
 
 	ID               string                 `json:"id" picard:"primary_key,column=id"`
 	SerializedThings []TestSerializedObject `json:"serialized_things" picard:"jsonb,column=serialized_things"`
@@ -82,8 +87,8 @@ var testObjectHelper = ExpectationHelper{
 	LookupWhere:      `COALESCE(testobject.name::"varchar",'') || '|' || COALESCE(testobject.nullable_lookup::"varchar",'')`,
 	LookupReturnCols: []string{"id", "testobject_name", "testobject_nullable_lookup"},
 	LookupFields:     []string{"Name", "NullableLookup"},
-	DBColumns:        []string{"organization_id", "name", "nullable_lookup", "type", "is_active", "parent_id"},
-	DataFields:       []string{"OrganizationID", "Name", "NullableLookup", "Type", "IsActive", "ParentID"},
+	DBColumns:        []string{"organization_id", "name", "nullable_lookup", "type", "is_active", "parent_id", "created_by_id", "updated_by_id", "created_at", "updated_at"},
+	DataFields:       []string{"OrganizationID", "Name", "NullableLookup", "Type", "IsActive", "ParentID", "CreatedByID", "UpdatedByID", "CreatedDate", "UpdatedDate"},
 }
 
 var testObjectWithPKHelper = ExpectationHelper{
@@ -92,8 +97,8 @@ var testObjectWithPKHelper = ExpectationHelper{
 	LookupWhere:      `COALESCE(testobject.id::"varchar",'')`,
 	LookupReturnCols: []string{"id", "testobject_id"},
 	LookupFields:     []string{"ID"},
-	DBColumns:        []string{"organization_id", "name", "nullable_lookup", "type", "is_active", "parent_id"},
-	DataFields:       []string{"OrganizationID", "Name", "NullableLookup", "Type", "IsActive", "ParentID"},
+	DBColumns:        []string{"organization_id", "name", "nullable_lookup", "type", "is_active", "parent_id", "created_by_id", "updated_by_id", "created_at", "updated_at"},
+	DataFields:       []string{"OrganizationID", "Name", "NullableLookup", "Type", "IsActive", "ParentID", "CreatedByID", "UpdatedByID", "CreatedDate", "UpdatedDate"},
 }
 
 var testChildObjectHelper = ExpectationHelper{

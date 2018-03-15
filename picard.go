@@ -606,7 +606,7 @@ func (p PersistenceORM) generateChanges(
 			continue
 		}
 
-		dbChange, err := p.processObject(value, existingObj, foreignKeys, true)
+		dbChange, err := p.processObject(value, existingObj, foreignKeys)
 
 		if err != nil {
 			return nil, nil, nil, err
@@ -650,39 +650,52 @@ func (p PersistenceORM) processObject(
 	metadataObject reflect.Value,
 	databaseObject map[string]interface{},
 	foreignKeys []ForeignKey,
-	doValidation bool,
 ) (DBChange, error) {
 	returnObject := map[string]interface{}{}
+
+	isUpdate := databaseObject != nil
 
 	// Apply Field Mappings
 	t := metadataObject.Type()
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
-		value := metadataObject.FieldByName(field.Name).Interface()
 		picardTags := getStructTagsMap(field, "picard")
 
 		columnName, hasColumnName := picardTags["column"]
+		auditType, hasAuditType := picardTags["audit"]
 
 		if hasColumnName {
-			returnObject[columnName] = value
+
+			var returnValue interface{}
+
+			if hasAuditType {
+				// TODO: Uncomment the !isUpdate checks we shouldn't be updating the
+				// createdby audit fields on update
+				if auditType == "createdby" /*&& !isUpdate*/ {
+					returnValue = p.performedBy
+				} else if auditType == "updatedby" {
+					returnValue = p.performedBy
+				} else if auditType == "createddate" /*&& !isUpdate*/ {
+					returnValue = time.Now()
+				} else if auditType == "updateddate" {
+					returnValue = time.Now()
+				}
+			} else {
+				returnValue = metadataObject.FieldByName(field.Name).Interface()
+			}
+
+			returnObject[columnName] = returnValue
 		}
 	}
 	picardTags := picardTagsFromType(metadataObject.Type())
 	primaryKeyColumnName := picardTags.PrimaryKeyColumnName()
 	multitenancyKeyColumnName := picardTags.MultitenancyKeyColumnName()
 
-	if databaseObject != nil {
+	if isUpdate {
 		returnObject[primaryKeyColumnName] = databaseObject[primaryKeyColumnName]
 	}
 
-	// Handle audit fields
-	// TODO: make audit fields somehow less hard-coded / configurable
-
 	returnObject[multitenancyKeyColumnName] = p.multitenancyValue
-	returnObject["created_by_id"] = p.performedBy
-	returnObject["updated_by_id"] = p.performedBy
-	returnObject["created_at"] = time.Now()
-	returnObject["updated_at"] = time.Now()
 
 	// Process encrypted columns
 
@@ -745,7 +758,7 @@ func (p PersistenceORM) processObject(
 		}
 	}
 
-	if doValidation {
+	if !isUpdate {
 		if err := validator.New().Struct(metadataObject.Interface()); err != nil {
 			return DBChange{}, err
 		}

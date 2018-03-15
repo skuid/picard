@@ -51,7 +51,7 @@ type ExpectationHelper struct {
 var sampleOrgID = "6ba7b810-9dbd-11d1-80b4-00c04fd430c8"
 var sampleUserID = "72c431ec-14ed-4d77-9948-cb92e816a3a7"
 
-func getTestColumnValues(expect ExpectationHelper, object reflect.Value) []driver.Value {
+func getTestColumnValues(expect ExpectationHelper, object reflect.Value, isUpdate bool) []driver.Value {
 	values := []driver.Value{}
 
 	for _, dataField := range expect.DataFields {
@@ -59,22 +59,27 @@ func getTestColumnValues(expect ExpectationHelper, object reflect.Value) []drive
 		// Add in Checks for Special Values
 		if dataField == "OrganizationID" {
 			values = append(values, sampleOrgID)
-		} else if dataField == "CreatedByID" {
-			values = append(values, sampleUserID)
-		} else if dataField == "UpdatedByID" {
-			values = append(values, sampleUserID)
-		} else if dataField == "CreatedDate" {
-			values = append(values, sqlmock.AnyArg())
-		} else if dataField == "UpdatedDate" {
-			values = append(values, sqlmock.AnyArg())
 		} else {
 			field := object.FieldByName(dataField)
 			structField, _ := object.Type().FieldByName(dataField)
 			tagsMap := getStructTagsMap(structField, "picard")
 			_, isEncrypted := tagsMap["encrypted"]
+			auditType, hasAuditType := tagsMap["audit"]
 			value := field.Interface()
 			if isEncrypted {
 				values = append(values, sqlmock.AnyArg())
+			} else if hasAuditType {
+				// TODO: Uncomment the !isUpdate checks we shouldn't be updating the
+				// createdby audit fields on update
+				if auditType == "createdby" /*&& !isUpdate*/ {
+					values = append(values, sampleUserID)
+				} else if auditType == "updatedby" {
+					values = append(values, sampleUserID)
+				} else if auditType == "createddate" /*&& !isUpdate*/ {
+					values = append(values, sqlmock.AnyArg())
+				} else if auditType == "updateddate" {
+					values = append(values, sqlmock.AnyArg())
+				}
 			} else {
 				values = append(values, value)
 			}
@@ -200,7 +205,7 @@ func ExpectInsert(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects inter
 				index++
 			}
 
-			expectedArgs = append(expectedArgs, getTestColumnValues(expect, object)...)
+			expectedArgs = append(expectedArgs, getTestColumnValues(expect, object, false)...)
 			valueStrings = append(valueStrings, strings.Join(valueParams, ","))
 
 			returnData = append(returnData, []driver.Value{
@@ -244,7 +249,7 @@ func ExpectUpdate(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects inter
 				index++
 			}
 
-			expectedArgs := getTestColumnValues(expect, object)
+			expectedArgs := getTestColumnValues(expect, object, true)
 			expectedArgs = append(expectedArgs, sampleOrgID, lookupResults[i][0])
 
 			result := sqlmock.NewResult(0, 1)

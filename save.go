@@ -101,7 +101,7 @@ func (p PersistenceORM) updateModel(modelValue reflect.Value, tableName string, 
 	if existingObject == nil {
 		return ModelNotFoundError
 	}
-	change, err := p.processObject(modelValue, existingObject, nil, false)
+	change, err := p.processObject(modelValue, existingObject, nil)
 	if err != nil {
 		return err
 	}
@@ -109,7 +109,7 @@ func (p PersistenceORM) updateModel(modelValue reflect.Value, tableName string, 
 }
 
 func (p PersistenceORM) insertModel(modelValue reflect.Value, tableName string, columnNames []string, primaryKeyColumnName string) error {
-	change, err := p.processObject(modelValue, nil, nil, true)
+	change, err := p.processObject(modelValue, nil, nil)
 	if err != nil {
 		return err
 	}
