@@ -166,7 +166,7 @@ func TestDoFilterSelect(t *testing.T) {
 				},
 			},
 			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("^SELECT test_table.test_multitenancy_column, test_table.test_column_one, test_table.test_column_two, test_table.primary_key_column FROM test_table$").WillReturnRows(
+				mock.ExpectQuery("^SELECT test_table.test_multitenancy_column, test_table.primary_key_column, test_table.test_column_one, test_table.test_column_two FROM test_table$").WillReturnRows(
 					sqlmock.NewRows([]string{"test_multitenancy_column", "test_column_one", "test_column_two", "primary_key_column"}).
 						AddRow("multitenancy value 1", "test value 1.1", "test value 1.2", "primary key value 1").
 						AddRow("multitenancy value 2", "test value 2.1", "test value 2.2", "primary key value 2"),
@@ -499,7 +499,7 @@ func TestHydrateModel(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			resultValue := hydrateModel(tc.filterModelType, tc.hydrationValues)
+			resultValue := hydrateModel(tc.filterModelType, tableMetadataFromType(tc.filterModelType), tc.hydrationValues)
 			assert.Equal(t, tc.wantValue.Interface(), resultValue.Interface())
 		})
 	}

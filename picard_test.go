@@ -101,6 +101,16 @@ var testObjectWithPKHelper = ExpectationHelper{
 	DataFields:       []string{"OrganizationID", "Name", "NullableLookup", "Type", "IsActive", "ParentID", "CreatedByID", "UpdatedByID", "CreatedDate", "UpdatedDate"},
 }
 
+var testObjectWithPKInsertHelper = ExpectationHelper{
+	TableName:        "testobject",
+	LookupSelect:     "testobject.id, testobject.id as testobject_id",
+	LookupWhere:      `COALESCE(testobject.id::"varchar",'')`,
+	LookupReturnCols: []string{"id", "testobject_id"},
+	LookupFields:     []string{"ID"},
+	DBColumns:        []string{"id", "organization_id", "name", "nullable_lookup", "type", "is_active", "parent_id", "created_by_id", "updated_by_id", "created_at", "updated_at"},
+	DataFields:       []string{"ID", "OrganizationID", "Name", "NullableLookup", "Type", "IsActive", "ParentID", "CreatedByID", "UpdatedByID", "CreatedDate", "UpdatedDate"},
+}
+
 var testChildObjectHelper = ExpectationHelper{
 	TableName:        "childtest",
 	LookupSelect:     "childtest.id, childtest.name as childtest_name, childtest.parent_id as childtest_parent_id",
@@ -191,10 +201,11 @@ func TestDeployments(t *testing.T) {
 			[]string{"SimpleWithPrimaryKey"},
 			TestObject{},
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
-				returnData := GetReturnDataForLookup(testObjectWithPKHelper, nil)
-				lookupKeys := GetLookupKeys(testObjectWithPKHelper, fixtures)
-				ExpectLookup(mock, testObjectWithPKHelper, lookupKeys, returnData)
-				ExpectInsert(mock, testObjectWithPKHelper, fixtures)
+				helper := testObjectWithPKInsertHelper
+				returnData := GetReturnDataForLookup(helper, nil)
+				lookupKeys := GetLookupKeys(helper, fixtures)
+				ExpectLookup(mock, helper, lookupKeys, returnData)
+				ExpectInsert(mock, helper, fixtures)
 			},
 			"",
 		},
@@ -203,10 +214,11 @@ func TestDeployments(t *testing.T) {
 			[]string{"SimpleWithPrimaryKey"},
 			TestObject{},
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
-				returnData := GetReturnDataForLookup(testObjectWithPKHelper, fixtures)
-				lookupKeys := GetLookupKeys(testObjectWithPKHelper, fixtures)
-				ExpectLookup(mock, testObjectWithPKHelper, lookupKeys, returnData)
-				ExpectUpdate(mock, testObjectWithPKHelper, fixtures, returnData)
+				helper := testObjectWithPKHelper
+				returnData := GetReturnDataForLookup(helper, fixtures)
+				lookupKeys := GetLookupKeys(helper, fixtures)
+				ExpectLookup(mock, helper, lookupKeys, returnData)
+				ExpectUpdate(mock, helper, fixtures, returnData)
 			},
 			"",
 		},
