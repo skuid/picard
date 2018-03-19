@@ -3,7 +3,6 @@ package picard
 import (
 	"database/sql/driver"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"reflect"
 	"regexp"
@@ -265,8 +264,6 @@ func ExpectUpdate(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects inter
 
 	results := []driver.Result{}
 	columnNames := expect.getUpdateDBColumns()
-
-	fmt.Println(columnNames)
 
 	if objects != nil {
 		s := reflect.ValueOf(objects)

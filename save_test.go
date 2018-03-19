@@ -66,6 +66,33 @@ func TestCreateModel(t *testing.T) {
 			},
 			nil,
 		},
+		{
+			"both created and updated audit fields should be added",
+			&struct {
+				Metadata `picard:"tablename=test_tablename"`
+
+				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
+				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne           string `picard:"column=test_column_one"`
+				CreatedBy              string `picard:"column=createdby,audit=created_by"`
+				CreatedDate            string `picard:"column=createddate,audit=created_at"`
+				UpdatedBy              string `picard:"column=updatedby,audit=updated_by"`
+				UpdatedDate            string `picard:"column=updateddate,audit=updated_at"`
+			}{
+				TestFieldOne:    "test value one",
+				PrimaryKeyField: "00000000-0000-0000-0000-000000000001",
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(`^INSERT INTO test_tablename \(primary_key_column,multitenancy_key_column,test_column_one,createdby,createddate,updatedby,updateddate\) VALUES \(\$1,\$2\,\$3,\$4,\$5,\$6,\$7\) RETURNING "primary_key_column"$`).
+					WithArgs("00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000005", "test value one", "00000000-0000-0000-0000-000000000002", sqlmock.AnyArg(), "00000000-0000-0000-0000-000000000002", sqlmock.AnyArg()).
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
+					)
+				mock.ExpectCommit()
+			},
+			nil,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -176,6 +203,36 @@ func TestSaveModel(t *testing.T) {
 		},
 		{
 			"should run update for model with primary key value",
+			&struct {
+				Metadata `picard:"tablename=test_tablename"`
+
+				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
+				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne           string `picard:"column=test_column_one"`
+				CreatedBy              string `picard:"column=createdby,audit=created_by"`
+				CreatedDate            string `picard:"column=createddate,audit=created_at"`
+				UpdatedBy              string `picard:"column=updatedby,audit=updated_by"`
+				UpdatedDate            string `picard:"column=updateddate,audit=updated_at"`
+			}{
+				PrimaryKeyField: "00000000-0000-0000-0000-000000000001",
+				TestFieldOne:    "test value one",
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(`^SELECT test_tablename.primary_key_column FROM test_tablename WHERE test_tablename.primary_key_column = \$1 AND test_tablename.multitenancy_key_column = \$2$`).
+					WithArgs("00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000005").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
+					)
+				mock.ExpectExec(`^UPDATE test_tablename SET test_column_one = \$1, updatedby = \$2, updateddate = \$3 WHERE multitenancy_key_column = \$4 AND primary_key_column = \$5$`).
+					WithArgs("test value one", "00000000-0000-0000-0000-000000000002", sqlmock.AnyArg(), "00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000001").
+					WillReturnResult(sqlmock.NewResult(0, 1))
+				mock.ExpectCommit()
+			},
+			nil,
+		},
+		{
+			"should run update for model with primary key value and update the updated by audit fields but not created by",
 			&struct {
 				Metadata `picard:"tablename=test_tablename"`
 
