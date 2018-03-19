@@ -19,6 +19,10 @@ type fieldMetadata struct {
 	fieldType         reflect.Type
 }
 
+func (fm fieldMetadata) includeInUpdate() bool {
+	return !fm.isPrimaryKey && !fm.isMultitenancyKey && fm.audit != "createddate" && fm.audit != "createdby"
+}
+
 type tableMetadata struct {
 	tableName            string
 	primaryKeyField      string
@@ -55,9 +59,10 @@ func (tm tableMetadata) getColumnNamesWithoutPrimaryKey() []string {
 func (tm tableMetadata) getColumnNamesForUpdate() []string {
 	columnNames := []string{}
 	for _, field := range tm.getFields() {
-		if !field.isPrimaryKey && !field.isMultitenancyKey {
-			columnNames = append(columnNames, field.columnName)
+		if !field.includeInUpdate() {
+			continue
 		}
+		columnNames = append(columnNames, field.columnName)
 	}
 	return columnNames
 }

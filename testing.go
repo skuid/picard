@@ -3,6 +3,7 @@ package picard
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"reflect"
 	"regexp"
@@ -79,7 +80,7 @@ func (eh ExpectationHelper) getColumnValues(object reflect.Value, isUpdate bool,
 			continue
 		}
 
-		if isUpdate && (dataField.isPrimaryKey || dataField.isMultitenancyKey) {
+		if isUpdate && !dataField.includeInUpdate() {
 			continue
 		}
 
@@ -90,13 +91,11 @@ func (eh ExpectationHelper) getColumnValues(object reflect.Value, isUpdate bool,
 		} else if dataField.isEncrypted {
 			values = append(values, sqlmock.AnyArg())
 		} else if dataField.audit != "" {
-			// TODO: Uncomment the !isUpdate checks we shouldn't be updating the
-			// createdby audit fields on update
-			if dataField.audit == "createdby" /*&& !isUpdate*/ {
+			if dataField.audit == "createdby" {
 				values = append(values, sampleUserID)
 			} else if dataField.audit == "updatedby" {
 				values = append(values, sampleUserID)
-			} else if dataField.audit == "createddate" /*&& !isUpdate*/ {
+			} else if dataField.audit == "createddate" {
 				values = append(values, sqlmock.AnyArg())
 			} else if dataField.audit == "updateddate" {
 				values = append(values, sqlmock.AnyArg())
@@ -266,6 +265,8 @@ func ExpectUpdate(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects inter
 
 	results := []driver.Result{}
 	columnNames := expect.getUpdateDBColumns()
+
+	fmt.Println(columnNames)
 
 	if objects != nil {
 		s := reflect.ValueOf(objects)

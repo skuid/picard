@@ -705,31 +705,19 @@ func (p PersistenceORM) processObject(
 	for _, field := range tableMetadata.getFields() {
 		var returnValue interface{}
 
-		// Don't ever update the primary key or the multitenancy key
-		if isUpdate && (field.isPrimaryKey || field.isMultitenancyKey) {
+		// Don't ever update the primary key or the multitenancy key or "create triggered" audit fields
+		if isUpdate && !field.includeInUpdate() {
 			continue
 		}
 
 		auditType := field.audit
 
 		if auditType != "" {
-			// TODO: Uncomment the !isUpdate checks we shouldn't be updating the
-			// createdby audit fields on update
 			if auditType == "createdby" {
-				/*
-					if isUpdate {
-						continue
-					}
-				*/
 				returnValue = p.performedBy
 			} else if auditType == "updatedby" {
 				returnValue = p.performedBy
 			} else if auditType == "createddate" {
-				/*
-					if isUpdate {
-						continue
-					}
-				*/
 				returnValue = time.Now()
 			} else if auditType == "updateddate" {
 				returnValue = time.Now()
