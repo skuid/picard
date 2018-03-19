@@ -91,13 +91,13 @@ func (eh ExpectationHelper) getColumnValues(object reflect.Value, isUpdate bool,
 		} else if dataField.isEncrypted {
 			values = append(values, sqlmock.AnyArg())
 		} else if dataField.audit != "" {
-			if dataField.audit == "createdby" {
+			if dataField.audit == "created_by" {
 				values = append(values, sampleUserID)
-			} else if dataField.audit == "updatedby" {
+			} else if dataField.audit == "updated_by" {
 				values = append(values, sampleUserID)
-			} else if dataField.audit == "createddate" {
+			} else if dataField.audit == "created_at" {
 				values = append(values, sqlmock.AnyArg())
-			} else if dataField.audit == "updateddate" {
+			} else if dataField.audit == "updated_at" {
 				values = append(values, sqlmock.AnyArg())
 			}
 		} else {

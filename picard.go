@@ -713,13 +713,13 @@ func (p PersistenceORM) processObject(
 		auditType := field.audit
 
 		if auditType != "" {
-			if auditType == "createdby" {
+			if auditType == "created_by" {
 				returnValue = p.performedBy
-			} else if auditType == "updatedby" {
+			} else if auditType == "updated_by" {
 				returnValue = p.performedBy
-			} else if auditType == "createddate" {
+			} else if auditType == "created_at" {
 				returnValue = time.Now()
-			} else if auditType == "updateddate" {
+			} else if auditType == "updated_at" {
 				returnValue = time.Now()
 			}
 		} else {

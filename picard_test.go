@@ -37,10 +37,10 @@ type TestObject struct {
 	ChildrenMap    map[string]ChildTestObject `json:"childrenmap" picard:"child,foreign_key=ParentID,key_mappings=Name,value_mappings=Type->OtherInfo"`
 	ParentID       string                     `picard:"foreign_key,related=Parent,column=parent_id"`
 	Parent         ParentTestObject           `validate:"-"`
-	CreatedByID    string                     `picard:"column=created_by_id,audit=createdby"`
-	UpdatedByID    string                     `picard:"column=updated_by_id,audit=updatedby"`
-	CreatedDate    time.Time                  `picard:"column=created_at,audit=createddate"`
-	UpdatedDate    time.Time                  `picard:"column=updated_at,audit=updateddate"`
+	CreatedByID    string                     `picard:"column=created_by_id,audit=created_by"`
+	UpdatedByID    string                     `picard:"column=updated_by_id,audit=updated_by"`
+	CreatedDate    time.Time                  `picard:"column=created_at,audit=created_at"`
+	UpdatedDate    time.Time                  `picard:"column=updated_at,audit=updated_at"`
 }
 
 // ChildTestObject sample child object for tests

@@ -20,7 +20,7 @@ type fieldMetadata struct {
 }
 
 func (fm fieldMetadata) includeInUpdate() bool {
-	return !fm.isPrimaryKey && !fm.isMultitenancyKey && fm.audit != "createddate" && fm.audit != "createdby"
+	return !fm.isPrimaryKey && !fm.isMultitenancyKey && fm.audit != "created_at" && fm.audit != "created_by"
 }
 
 type tableMetadata struct {
