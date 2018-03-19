@@ -30,7 +30,7 @@ func (p PersistenceORM) persistModel(model interface{}, alwaysInsert bool) error
 	p.transaction = tx
 
 	tableMetadata := tableMetadataFromType(modelValue.Type())
-	primaryKeyValue := getPrimaryKey(modelValue, tableMetadata.primaryKeyField)
+	primaryKeyValue := modelValue.FieldByName(tableMetadata.primaryKeyField).Interface()
 
 	if primaryKeyValue == nil || primaryKeyValue == "" || alwaysInsert {
 		if err := p.insertModel(modelValue, tableMetadata, primaryKeyValue); err != nil {
@@ -48,7 +48,7 @@ func (p PersistenceORM) persistModel(model interface{}, alwaysInsert bool) error
 	return tx.Commit()
 }
 
-func (p PersistenceORM) updateModel(modelValue reflect.Value, tableMetadata tableMetadata, primaryKeyValue interface{}) error {
+func (p PersistenceORM) updateModel(modelValue reflect.Value, tableMetadata *tableMetadata, primaryKeyValue interface{}) error {
 	existingObject, err := p.getExistingObjectByID(tableMetadata, primaryKeyValue)
 	if err != nil {
 		return err
@@ -63,7 +63,7 @@ func (p PersistenceORM) updateModel(modelValue reflect.Value, tableMetadata tabl
 	return p.performUpdates([]DBChange{change}, tableMetadata)
 }
 
-func (p PersistenceORM) insertModel(modelValue reflect.Value, tableMetadata tableMetadata, primaryKeyValue interface{}) error {
+func (p PersistenceORM) insertModel(modelValue reflect.Value, tableMetadata *tableMetadata, primaryKeyValue interface{}) error {
 	change, err := p.processObject(modelValue, nil, nil, tableMetadata)
 	if err != nil {
 		return err
@@ -72,25 +72,14 @@ func (p PersistenceORM) insertModel(modelValue reflect.Value, tableMetadata tabl
 	if err := p.performInserts([]DBChange{change}, insertsHavePrimaryKey, tableMetadata); err != nil {
 		return err
 	}
-	setPrimaryKeyFromInsertResult(modelValue, change)
+	setPrimaryKeyFromInsertResult(modelValue, change, tableMetadata)
 	return nil
 }
 
-func getPrimaryKey(v reflect.Value, pkFieldName string) interface{} {
-	return v.FieldByName(pkFieldName).Interface()
-}
-
-func setPrimaryKeyFromInsertResult(v reflect.Value, change DBChange) {
-	t := v.Type()
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		picardFieldTags := getStructTagsMap(field, "picard")
-
-		_, isPrimaryKey := picardFieldTags["primary_key"]
-		column, hasColumn := picardFieldTags["column"]
-		if isPrimaryKey && hasColumn {
-			v.FieldByName(field.Name).Set(reflect.ValueOf(change.changes[column]))
-		}
-
+func setPrimaryKeyFromInsertResult(v reflect.Value, change DBChange, tableMetadata *tableMetadata) {
+	fieldName := tableMetadata.getPrimaryKeyFieldName()
+	columnName := tableMetadata.getPrimaryKeyColumnName()
+	if fieldName != "" {
+		v.FieldByName(fieldName).Set(reflect.ValueOf(change.changes[columnName]))
 	}
 }

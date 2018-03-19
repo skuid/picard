@@ -43,7 +43,7 @@ type Child struct {
 
 // ForeignKey structure
 type ForeignKey struct {
-	TableMetadata    tableMetadata
+	TableMetadata    *tableMetadata
 	FieldName        string
 	KeyColumn        string
 	RelatedFieldName string
@@ -134,16 +134,9 @@ func (p PersistenceORM) Deploy(data interface{}) error {
 // operations that will sync the database with the state of that deployment payload
 func (p PersistenceORM) upsert(data interface{}) error {
 
-	// Verify that we've been passed valid input
-	t := reflect.TypeOf(data)
-	if t.Kind() != reflect.Slice {
-		return errors.New("Can only upsert slices")
-	}
-
-	tableMetadata := tableMetadataFromType(t.Elem())
-
-	if tableMetadata.tableName == "" {
-		return errors.New("No table name specified in struct metadata")
+	tableMetadata, err := getTableMetadata(data)
+	if err != nil {
+		return err
 	}
 
 	changeSet, err := p.generateChanges(data, tableMetadata)
@@ -175,7 +168,7 @@ func (p PersistenceORM) upsert(data interface{}) error {
 	return nil
 }
 
-func (p PersistenceORM) performUpdates(updates []DBChange, tableMetadata tableMetadata) error {
+func (p PersistenceORM) performUpdates(updates []DBChange, tableMetadata *tableMetadata) error {
 	if len(updates) > 0 {
 
 		tableName := tableMetadata.tableName
@@ -213,7 +206,7 @@ func (p PersistenceORM) performUpdates(updates []DBChange, tableMetadata tableMe
 	return nil
 }
 
-func (p PersistenceORM) performInserts(inserts []DBChange, insertsHavePrimaryKey bool, tableMetadata tableMetadata) error {
+func (p PersistenceORM) performInserts(inserts []DBChange, insertsHavePrimaryKey bool, tableMetadata *tableMetadata) error {
 	if len(inserts) > 0 {
 
 		psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
@@ -252,14 +245,13 @@ func (p PersistenceORM) performInserts(inserts []DBChange, insertsHavePrimaryKey
 
 		// Insert our new keys into the change objects
 		for index, insert := range inserts {
-			insertedKey := insertResults[index][primaryKeyColumnName]
-			insert.changes[primaryKeyColumnName] = insertedKey
+			insert.changes[primaryKeyColumnName] = insertResults[index][primaryKeyColumnName]
 		}
 	}
 	return nil
 }
 
-func (p PersistenceORM) getExistingObjectByID(tableMetadata tableMetadata, IDValue interface{}) (map[string]interface{}, error) {
+func (p PersistenceORM) getExistingObjectByID(tableMetadata *tableMetadata, IDValue interface{}) (map[string]interface{}, error) {
 	tableName := tableMetadata.tableName
 	IDColumn := tableMetadata.getPrimaryKeyColumnName()
 	multitenancyColumn := tableMetadata.getMultitenancyKeyColumnName()
@@ -285,7 +277,7 @@ func (p PersistenceORM) getExistingObjectByID(tableMetadata tableMetadata, IDVal
 
 func (p PersistenceORM) checkForExisting(
 	data interface{},
-	tableMetadata tableMetadata,
+	tableMetadata *tableMetadata,
 	foreignFieldName string,
 ) (
 	map[string]interface{},
@@ -397,7 +389,7 @@ func getMatchObjectProperty(baseObjectProperty string, relatedFieldName string, 
 	return getNewBaseObjectProperty(baseObjectProperty, relatedFieldName) + "." + matchObjectProperty
 }
 
-func getLookupsForDeploy(data interface{}, tableMetadata tableMetadata, dataPath string, tableAliasCache map[string]string) []Lookup {
+func getLookupsForDeploy(data interface{}, tableMetadata *tableMetadata, dataPath string, tableAliasCache map[string]string) []Lookup {
 	lookupsToUse := []Lookup{}
 	tableName := tableMetadata.tableName
 	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
@@ -502,7 +494,7 @@ func getQueryParts(tableName string, primaryKeyColumnName string, lookupsToUse [
 	return columns, joins, whereFields
 }
 
-func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, tableMetadata tableMetadata) error {
+func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, tableMetadata *tableMetadata) error {
 
 	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
 
@@ -576,7 +568,7 @@ func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, tableMetad
 // performed on the database.
 func (p PersistenceORM) generateChanges(
 	data interface{},
-	tableMetadata tableMetadata,
+	tableMetadata *tableMetadata,
 ) (
 	*DBChangeSet,
 	error,
@@ -701,7 +693,7 @@ func (p PersistenceORM) processObject(
 	metadataObject reflect.Value,
 	databaseObject map[string]interface{},
 	foreignKeys []ForeignKey,
-	tableMetadata tableMetadata,
+	tableMetadata *tableMetadata,
 ) (DBChange, error) {
 	returnObject := map[string]interface{}{}
 
@@ -713,7 +705,8 @@ func (p PersistenceORM) processObject(
 	for _, field := range tableMetadata.getFields() {
 		var returnValue interface{}
 
-		if isUpdate && field.isPrimaryKey {
+		// Don't ever update the primary key or the multitenancy key
+		if isUpdate && (field.isPrimaryKey || field.isMultitenancyKey) {
 			continue
 		}
 
@@ -760,9 +753,9 @@ func (p PersistenceORM) processObject(
 
 	if isUpdate {
 		returnObject[primaryKeyColumnName] = databaseObject[primaryKeyColumnName]
+	} else {
+		returnObject[multitenancyKeyColumnName] = p.multitenancyValue
 	}
-
-	returnObject[multitenancyKeyColumnName] = p.multitenancyValue
 
 	// Process encrypted columns
 
@@ -957,7 +950,7 @@ func getColumnValues(columnNames []string, data map[string]interface{}) []interf
 	return columnValues
 }
 
-func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFields []string, parentTableMetadata tableMetadata, baseJoinKey string, joinKey string, tableAliasCache map[string]string) ([]Lookup, error) {
+func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFields []string, parentTableMetadata *tableMetadata, baseJoinKey string, joinKey string, tableAliasCache map[string]string) ([]Lookup, error) {
 	filterModelType := filterModelValue.Type()
 	tableName := parentTableMetadata.tableName
 	lookups := []Lookup{}

@@ -101,7 +101,7 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 	return returnModels, nil
 }
 
-func hydrateModel(modelType reflect.Type, tableMetadata tableMetadata, values map[string]interface{}) reflect.Value {
+func hydrateModel(modelType reflect.Type, tableMetadata *tableMetadata, values map[string]interface{}) reflect.Value {
 	model := reflect.Indirect(reflect.New(modelType))
 	for _, field := range tableMetadata.fields {
 		value, hasValue := values[field.columnName]

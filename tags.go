@@ -1,6 +1,7 @@
 package picard
 
 import (
+	"errors"
 	"reflect"
 	"strings"
 )
@@ -45,6 +46,16 @@ func (tm tableMetadata) getColumnNamesWithoutPrimaryKey() []string {
 	columnNames := []string{}
 	for _, field := range tm.getFields() {
 		if !field.isPrimaryKey {
+			columnNames = append(columnNames, field.columnName)
+		}
+	}
+	return columnNames
+}
+
+func (tm tableMetadata) getColumnNamesForUpdate() []string {
+	columnNames := []string{}
+	for _, field := range tm.getFields() {
+		if !field.isPrimaryKey && !field.isMultitenancyKey {
 			columnNames = append(columnNames, field.columnName)
 		}
 	}
@@ -120,7 +131,22 @@ func (tm tableMetadata) getFields() []fieldMetadata {
 	return fields
 }
 
-func tableMetadataFromType(t reflect.Type) tableMetadata {
+func getTableMetadata(data interface{}) (*tableMetadata, error) {
+	// Verify that we've been passed valid input
+	t := reflect.TypeOf(data)
+	if t.Kind() != reflect.Slice {
+		return nil, errors.New("Can only upsert slices")
+	}
+
+	tableMetadata := tableMetadataFromType(t.Elem())
+
+	if tableMetadata.tableName == "" {
+		return nil, errors.New("No table name specified in struct metadata")
+	}
+	return tableMetadata, nil
+}
+
+func tableMetadataFromType(t reflect.Type) *tableMetadata {
 	var metadata Metadata
 	tableMetadata := tableMetadata{
 		fields: map[string]fieldMetadata{},
@@ -231,7 +257,7 @@ func tableMetadataFromType(t reflect.Type) tableMetadata {
 		tableMetadata.foreignKeys = foreignKeys
 	}
 
-	return tableMetadata
+	return &tableMetadata
 }
 
 func getStructTagsMap(field reflect.StructField, tagType string) map[string]string {
