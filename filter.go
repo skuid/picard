@@ -107,7 +107,7 @@ func hydrateModel(modelType reflect.Type, tableMetadata *tableMetadata, values m
 		value, hasValue := values[field.columnName]
 		reflectedValue := reflect.ValueOf(value)
 
-		if hasValue && reflect.ValueOf(value).IsValid() {
+		if hasValue && reflectedValue.IsValid() {
 			if field.isJSONB {
 				valueString, isString := value.(string)
 				if !isString {
