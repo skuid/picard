@@ -38,7 +38,8 @@ func LoadFixturesFromFiles(names []string, path string, loadType reflect.Type) (
 
 // ExpectationHelper struct that contains expectations about a particular object
 type ExpectationHelper struct {
-	TableName        string
+	FixtureType      interface{}
+	TableMetadata    *tableMetadata
 	LookupFrom       string
 	LookupSelect     string
 	LookupWhere      string
@@ -48,41 +49,71 @@ type ExpectationHelper struct {
 	DataFields       []string
 }
 
-var sampleOrgID = "6ba7b810-9dbd-11d1-80b4-00c04fd430c8"
-var sampleUserID = "72c431ec-14ed-4d77-9948-cb92e816a3a7"
+func (eh ExpectationHelper) getTableMetadata() *tableMetadata {
+	if eh.TableMetadata == nil {
+		tableMetadata := tableMetadataFromType(reflect.TypeOf(eh.FixtureType))
+		eh.TableMetadata = tableMetadata
+	}
+	return eh.TableMetadata
+}
 
-func getTestColumnValues(expect ExpectationHelper, object reflect.Value) []driver.Value {
+func (eh ExpectationHelper) getInsertDBColumns(includePrimaryKey bool) []string {
+	tableMetadata := eh.getTableMetadata()
+	if includePrimaryKey {
+		return tableMetadata.getColumnNames()
+	}
+	return tableMetadata.getColumnNamesWithoutPrimaryKey()
+}
+
+func (eh ExpectationHelper) getUpdateDBColumns() []string {
+	tableMetadata := eh.getTableMetadata()
+	return tableMetadata.getColumnNamesForUpdate()
+}
+
+func (eh ExpectationHelper) getColumnValues(object reflect.Value, isUpdate bool, includePrimaryKey bool) []driver.Value {
+	tableMetadata := eh.getTableMetadata()
 	values := []driver.Value{}
 
-	for _, dataField := range expect.DataFields {
+	for _, dataField := range tableMetadata.getFields() {
+		if !includePrimaryKey && !isUpdate && dataField.isPrimaryKey {
+			continue
+		}
 
-		// Add in Checks for Special Values
-		if dataField == "OrganizationID" {
+		if isUpdate && !dataField.includeInUpdate() {
+			continue
+		}
+
+		field := object.FieldByName(dataField.name)
+		value := field.Interface()
+		if dataField.isMultitenancyKey {
 			values = append(values, sampleOrgID)
-		} else if dataField == "CreatedByID" {
-			values = append(values, sampleUserID)
-		} else if dataField == "UpdatedByID" {
-			values = append(values, sampleUserID)
-		} else if dataField == "CreatedDate" {
+		} else if dataField.isEncrypted {
 			values = append(values, sqlmock.AnyArg())
-		} else if dataField == "UpdatedDate" {
-			values = append(values, sqlmock.AnyArg())
-		} else {
-			field := object.FieldByName(dataField)
-			structField, _ := object.Type().FieldByName(dataField)
-			tagsMap := getStructTagsMap(structField, "picard")
-			_, isEncrypted := tagsMap["encrypted"]
-			value := field.Interface()
-			if isEncrypted {
+		} else if dataField.audit != "" {
+			if dataField.audit == "created_by" {
+				values = append(values, sampleUserID)
+			} else if dataField.audit == "updated_by" {
+				values = append(values, sampleUserID)
+			} else if dataField.audit == "created_at" {
 				values = append(values, sqlmock.AnyArg())
-			} else {
-				values = append(values, value)
+			} else if dataField.audit == "updated_at" {
+				values = append(values, sqlmock.AnyArg())
 			}
+		} else {
+			values = append(values, value)
 		}
 	}
 
 	return values
 }
+
+func (eh ExpectationHelper) getTableName() string {
+	tableMetadata := eh.getTableMetadata()
+	return tableMetadata.tableName
+}
+
+var sampleOrgID = "6ba7b810-9dbd-11d1-80b4-00c04fd430c8"
+var sampleUserID = "72c431ec-14ed-4d77-9948-cb92e816a3a7"
 
 // GetReturnDataForLookup creates sample return data from sample structs
 func GetReturnDataForLookup(expect ExpectationHelper, foundObjects interface{}) [][]driver.Value {
@@ -147,13 +178,13 @@ func ExpectLookup(mock *sqlmock.Sqlmock, expect ExpectationHelper, lookupKeys []
 
 	fromStatement := expect.LookupFrom
 	if fromStatement == "" {
-		fromStatement = expect.TableName
+		fromStatement = expect.getTableName()
 	}
 
 	expectSQL := `
 		SELECT ` + regexp.QuoteMeta(expect.LookupSelect) + ` 
 		FROM ` + regexp.QuoteMeta(fromStatement) + ` 
-		WHERE ` + regexp.QuoteMeta(expect.LookupWhere) + ` = ANY\(\$1\) AND ` + expect.TableName + `.organization_id = \$2
+		WHERE ` + regexp.QuoteMeta(expect.LookupWhere) + ` = ANY\(\$1\) AND ` + expect.getTableName() + `.organization_id = \$2
 	`
 
 	expectedArgs := []driver.Value{
@@ -180,13 +211,15 @@ func getReturnDataForInsert(expect ExpectationHelper, objects interface{}) [][]d
 }
 
 // ExpectInsert Mocks an insert request to the database.
-func ExpectInsert(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects interface{}) [][]driver.Value {
+func ExpectInsert(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects interface{}, includePrimaryKey bool) [][]driver.Value {
 
 	returnData := getReturnDataForInsert(expect, objects)
 
 	valueStrings := []string{}
 	index := 1
 	expectedArgs := []driver.Value{}
+
+	columnNames := expect.getInsertDBColumns(includePrimaryKey)
 
 	if objects != nil {
 		s := reflect.ValueOf(objects)
@@ -195,12 +228,12 @@ func ExpectInsert(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects inter
 
 			valueParams := []string{}
 
-			for range expect.DBColumns {
+			for range columnNames {
 				valueParams = append(valueParams, `\$`+strconv.Itoa(index))
 				index++
 			}
 
-			expectedArgs = append(expectedArgs, getTestColumnValues(expect, object)...)
+			expectedArgs = append(expectedArgs, expect.getColumnValues(object, false, includePrimaryKey)...)
 			valueStrings = append(valueStrings, strings.Join(valueParams, ","))
 
 			returnData = append(returnData, []driver.Value{
@@ -216,8 +249,8 @@ func ExpectInsert(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects inter
 	}
 
 	expectSQL := `
-		INSERT INTO ` + expect.TableName + `
-		\(` + strings.Join(expect.DBColumns, ",") + `\)
+		INSERT INTO ` + expect.getTableName() + `
+		\(` + strings.Join(columnNames, ",") + `\)
 		VALUES \(` + strings.Join(valueStrings, `\),\(`) + `\) RETURNING "id"
 	`
 
@@ -230,6 +263,7 @@ func ExpectInsert(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects inter
 func ExpectUpdate(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects interface{}, lookupResults [][]driver.Value) []driver.Result {
 
 	results := []driver.Result{}
+	columnNames := expect.getUpdateDBColumns()
 
 	if objects != nil {
 		s := reflect.ValueOf(objects)
@@ -239,18 +273,18 @@ func ExpectUpdate(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects inter
 			setStrings := []string{}
 			index := 1
 
-			for _, name := range expect.DBColumns {
+			for _, name := range columnNames {
 				setStrings = append(setStrings, name+` = \$`+strconv.Itoa(index))
 				index++
 			}
 
-			expectedArgs := getTestColumnValues(expect, object)
+			expectedArgs := expect.getColumnValues(object, true, false)
 			expectedArgs = append(expectedArgs, sampleOrgID, lookupResults[i][0])
 
 			result := sqlmock.NewResult(0, 1)
 
 			expectSQL := `
-				UPDATE ` + expect.TableName + ` SET ` + strings.Join(setStrings, ", ") + `
+				UPDATE ` + expect.getTableName() + ` SET ` + strings.Join(setStrings, ", ") + `
 				WHERE organization_id = \$` + strconv.Itoa(index) + ` AND id = \$` + strconv.Itoa(index+1) + `
 			`
 

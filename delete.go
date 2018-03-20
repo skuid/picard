@@ -32,8 +32,8 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 		porm.transaction = tx
 	}
 
-	picardTags := picardTagsFromType(modelValue.Type())
-	tableName := picardTags.TableName()
+	tableMetadata := tableMetadataFromType(modelValue.Type())
+	tableName := tableMetadata.tableName
 
 	deleteStatement := squirrel.StatementBuilder.
 		PlaceholderFormat(squirrel.Dollar).

@@ -1,96 +1,164 @@
 package picard
 
 import (
+	"errors"
 	"reflect"
 	"strings"
 )
 
 const picardTagKey = "picard"
 
-type picardTags struct {
-	tableName             string
-	primaryKeyColumn      string
-	primaryKeyFieldName   string
-	multitenancyKeyColumn string
-	dataColumns           []string
-	encryptedColumns      []string
-	jsonbColumns          []string
-	lookups               []Lookup
-	foreignKeys           []ForeignKey
-	children              []Child
-	fieldToColumnMap      map[string]string
+type fieldMetadata struct {
+	name              string
+	isPrimaryKey      bool
+	isMultitenancyKey bool
+	isJSONB           bool
+	isEncrypted       bool
+	columnName        string
+	audit             string
+	fieldType         reflect.Type
 }
 
-func (pt picardTags) TableName() string {
-	return pt.tableName
+func (fm fieldMetadata) includeInUpdate() bool {
+	return !fm.isPrimaryKey && !fm.isMultitenancyKey && fm.audit != "created_at" && fm.audit != "created_by"
 }
-func (pt picardTags) PrimaryKeyColumnName() string {
-	return pt.primaryKeyColumn
+
+type tableMetadata struct {
+	tableName            string
+	primaryKeyField      string
+	multitenancyKeyField string
+	fields               map[string]fieldMetadata
+	fieldOrder           []string
+	lookups              []Lookup
+	foreignKeys          []ForeignKey
+	children             []Child
 }
-func (pt picardTags) PrimaryKeyFieldName() string {
-	return pt.primaryKeyFieldName
+
+func (tm tableMetadata) getTableName() string {
+	return tm.tableName
 }
-func (pt picardTags) MultitenancyKeyColumnName() string {
-	return pt.multitenancyKeyColumn
-}
-func (pt picardTags) DataColumnNames() []string {
-	return pt.dataColumns
-}
-func (pt picardTags) EncryptedColumns() []string {
-	return pt.encryptedColumns
-}
-func (pt picardTags) JSONBColumns() []string {
-	return pt.jsonbColumns
-}
-func (pt picardTags) Lookups() []Lookup {
-	return pt.lookups
-}
-func (pt picardTags) ForeignKeys() []ForeignKey {
-	return pt.foreignKeys
-}
-func (pt picardTags) Children() []Child {
-	return pt.children
-}
-func (pt picardTags) ColumnNames() []string {
-	columnNames := pt.dataColumns
-	if pt.primaryKeyColumn != "" {
-		columnNames = append(columnNames, pt.primaryKeyColumn)
+
+func (tm tableMetadata) getColumnNames() []string {
+	columnNames := []string{}
+	for _, field := range tm.getFields() {
+		columnNames = append(columnNames, field.columnName)
 	}
 	return columnNames
 }
 
-func (pt picardTags) getColumnFromFieldName(fieldName string) string {
+func (tm tableMetadata) getColumnNamesWithoutPrimaryKey() []string {
+	columnNames := []string{}
+	for _, field := range tm.getFields() {
+		if !field.isPrimaryKey {
+			columnNames = append(columnNames, field.columnName)
+		}
+	}
+	return columnNames
+}
 
-	var columnName string
-	columnName, hasColumn := pt.fieldToColumnMap[fieldName]
-	if hasColumn {
-		return columnName
+func (tm tableMetadata) getColumnNamesForUpdate() []string {
+	columnNames := []string{}
+	for _, field := range tm.getFields() {
+		if !field.includeInUpdate() {
+			continue
+		}
+		columnNames = append(columnNames, field.columnName)
+	}
+	return columnNames
+}
+
+func (tm tableMetadata) getEncryptedColumns() []string {
+	columnNames := []string{}
+	for _, field := range tm.getFields() {
+		if field.isEncrypted {
+			columnNames = append(columnNames, field.columnName)
+		}
+	}
+	return columnNames
+}
+
+func (tm tableMetadata) getJSONBColumns() []string {
+	columnNames := []string{}
+	for _, field := range tm.getFields() {
+		if field.isJSONB {
+			columnNames = append(columnNames, field.columnName)
+		}
+	}
+	return columnNames
+}
+
+func (tm tableMetadata) getPrimaryKeyMetadata() *fieldMetadata {
+	metadata, ok := tm.fields[tm.primaryKeyField]
+	if ok {
+		return &metadata
+	}
+	return nil
+}
+
+func (tm tableMetadata) getMultitenancyKeyMetadata() *fieldMetadata {
+	metadata, ok := tm.fields[tm.multitenancyKeyField]
+	if ok {
+		return &metadata
+	}
+	return nil
+}
+
+func (tm tableMetadata) getPrimaryKeyColumnName() string {
+	metadata := tm.getPrimaryKeyMetadata()
+	if metadata != nil {
+		return metadata.columnName
 	}
 	return ""
 }
 
-func addColumn(fieldToColumnMap map[string]string, dataColumns *[]string, columnName string, fieldName string) {
-	*dataColumns = append(*dataColumns, columnName)
-	fieldToColumnMap[fieldName] = columnName
+func (tm tableMetadata) getPrimaryKeyFieldName() string {
+	metadata := tm.getPrimaryKeyMetadata()
+	if metadata != nil {
+		return metadata.name
+	}
+	return ""
 }
 
-func picardTagsFromType(t reflect.Type) picardTags {
-	var metadata Metadata
-	var (
-		tableName             string
-		primaryKeyColumn      string
-		primaryKeyFieldName   string
-		multitenancyKeyColumn string
-		dataColumns           []string
-		encryptedColumns      []string
-		jsonbColumns          []string
-		lookups               []Lookup
-		foreignKeys           []ForeignKey
-		children              []Child
-		fieldToColumnMap      map[string]string
-	)
+func (tm tableMetadata) getMultitenancyKeyColumnName() string {
+	metadata := tm.getMultitenancyKeyMetadata()
+	if metadata != nil {
+		return metadata.columnName
+	}
+	return ""
+}
 
-	fieldToColumnMap = map[string]string{}
+// Returns the fields in the order they appear in the struct
+func (tm tableMetadata) getFields() []fieldMetadata {
+	fields := []fieldMetadata{}
+	for _, key := range tm.fieldOrder {
+		fields = append(fields, tm.fields[key])
+	}
+	return fields
+}
+
+func getTableMetadata(data interface{}) (*tableMetadata, error) {
+	// Verify that we've been passed valid input
+	t := reflect.TypeOf(data)
+	if t.Kind() != reflect.Slice {
+		return nil, errors.New("Can only upsert slices")
+	}
+
+	tableMetadata := tableMetadataFromType(t.Elem())
+
+	if tableMetadata.tableName == "" {
+		return nil, errors.New("No table name specified in struct metadata")
+	}
+	return tableMetadata, nil
+}
+
+func tableMetadataFromType(t reflect.Type) *tableMetadata {
+	var metadata Metadata
+	tableMetadata := tableMetadata{
+		fields: map[string]fieldMetadata{},
+	}
+	children := []Child{}
+	lookups := []Lookup{}
+	foreignKeys := []ForeignKey{}
 
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
@@ -98,7 +166,7 @@ func picardTagsFromType(t reflect.Type) picardTags {
 
 		tagsMap := getStructTagsMap(field, picardTagKey)
 		_, hasTableName := tagsMap["tablename"]
-		_, isPK := tagsMap["primary_key"]
+		_, isPrimaryKey := tagsMap["primary_key"]
 		_, isMultitenancyKey := tagsMap["multitenancy_key"]
 		columnName, hasColumnName := tagsMap["column"]
 		_, isLookup := tagsMap["lookup"]
@@ -107,26 +175,32 @@ func picardTagsFromType(t reflect.Type) picardTags {
 		_, isForeignKey := tagsMap["foreign_key"]
 		_, isEncrypted := tagsMap["encrypted"]
 		_, isJSONB := tagsMap["jsonb"]
+		auditType, _ := tagsMap["audit"]
 
 		if field.Type == reflect.TypeOf(metadata) && hasTableName {
-			tableName = tagsMap["tablename"]
+			tableMetadata.tableName = tagsMap["tablename"]
 		}
 
 		if hasColumnName {
+
+			tableMetadata.fields[field.Name] = fieldMetadata{
+				name:              field.Name,
+				isEncrypted:       isEncrypted,
+				isJSONB:           isJSONB,
+				isMultitenancyKey: isMultitenancyKey,
+				isPrimaryKey:      isPrimaryKey,
+				columnName:        columnName,
+				audit:             auditType,
+				fieldType:         field.Type,
+			}
+
+			tableMetadata.fieldOrder = append(tableMetadata.fieldOrder, field.Name)
+
 			if isMultitenancyKey {
-				multitenancyKeyColumn = columnName
+				tableMetadata.multitenancyKeyField = field.Name
 			}
-			if isEncrypted {
-				encryptedColumns = append(encryptedColumns, columnName)
-			}
-			if isJSONB {
-				jsonbColumns = append(jsonbColumns, columnName)
-			}
-			if isPK {
-				primaryKeyColumn = columnName
-				primaryKeyFieldName = field.Name
-			} else {
-				addColumn(fieldToColumnMap, &dataColumns, columnName, field.Name)
+			if isPrimaryKey {
+				tableMetadata.primaryKeyField = field.Name
 			}
 		}
 
@@ -171,9 +245,9 @@ func picardTagsFromType(t reflect.Type) picardTags {
 			relatedField, hasRelatedField := t.FieldByName(tagsMap["related"])
 
 			if hasRelatedField {
-				tags := picardTagsFromType(relatedField.Type)
+				tableMetadata := tableMetadataFromType(relatedField.Type)
 				foreignKeys = append(foreignKeys, ForeignKey{
-					ObjectInfo:       tags,
+					TableMetadata:    tableMetadata,
 					FieldName:        field.Name,
 					KeyColumn:        tagsMap["column"],
 					RelatedFieldName: relatedField.Name,
@@ -182,21 +256,13 @@ func picardTagsFromType(t reflect.Type) picardTags {
 				})
 			}
 		}
+
+		tableMetadata.children = children
+		tableMetadata.lookups = lookups
+		tableMetadata.foreignKeys = foreignKeys
 	}
 
-	return picardTags{
-		tableName:             tableName,
-		primaryKeyColumn:      primaryKeyColumn,
-		primaryKeyFieldName:   primaryKeyFieldName,
-		multitenancyKeyColumn: multitenancyKeyColumn,
-		dataColumns:           dataColumns,
-		encryptedColumns:      encryptedColumns,
-		lookups:               lookups,
-		foreignKeys:           foreignKeys,
-		children:              children,
-		fieldToColumnMap:      fieldToColumnMap,
-		jsonbColumns:          jsonbColumns,
-	}
+	return &tableMetadata
 }
 
 func getStructTagsMap(field reflect.StructField, tagType string) map[string]string {

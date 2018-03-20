@@ -34,9 +34,9 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 
 	db := GetConnection()
 
-	picardTags := picardTagsFromType(filterModelType)
-	columnNames := picardTags.ColumnNames()
-	tableName := picardTags.TableName()
+	tableMetadata := tableMetadataFromType(filterModelType)
+	columnNames := tableMetadata.getColumnNames()
+	tableName := tableMetadata.tableName
 
 	fullColumnNames := []string{}
 
@@ -73,7 +73,7 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 
 		// Decrypt any encrypted columns
 
-		encryptedColumns := picardTags.EncryptedColumns()
+		encryptedColumns := tableMetadata.getEncryptedColumns()
 		for _, column := range encryptedColumns {
 			value := result[column]
 
@@ -95,42 +95,34 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 			result[column] = decryptedValue
 		}
 
-		returnModels = append(returnModels, hydrateModel(filterModelType, result).Interface())
+		returnModels = append(returnModels, hydrateModel(filterModelType, tableMetadata, result).Interface())
 	}
 
 	return returnModels, nil
 }
 
-func hydrateModel(modelType reflect.Type, values map[string]interface{}) reflect.Value {
+func hydrateModel(modelType reflect.Type, tableMetadata *tableMetadata, values map[string]interface{}) reflect.Value {
 	model := reflect.Indirect(reflect.New(modelType))
-	for i := 0; i < modelType.NumField(); i++ {
-		field := modelType.Field(i)
+	for _, field := range tableMetadata.fields {
+		value, hasValue := values[field.columnName]
+		reflectedValue := reflect.ValueOf(value)
 
-		picardTags := getStructTagsMap(field, "picard")
-		column, hasColumn := picardTags["column"]
-		_, isJSONB := picardTags["jsonb"]
-
-		if hasColumn {
-			value, hasValue := values[column]
-			reflectedValue := reflect.ValueOf(value)
-
-			if hasValue && reflect.ValueOf(value).IsValid() {
-				if isJSONB {
-					valueString, isString := value.(string)
-					if !isString {
-						valueString = string(value.([]byte))
-					}
-					destinationValue := reflect.New(field.Type).Interface()
-					json.Unmarshal([]byte(valueString), destinationValue)
-					value = reflect.Indirect(reflect.ValueOf(destinationValue)).Interface()
+		if hasValue && reflectedValue.IsValid() {
+			if field.isJSONB {
+				valueString, isString := value.(string)
+				if !isString {
+					valueString = string(value.([]byte))
 				}
-
-				if reflectedValue.Type().ConvertibleTo(field.Type) {
-					reflectedValue = reflectedValue.Convert(field.Type)
-					value = reflectedValue.Interface()
-				}
-				model.FieldByName(field.Name).Set(reflect.ValueOf(value))
+				destinationValue := reflect.New(field.fieldType).Interface()
+				json.Unmarshal([]byte(valueString), destinationValue)
+				value = reflect.Indirect(reflect.ValueOf(destinationValue)).Interface()
 			}
+
+			if reflectedValue.Type().ConvertibleTo(field.fieldType) {
+				reflectedValue = reflectedValue.Convert(field.fieldType)
+				value = reflectedValue.Interface()
+			}
+			model.FieldByName(field.name).Set(reflect.ValueOf(value))
 		}
 	}
 	return model

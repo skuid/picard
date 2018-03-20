@@ -7,31 +7,89 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPicardTagsFromType(t *testing.T) {
+type TagsTestStruct struct {
+	Metadata `picard:"tablename=test_tablename"`
+
+	TestPrimaryKeyField   string `picard:"primary_key,column=test_pk"`
+	TestMultitenancyField string `picard:"multitenancy_key,column=test_multitenancy_key"`
+	TestFieldOne          string `picard:"encrypted,column=test_column_one"`
+	TestFieldTwo          string `picard:"column=test_column_two"`
+	TestUntaggedField     string
+	TestLookup            string `picard:"lookup,column=test_lookup"`
+}
+
+func TestTableMetadataFromType(t *testing.T) {
 	testCases := []struct {
-		description    string
-		giveType       reflect.Type
-		wantPicardTags picardTags
+		description       string
+		giveType          reflect.Type
+		wantTableMetadata *tableMetadata
 	}{
 		{
 			"should populate with correct values",
-			reflect.TypeOf(struct {
-				Metadata `picard:"tablename=test_tablename"`
-
-				TestPrimaryKeyField    string `picard:"primary_key,column=test_pk"`
-				TestMultitenancyColumn string `picard:"multitenancy_key,column=test_multitenancy_key"`
-				TestFieldOne           string `picard:"encrypted,column=test_column_one"`
-				TestFieldTwo           string `picard:"column=test_column_two"`
-				TestUntaggedField      string
-				TestLookup             string `picard:"lookup,column=test_lookup"`
-			}{}),
-			picardTags{
-				tableName:             "test_tablename",
-				primaryKeyColumn:      "test_pk",
-				primaryKeyFieldName:   "TestPrimaryKeyField",
-				multitenancyKeyColumn: "test_multitenancy_key",
-				dataColumns:           []string{"test_multitenancy_key", "test_column_one", "test_column_two", "test_lookup"},
-				encryptedColumns:      []string{"test_column_one"},
+			reflect.TypeOf(TagsTestStruct{}),
+			&tableMetadata{
+				tableName:            "test_tablename",
+				primaryKeyField:      "TestPrimaryKeyField",
+				multitenancyKeyField: "TestMultitenancyField",
+				fields: map[string]fieldMetadata{
+					"TestPrimaryKeyField": {
+						name:              "TestPrimaryKeyField",
+						isPrimaryKey:      true,
+						isMultitenancyKey: false,
+						isJSONB:           false,
+						isEncrypted:       false,
+						columnName:        "test_pk",
+						audit:             "",
+						fieldType:         reflect.TypeOf(""),
+					},
+					"TestMultitenancyField": {
+						name:              "TestMultitenancyField",
+						isPrimaryKey:      false,
+						isMultitenancyKey: true,
+						isJSONB:           false,
+						isEncrypted:       false,
+						columnName:        "test_multitenancy_key",
+						audit:             "",
+						fieldType:         reflect.TypeOf(""),
+					},
+					"TestFieldOne": {
+						name:              "TestFieldOne",
+						isPrimaryKey:      false,
+						isMultitenancyKey: false,
+						isJSONB:           false,
+						isEncrypted:       true,
+						columnName:        "test_column_one",
+						audit:             "",
+						fieldType:         reflect.TypeOf(""),
+					},
+					"TestFieldTwo": {
+						name:              "TestFieldTwo",
+						isPrimaryKey:      false,
+						isMultitenancyKey: false,
+						isJSONB:           false,
+						isEncrypted:       false,
+						columnName:        "test_column_two",
+						audit:             "",
+						fieldType:         reflect.TypeOf(""),
+					},
+					"TestLookup": {
+						name:              "TestLookup",
+						isPrimaryKey:      false,
+						isMultitenancyKey: false,
+						isJSONB:           false,
+						isEncrypted:       false,
+						columnName:        "test_lookup",
+						audit:             "",
+						fieldType:         reflect.TypeOf(""),
+					},
+				},
+				fieldOrder: []string{
+					"TestPrimaryKeyField",
+					"TestMultitenancyField",
+					"TestFieldOne",
+					"TestFieldTwo",
+					"TestLookup",
+				},
 				lookups: []Lookup{
 					Lookup{
 						MatchDBColumn:       "test_lookup",
@@ -39,52 +97,37 @@ func TestPicardTagsFromType(t *testing.T) {
 						Query:               true,
 					},
 				},
-				fieldToColumnMap: map[string]string{
-					"TestMultitenancyColumn": "test_multitenancy_key",
-					"TestFieldOne":           "test_column_one",
-					"TestFieldTwo":           "test_column_two",
-					"TestLookup":             "test_lookup",
-				},
+				foreignKeys: []ForeignKey{},
+				children:    []Child{},
 			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			tags := picardTagsFromType(tc.giveType)
-			assert.Equal(t, tags, tc.wantPicardTags)
+			tags := tableMetadataFromType(tc.giveType)
+			assert.Equal(t, tags, tc.wantTableMetadata)
 		})
 	}
 }
 
-func TestPicardTagsColumnNames(t *testing.T) {
+func TestTableMetadataColumnNames(t *testing.T) {
 	testCases := []struct {
-		description      string
-		picardTagsStruct picardTags
-		wantColumns      []string
+		description string
+		giveType    reflect.Type
+		wantColumns []string
 	}{
 		{
 			"Should return all columns",
-			picardTags{
-				primaryKeyColumn:      "test pk column",
-				multitenancyKeyColumn: "test multitenancy column",
-				dataColumns:           []string{"test_column_one", "test_column_two", "test multitenancy column"},
-			},
-			[]string{"test_column_one", "test_column_two", "test multitenancy column", "test pk column"},
-		},
-		{
-			"Should return all columns without empty pk",
-			picardTags{
-				multitenancyKeyColumn: "test multitenancy column",
-				dataColumns:           []string{"test_column_one", "test_column_two", "test multitenancy column"},
-			},
-			[]string{"test_column_one", "test_column_two", "test multitenancy column"},
+			reflect.TypeOf(TagsTestStruct{}),
+			[]string{"test_pk", "test_multitenancy_key", "test_column_one", "test_column_two", "test_lookup"},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			assert.Equal(t, tc.picardTagsStruct.ColumnNames(), tc.wantColumns)
+			tableMetadata := tableMetadataFromType(tc.giveType)
+			assert.Equal(t, tableMetadata.getColumnNames(), tc.wantColumns)
 		})
 	}
 }

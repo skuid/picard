@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"reflect"
 	"testing"
+	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/Masterminds/squirrel"
@@ -36,6 +37,10 @@ type TestObject struct {
 	ChildrenMap    map[string]ChildTestObject `json:"childrenmap" picard:"child,foreign_key=ParentID,key_mappings=Name,value_mappings=Type->OtherInfo"`
 	ParentID       string                     `picard:"foreign_key,related=Parent,column=parent_id"`
 	Parent         ParentTestObject           `validate:"-"`
+	CreatedByID    string                     `picard:"column=created_by_id,audit=created_by"`
+	UpdatedByID    string                     `picard:"column=updated_by_id,audit=updated_by"`
+	CreatedDate    time.Time                  `picard:"column=created_at,audit=created_at"`
+	UpdatedDate    time.Time                  `picard:"column=updated_at,audit=updated_at"`
 }
 
 // ChildTestObject sample child object for tests
@@ -53,7 +58,7 @@ type ChildTestObject struct {
 }
 
 type TestParentSerializedObject struct {
-	Metadata Metadata `picard:"tablename=parent_serialize`
+	Metadata Metadata `picard:"tablename=parent_serialize"`
 
 	ID               string                 `json:"id" picard:"primary_key,column=id"`
 	SerializedThings []TestSerializedObject `json:"serialized_things" picard:"jsonb,column=serialized_things"`
@@ -67,54 +72,44 @@ type TestSerializedObject struct {
 }
 
 var parentObjectHelper = ExpectationHelper{
-	TableName:        "parenttest",
+	FixtureType:      ParentTestObject{},
 	LookupSelect:     "",
 	LookupWhere:      "",
 	LookupReturnCols: []string{},
 	LookupFields:     []string{},
-	DBColumns:        []string{"organization_id", "name"},
-	DataFields:       []string{"OrganizationID", "Name"},
 }
 
 var testObjectHelper = ExpectationHelper{
-	TableName:        "testobject",
+	FixtureType:      TestObject{},
 	LookupSelect:     "testobject.id, testobject.name as testobject_name, testobject.nullable_lookup as testobject_nullable_lookup",
 	LookupWhere:      `COALESCE(testobject.name::"varchar",'') || '|' || COALESCE(testobject.nullable_lookup::"varchar",'')`,
 	LookupReturnCols: []string{"id", "testobject_name", "testobject_nullable_lookup"},
 	LookupFields:     []string{"Name", "NullableLookup"},
-	DBColumns:        []string{"organization_id", "name", "nullable_lookup", "type", "is_active", "parent_id"},
-	DataFields:       []string{"OrganizationID", "Name", "NullableLookup", "Type", "IsActive", "ParentID"},
 }
 
 var testObjectWithPKHelper = ExpectationHelper{
-	TableName:        "testobject",
+	FixtureType:      TestObject{},
 	LookupSelect:     "testobject.id, testobject.id as testobject_id",
 	LookupWhere:      `COALESCE(testobject.id::"varchar",'')`,
 	LookupReturnCols: []string{"id", "testobject_id"},
 	LookupFields:     []string{"ID"},
-	DBColumns:        []string{"organization_id", "name", "nullable_lookup", "type", "is_active", "parent_id"},
-	DataFields:       []string{"OrganizationID", "Name", "NullableLookup", "Type", "IsActive", "ParentID"},
 }
 
 var testChildObjectHelper = ExpectationHelper{
-	TableName:        "childtest",
+	FixtureType:      ChildTestObject{},
 	LookupSelect:     "childtest.id, childtest.name as childtest_name, childtest.parent_id as childtest_parent_id",
 	LookupWhere:      `COALESCE(childtest.name::"varchar",'') || '|' || COALESCE(childtest.parent_id::"varchar",'')`,
 	LookupReturnCols: []string{"id", "childtest_name", "childtest_parent_id"},
 	LookupFields:     []string{"Name", "ParentID"},
-	DBColumns:        []string{"organization_id", "name", "other_info", "parent_id", "optional_parent_id"},
-	DataFields:       []string{"OrganizationID", "Name", "OtherInfo", "ParentID", "OptionalParentID"},
 }
 
 var testChildObjectWithLookupHelper = ExpectationHelper{
-	TableName:        "childtest",
+	FixtureType:      ChildTestObject{},
 	LookupFrom:       "childtest JOIN testobject as t1 on t1.id = parent_id",
 	LookupSelect:     "childtest.id, childtest.name as childtest_name, t1.name as t1_name, t1.nullable_lookup as t1_nullable_lookup",
 	LookupWhere:      `COALESCE(childtest.name::"varchar",'') || '|' || COALESCE(t1.name::"varchar",'') || '|' || COALESCE(t1.nullable_lookup::"varchar",'')`,
 	LookupReturnCols: []string{"id", "childtest_name", "t1_name", "t1_nullable_lookup"},
 	LookupFields:     []string{"Name", "ParentID"},
-	DBColumns:        []string{"organization_id", "name", "other_info", "parent_id", "optional_parent_id"},
-	DataFields:       []string{"OrganizationID", "Name", "OtherInfo", "ParentID", "OptionalParentID"},
 }
 
 func TestSerializeJSONBColumns(t *testing.T) {
@@ -186,10 +181,11 @@ func TestDeployments(t *testing.T) {
 			[]string{"SimpleWithPrimaryKey"},
 			TestObject{},
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
-				returnData := GetReturnDataForLookup(testObjectWithPKHelper, nil)
-				lookupKeys := GetLookupKeys(testObjectWithPKHelper, fixtures)
-				ExpectLookup(mock, testObjectWithPKHelper, lookupKeys, returnData)
-				ExpectInsert(mock, testObjectWithPKHelper, fixtures)
+				helper := testObjectWithPKHelper
+				returnData := GetReturnDataForLookup(helper, nil)
+				lookupKeys := GetLookupKeys(helper, fixtures)
+				ExpectLookup(mock, helper, lookupKeys, returnData)
+				ExpectInsert(mock, helper, fixtures, true)
 			},
 			"",
 		},
@@ -198,10 +194,11 @@ func TestDeployments(t *testing.T) {
 			[]string{"SimpleWithPrimaryKey"},
 			TestObject{},
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
-				returnData := GetReturnDataForLookup(testObjectWithPKHelper, fixtures)
-				lookupKeys := GetLookupKeys(testObjectWithPKHelper, fixtures)
-				ExpectLookup(mock, testObjectWithPKHelper, lookupKeys, returnData)
-				ExpectUpdate(mock, testObjectWithPKHelper, fixtures, returnData)
+				helper := testObjectWithPKHelper
+				returnData := GetReturnDataForLookup(helper, fixtures)
+				lookupKeys := GetLookupKeys(helper, fixtures)
+				ExpectLookup(mock, helper, lookupKeys, returnData)
+				ExpectUpdate(mock, helper, fixtures, returnData)
 			},
 			"",
 		},
@@ -210,10 +207,11 @@ func TestDeployments(t *testing.T) {
 			[]string{"Simple"},
 			TestObject{},
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
-				returnData := GetReturnDataForLookup(testObjectHelper, nil)
-				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
-				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
-				ExpectInsert(mock, testObjectHelper, fixtures)
+				helper := testObjectHelper
+				returnData := GetReturnDataForLookup(helper, nil)
+				lookupKeys := GetLookupKeys(helper, fixtures)
+				ExpectLookup(mock, helper, lookupKeys, returnData)
+				ExpectInsert(mock, helper, fixtures, false)
 			},
 			"",
 		},
@@ -262,7 +260,7 @@ func TestDeployments(t *testing.T) {
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
 				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
 				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
-				ExpectInsert(mock, testObjectHelper, fixtures)
+				ExpectInsert(mock, testObjectHelper, fixtures, false)
 			},
 			"",
 		},
@@ -295,7 +293,7 @@ func TestDeployments(t *testing.T) {
 				}, returnData)
 				ExpectInsert(mock, testObjectHelper, []TestObject{
 					fixtures[1],
-				})
+				}, false)
 			},
 			"",
 		},
@@ -305,7 +303,7 @@ func TestDeployments(t *testing.T) {
 			ParentTestObject{},
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				fixtures := fixturesAbstract.([]ParentTestObject)
-				insertRows := ExpectInsert(mock, parentObjectHelper, fixtures)
+				insertRows := ExpectInsert(mock, parentObjectHelper, fixtures, false)
 
 				testObjects := []TestObject{}
 				for index, fixture := range fixtures {
@@ -319,7 +317,7 @@ func TestDeployments(t *testing.T) {
 				testLookupKeys := GetLookupKeys(testObjectHelper, testObjects)
 				ExpectLookup(mock, testObjectHelper, testLookupKeys, testReturnData)
 
-				childInsertRows := ExpectInsert(mock, testObjectHelper, testObjects)
+				childInsertRows := ExpectInsert(mock, testObjectHelper, testObjects, false)
 
 				childObjects := []ChildTestObject{}
 				for index, fixture := range fixtures {
@@ -332,7 +330,7 @@ func TestDeployments(t *testing.T) {
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
-				ExpectInsert(mock, testChildObjectHelper, childObjects)
+				ExpectInsert(mock, testChildObjectHelper, childObjects, false)
 
 			},
 			"",
@@ -346,7 +344,7 @@ func TestDeployments(t *testing.T) {
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
 				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
 				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
-				insertRows := ExpectInsert(mock, testObjectHelper, fixtures)
+				insertRows := ExpectInsert(mock, testObjectHelper, fixtures, false)
 
 				childObjects := []ChildTestObject{}
 				for index, fixture := range fixtures {
@@ -359,7 +357,7 @@ func TestDeployments(t *testing.T) {
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
-				ExpectInsert(mock, testChildObjectHelper, childObjects)
+				ExpectInsert(mock, testChildObjectHelper, childObjects, false)
 			},
 			"",
 		},
@@ -372,7 +370,7 @@ func TestDeployments(t *testing.T) {
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
 				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
 				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
-				insertRows := ExpectInsert(mock, testObjectHelper, fixtures)
+				insertRows := ExpectInsert(mock, testObjectHelper, fixtures, false)
 
 				childObjects := []ChildTestObject{}
 				for index, fixture := range fixtures {
@@ -390,7 +388,7 @@ func TestDeployments(t *testing.T) {
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
 
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
-				ExpectInsert(mock, testChildObjectHelper, childObjects)
+				ExpectInsert(mock, testChildObjectHelper, childObjects, false)
 			},
 			"",
 		},
@@ -416,7 +414,7 @@ func TestDeployments(t *testing.T) {
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
-				ExpectInsert(mock, testChildObjectHelper, childObjects)
+				ExpectInsert(mock, testChildObjectHelper, childObjects, false)
 			},
 			"",
 		},
@@ -516,7 +514,7 @@ func TestDeployments(t *testing.T) {
 					},
 				})
 
-				ExpectInsert(mock, testChildObjectWithLookupHelper, childObjects)
+				ExpectInsert(mock, testChildObjectWithLookupHelper, childObjects, false)
 			},
 			"",
 		},
@@ -560,7 +558,7 @@ func TestDeployments(t *testing.T) {
 					},
 				})
 
-				ExpectInsert(mock, testChildObjectWithLookupHelper, childObjects)
+				ExpectInsert(mock, testChildObjectWithLookupHelper, childObjects, false)
 			},
 			"",
 		},
@@ -587,7 +585,7 @@ func TestDeployments(t *testing.T) {
 				// Expect the foreign key lookup next
 				ExpectLookup(mock, testObjectHelper, []string{"Simple|"}, [][]driver.Value{})
 
-				ExpectInsert(mock, testChildObjectWithLookupHelper, childObjects)
+				ExpectInsert(mock, testChildObjectWithLookupHelper, childObjects, false)
 			},
 			"Missing Required Foreign Key Lookup",
 		},
