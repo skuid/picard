@@ -211,19 +211,15 @@ func (p PersistenceORM) performInserts(inserts []DBChange, insertsHavePrimaryKey
 	insertCount := len(inserts)
 	if insertCount > 0 {
 		for i := 0; i < insertCount; i += insertBatchSize {
-			fmt.Println("Batch Start")
 			end := i + insertBatchSize
 			if end > insertCount {
 				end = insertCount
 			}
-			fmt.Println(i)
-			fmt.Println(end)
 			err := p.performInsertBatch(inserts[i:end], insertsHavePrimaryKey, tableMetadata)
 			if err != nil {
 				return err
 			}
 		}
-
 	}
 	return nil
 }
