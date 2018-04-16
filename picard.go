@@ -20,6 +20,7 @@ import (
 )
 
 const separator = "|"
+const insertBatchSize = 100
 
 // Lookup structure
 type Lookup struct {
@@ -207,6 +208,23 @@ func (p PersistenceORM) performUpdates(updates []DBChange, tableMetadata *tableM
 }
 
 func (p PersistenceORM) performInserts(inserts []DBChange, insertsHavePrimaryKey bool, tableMetadata *tableMetadata) error {
+	insertCount := len(inserts)
+	if insertCount > 0 {
+		for i := 0; i < insertCount; i += insertBatchSize {
+			end := i + insertBatchSize
+			if end > insertCount {
+				end = insertCount
+			}
+			err := p.performInsertBatch(inserts[i:end], insertsHavePrimaryKey, tableMetadata)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (p PersistenceORM) performInsertBatch(inserts []DBChange, insertsHavePrimaryKey bool, tableMetadata *tableMetadata) error {
 	if len(inserts) > 0 {
 
 		psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
