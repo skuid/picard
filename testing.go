@@ -86,22 +86,27 @@ func (eh ExpectationHelper) getColumnValues(object reflect.Value, isUpdate bool,
 		field := object.FieldByName(dataField.name)
 		value := field.Interface()
 		if dataField.isMultitenancyKey {
-			values = append(values, sampleOrgID)
+			value = sampleOrgID
 		} else if dataField.isEncrypted {
-			values = append(values, sqlmock.AnyArg())
+			value = sqlmock.AnyArg()
+		} else if dataField.isJSONB {
+			serializedValue, err := serializeJSONBColumn(value)
+			if err == nil {
+				value = serializedValue
+			}
 		} else if dataField.audit != "" {
 			if dataField.audit == "created_by" {
-				values = append(values, sampleUserID)
+				value = sampleUserID
 			} else if dataField.audit == "updated_by" {
-				values = append(values, sampleUserID)
+				value = sampleUserID
 			} else if dataField.audit == "created_at" {
-				values = append(values, sqlmock.AnyArg())
+				value = sqlmock.AnyArg()
 			} else if dataField.audit == "updated_at" {
-				values = append(values, sqlmock.AnyArg())
+				value = sqlmock.AnyArg()
 			}
-		} else {
-			values = append(values, value)
 		}
+
+		values = append(values, value)
 	}
 
 	return values
