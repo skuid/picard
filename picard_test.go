@@ -13,6 +13,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Config is a sample struct that would go in a jsonb field
+type Config struct {
+	ConfigA string
+	ConfigB string
+}
+
 // ParentTestObject sample parent object for tests
 type ParentTestObject struct {
 	Metadata Metadata `picard:"tablename=parenttest"`
@@ -37,6 +43,7 @@ type TestObject struct {
 	ChildrenMap    map[string]ChildTestObject `json:"childrenmap" picard:"child,foreign_key=ParentID,key_mappings=Name,value_mappings=Type->OtherInfo"`
 	ParentID       string                     `picard:"foreign_key,related=Parent,column=parent_id"`
 	Parent         ParentTestObject           `validate:"-"`
+	Config         Config                     `json:"config" picard:"jsonb,column=config"`
 	CreatedByID    string                     `picard:"column=created_by_id,audit=created_by"`
 	UpdatedByID    string                     `picard:"column=updated_by_id,audit=updated_by"`
 	CreatedDate    time.Time                  `picard:"column=created_at,audit=created_at"`

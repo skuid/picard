@@ -2,5 +2,9 @@
 	"name": "Simple",
 	"type": "SimpleType",
 	"is_active": true,
-	"children": []
+	"children": [],
+	"config": {
+		"ConfigA": "valueA",
+		"ConfigB": "valueB"
+	}
 }

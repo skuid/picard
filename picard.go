@@ -682,7 +682,7 @@ func serializeJSONBColumns(columns []string, returnObject map[string]interface{}
 			continue
 		}
 
-		serializedValue, err := json.Marshal(value)
+		serializedValue, err := serializeJSONBColumn(value)
 		if err != nil {
 			return err
 		}
@@ -690,6 +690,14 @@ func serializeJSONBColumns(columns []string, returnObject map[string]interface{}
 		returnObject[column] = serializedValue
 	}
 	return nil
+}
+
+func serializeJSONBColumn(value interface{}) (interface{}, error) {
+	// No value to process
+	if value == nil || value == "" {
+		return value, nil
+	}
+	return json.Marshal(value)
 }
 
 func isFieldDefinedOnStruct(modelMetadata Metadata, fieldName string) bool {
