@@ -30,6 +30,12 @@ type modelOneFieldEncrypted struct {
 	TestFieldOne string   `picard:"encrypted,column=test_column_one"`
 }
 
+type modelTwoFieldEncrypted struct {
+	Metadata     Metadata `picard:"tablename=test_table"`
+	TestFieldOne string   `picard:"encrypted,column=test_column_one"`
+	TestFieldTwo string   `picard:"encrypted,column=test_column_two"`
+}
+
 type modelOneFieldJSONB struct {
 	Metadata     Metadata             `picard:"tablename=test_table"`
 	TestFieldOne TestSerializedObject `picard:"jsonb,column=test_column_one"`
@@ -236,6 +242,40 @@ func TestDoFilterSelectWithEncrypted(t *testing.T) {
 				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
 					sqlmock.NewRows([]string{"test_column_one"}).
 						AddRow("MTIzNDEyMzQxMjM0ibdgaIgpwjXpIQs645vZ8fXHC85nAKmvoh7MhF+9Bk/mLFTH3FcE4qTKAi5e"),
+				)
+			},
+			nil,
+		},
+		{
+			"Should be able to select if encrypted field is nil",
+			reflect.TypeOf(modelOneFieldEncrypted{}),
+			nil,
+			"123412341234",
+			[]interface{}{
+				modelOneFieldEncrypted{},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
+					sqlmock.NewRows([]string{"test_column_one"}).
+						AddRow(nil),
+				)
+			},
+			nil,
+		},
+		{
+			"Should be able to select if some encrypted fields are nil and others are populated",
+			reflect.TypeOf(modelTwoFieldEncrypted{}),
+			nil,
+			"123412341234",
+			[]interface{}{
+				modelTwoFieldEncrypted{
+					TestFieldOne: "some plaintext for encryption",
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery("^SELECT test_table.test_column_one, test_table.test_column_two FROM test_table$").WillReturnRows(
+					sqlmock.NewRows([]string{"test_column_one", "test_column_two"}).
+						AddRow("MTIzNDEyMzQxMjM0ibdgaIgpwjXpIQs645vZ8fXHC85nAKmvoh7MhF+9Bk/mLFTH3FcE4qTKAi5e", nil),
 				)
 			},
 			nil,

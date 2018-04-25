@@ -77,6 +77,10 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 		for _, column := range encryptedColumns {
 			value := result[column]
 
+			if value == nil || value == "" {
+				continue
+			}
+
 			valueAsString, ok := value.(string)
 			if !ok {
 				return nil, errors.New("can only decrypt values which are stored as base64 strings")
