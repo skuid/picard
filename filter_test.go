@@ -226,7 +226,7 @@ func TestDoFilterSelectWithEncrypted(t *testing.T) {
 		nonce                string
 		wantReturnInterfaces []interface{}
 		expectationFunction  func(sqlmock.Sqlmock)
-		wantErr              error
+		wantErrMsg           string
 	}{
 		{
 			"Should do query correctly and return correct values with single encrypted field",
@@ -244,7 +244,7 @@ func TestDoFilterSelectWithEncrypted(t *testing.T) {
 						AddRow("MTIzNDEyMzQxMjM0ibdgaIgpwjXpIQs645vZ8fXHC85nAKmvoh7MhF+9Bk/mLFTH3FcE4qTKAi5e"),
 				)
 			},
-			nil,
+			"",
 		},
 		{
 			"Should be able to select if encrypted field is nil",
@@ -260,7 +260,23 @@ func TestDoFilterSelectWithEncrypted(t *testing.T) {
 						AddRow(nil),
 				)
 			},
+			"",
+		},
+		{
+			"Should be able to select if encrypted field is empty string",
+			reflect.TypeOf(modelOneFieldEncrypted{}),
 			nil,
+			"123412341234",
+			[]interface{}{
+				modelOneFieldEncrypted{},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
+					sqlmock.NewRows([]string{"test_column_one"}).
+						AddRow(""),
+				)
+			},
+			"",
 		},
 		{
 			"Should be able to select if some encrypted fields are nil and others are populated",
@@ -278,7 +294,23 @@ func TestDoFilterSelectWithEncrypted(t *testing.T) {
 						AddRow("MTIzNDEyMzQxMjM0ibdgaIgpwjXpIQs645vZ8fXHC85nAKmvoh7MhF+9Bk/mLFTH3FcE4qTKAi5e", nil),
 				)
 			},
+			"",
+		},
+		{
+			"Should return error if encrypted field is not stored in base64",
+			reflect.TypeOf(modelOneFieldEncrypted{}),
 			nil,
+			"123412341234",
+			[]interface{}{
+				modelOneFieldEncrypted{},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
+					sqlmock.NewRows([]string{"test_column_one"}).
+						AddRow("some other string"),
+				)
+			},
+			"base64 decoding of value failed",
 		},
 	}
 
@@ -308,8 +340,8 @@ func TestDoFilterSelectWithEncrypted(t *testing.T) {
 			// Tear down known nonce
 			rand.Reader = oldReader
 
-			if tc.wantErr != nil {
-				assert.Error(t, err)
+			if tc.wantErrMsg != "" {
+				assert.EqualError(t, err, tc.wantErrMsg)
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.wantReturnInterfaces, results)
