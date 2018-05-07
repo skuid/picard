@@ -112,8 +112,6 @@ func decodeMatching(rawMap map[string]json.RawMessage, reflectedValue reflect.Va
 			continue
 		}
 
-		addDefinedField(metadataField, field.Name)
-
 		temp := reflect.New(field.Type).Interface()
 
 		if field.Type.Kind() == reflect.Struct || field.Type.Kind() == reflect.Slice {
@@ -129,7 +127,10 @@ func decodeMatching(rawMap map[string]json.RawMessage, reflectedValue reflect.Va
 		}
 
 		actualValue := reflect.Indirect(reflect.ValueOf(temp))
-		reflectedValue.FieldByName(field.Name).Set(actualValue)
+		if actualValue.IsValid() {
+			addDefinedField(metadataField, field.Name)
+			reflectedValue.FieldByName(field.Name).Set(actualValue)
+		}
 
 	}
 	return nil

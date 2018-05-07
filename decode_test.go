@@ -33,6 +33,23 @@ func TestUnmarshal(t *testing.T) {
 			"",
 		},
 		{
+			"Unmarshal a testObject with a null value",
+			[]byte(`{
+				"id":"myID",
+				"name":null
+			}`),
+			&TestObject{},
+			&TestObject{
+				Metadata: Metadata{
+					DefinedFields: []string{"ID"},
+				},
+				ID:       "myID",
+				Name:     "",
+				Children: nil,
+			},
+			"",
+		},
+		{
 			"Unmarshal a testObject with a child object",
 			[]byte(`{
 				"id":"anotherID",
