@@ -13,7 +13,7 @@ import (
 )
 
 func TestCreateModel(t *testing.T) {
-	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000005")
+	testMultitenancyValue := "00000000-0000-0000-0000-000000000005"
 	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
 	testCases := []struct {
 		description         string
@@ -128,7 +128,7 @@ func TestCreateModel(t *testing.T) {
 }
 
 func TestSaveModel(t *testing.T) {
-	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000005")
+	testMultitenancyValue := "00000000-0000-0000-0000-000000000005"
 	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
 	testCases := []struct {
 		description         string
@@ -371,7 +371,7 @@ func TestSaveModel(t *testing.T) {
 }
 
 func TestJSONBSaveModel(t *testing.T) {
-	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000005")
+	testMultitenancyValue := "00000000-0000-0000-0000-000000000005"
 	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
 	testCases := []struct {
 		description         string
@@ -504,7 +504,7 @@ func TestJSONBSaveModel(t *testing.T) {
 	}
 }
 func TestEncryptedSaveModel(t *testing.T) {
-	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000005")
+	testMultitenancyValue := "00000000-0000-0000-0000-000000000005"
 	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
 	testCases := []struct {
 		description         string
@@ -660,7 +660,7 @@ func TestEncryptedSaveModel(t *testing.T) {
 }
 
 func TestUpdateModel(t *testing.T) {
-	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000005")
+	testMultitenancyValue := "00000000-0000-0000-0000-000000000005"
 	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
 	testCases := []struct {
 		description         string
@@ -728,7 +728,7 @@ func TestUpdateModel(t *testing.T) {
 }
 
 func TestInsertModel(t *testing.T) {
-	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000005")
+	testMultitenancyValue := "00000000-0000-0000-0000-000000000005"
 	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
 	testCases := []struct {
 		description         string
