@@ -313,7 +313,7 @@ func RunImportTest(testObjects interface{}, testFunction func(*sqlmock.Sqlmock, 
 	SetEncryptionKey([]byte("the-key-has-to-be-32-bytes-long!"))
 	SetConnection(db)
 
-	orgID, _ := uuid.FromString(sampleOrgID)
+	orgID := sampleOrgID
 	userID, _ := uuid.FromString(sampleUserID)
 
 	mock.ExpectBegin()

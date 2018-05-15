@@ -70,7 +70,7 @@ type modelPK struct {
 }
 
 func TestDoFilterSelect(t *testing.T) {
-	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000001")
+	testMultitenancyValue := "00000000-0000-0000-0000-000000000001"
 	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
 	testCases := []struct {
 		description          string
@@ -217,7 +217,7 @@ func TestDoFilterSelect(t *testing.T) {
 
 func TestDoFilterSelectWithEncrypted(t *testing.T) {
 
-	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000001")
+	testMultitenancyValue := "00000000-0000-0000-0000-000000000001"
 	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
 	testCases := []struct {
 		description          string
@@ -358,7 +358,7 @@ func TestDoFilterSelectWithEncrypted(t *testing.T) {
 
 func TestDoFilterSelectWithJSONBField(t *testing.T) {
 
-	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000001")
+	testMultitenancyValue := "00000000-0000-0000-0000-000000000001"
 	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
 	testCases := []struct {
 		description          string

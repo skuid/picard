@@ -80,13 +80,13 @@ type ORM interface {
 // PersistenceORM provides the necessary configuration to perform an upsert of objects without IDs
 // into a relational database using lookup fields to match and field name transformations.
 type PersistenceORM struct {
-	multitenancyValue uuid.UUID
+	multitenancyValue string
 	performedBy       uuid.UUID
 	transaction       *sql.Tx
 }
 
 // New Creates a new Picard Object and handle defaults
-func New(multitenancyValue uuid.UUID, performerID uuid.UUID) ORM {
+func New(multitenancyValue string, performerID uuid.UUID) ORM {
 	return PersistenceORM{
 		multitenancyValue: multitenancyValue,
 		performedBy:       performerID,

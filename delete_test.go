@@ -10,7 +10,7 @@ import (
 )
 
 func TestDeleteModel(t *testing.T) {
-	testMultitenancyValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000001")
+	testMultitenancyValue := "00000000-0000-0000-0000-000000000001"
 	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
 	testCases := []struct {
 		description            string
