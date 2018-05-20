@@ -15,7 +15,6 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
-	uuid "github.com/satori/go.uuid"
 	validator "gopkg.in/go-playground/validator.v9"
 )
 
@@ -81,12 +80,12 @@ type ORM interface {
 // into a relational database using lookup fields to match and field name transformations.
 type PersistenceORM struct {
 	multitenancyValue string
-	performedBy       uuid.UUID
+	performedBy       string
 	transaction       *sql.Tx
 }
 
 // New Creates a new Picard Object and handle defaults
-func New(multitenancyValue string, performerID uuid.UUID) ORM {
+func New(multitenancyValue string, performerID string) ORM {
 	return PersistenceORM{
 		multitenancyValue: multitenancyValue,
 		performedBy:       performerID,

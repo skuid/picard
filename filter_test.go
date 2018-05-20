@@ -8,7 +8,6 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/Masterminds/squirrel"
-	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -71,7 +70,7 @@ type modelPK struct {
 
 func TestDoFilterSelect(t *testing.T) {
 	testMultitenancyValue := "00000000-0000-0000-0000-000000000001"
-	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
+	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
 	testCases := []struct {
 		description          string
 		filterModelType      reflect.Type
@@ -218,7 +217,7 @@ func TestDoFilterSelect(t *testing.T) {
 func TestDoFilterSelectWithEncrypted(t *testing.T) {
 
 	testMultitenancyValue := "00000000-0000-0000-0000-000000000001"
-	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
+	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
 	testCases := []struct {
 		description          string
 		filterModelType      reflect.Type
@@ -359,7 +358,7 @@ func TestDoFilterSelectWithEncrypted(t *testing.T) {
 func TestDoFilterSelectWithJSONBField(t *testing.T) {
 
 	testMultitenancyValue := "00000000-0000-0000-0000-000000000001"
-	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
+	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
 	testCases := []struct {
 		description          string
 		filterModelType      reflect.Type

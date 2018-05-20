@@ -314,7 +314,7 @@ func RunImportTest(testObjects interface{}, testFunction func(*sqlmock.Sqlmock, 
 	SetConnection(db)
 
 	orgID := sampleOrgID
-	userID, _ := uuid.FromString(sampleUserID)
+	userID := sampleUserID
 
 	mock.ExpectBegin()
 

@@ -8,13 +8,12 @@ import (
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCreateModel(t *testing.T) {
 	testMultitenancyValue := "00000000-0000-0000-0000-000000000005"
-	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
+	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
 	testCases := []struct {
 		description         string
 		giveValue           interface{}
@@ -129,7 +128,7 @@ func TestCreateModel(t *testing.T) {
 
 func TestSaveModel(t *testing.T) {
 	testMultitenancyValue := "00000000-0000-0000-0000-000000000005"
-	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
+	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
 	testCases := []struct {
 		description         string
 		giveValue           interface{}
@@ -372,7 +371,7 @@ func TestSaveModel(t *testing.T) {
 
 func TestJSONBSaveModel(t *testing.T) {
 	testMultitenancyValue := "00000000-0000-0000-0000-000000000005"
-	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
+	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
 	testCases := []struct {
 		description         string
 		giveValue           interface{}
@@ -505,7 +504,7 @@ func TestJSONBSaveModel(t *testing.T) {
 }
 func TestEncryptedSaveModel(t *testing.T) {
 	testMultitenancyValue := "00000000-0000-0000-0000-000000000005"
-	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
+	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
 	testCases := []struct {
 		description         string
 		giveValue           interface{}
@@ -661,7 +660,7 @@ func TestEncryptedSaveModel(t *testing.T) {
 
 func TestUpdateModel(t *testing.T) {
 	testMultitenancyValue := "00000000-0000-0000-0000-000000000005"
-	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
+	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
 	testCases := []struct {
 		description         string
 		giveValue           interface{}
@@ -729,7 +728,7 @@ func TestUpdateModel(t *testing.T) {
 
 func TestInsertModel(t *testing.T) {
 	testMultitenancyValue := "00000000-0000-0000-0000-000000000005"
-	testPerformedByValue, _ := uuid.FromString("00000000-0000-0000-0000-000000000002")
+	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
 	testCases := []struct {
 		description         string
 		giveValue           interface{}
