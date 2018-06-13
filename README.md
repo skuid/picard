@@ -117,3 +117,6 @@ Indicates that this field represents a foreign key in another table.
 #### related
 Specifies the field also in this struct that contains the related data. The field specified here must be of kind struct.
 
+#### key_map
+Optional. Only valid for fields that are strings and are marked as a foreign key. This indicates that the value in this property should be mapped to the specified field of the related object.
+

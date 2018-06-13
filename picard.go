@@ -51,6 +51,7 @@ type ForeignKey struct {
 	NeedsLookup      bool
 	LookupResults    map[string]interface{}
 	LookupsUsed      []Lookup
+	KeyMapField      string
 }
 
 // DBChange structure
@@ -295,7 +296,7 @@ func (p PersistenceORM) getExistingObjectByID(tableMetadata *tableMetadata, IDVa
 func (p PersistenceORM) checkForExisting(
 	data interface{},
 	tableMetadata *tableMetadata,
-	foreignFieldName string,
+	foreignKey *ForeignKey,
 ) (
 	map[string]interface{},
 	[]Lookup,
@@ -305,8 +306,8 @@ func (p PersistenceORM) checkForExisting(
 	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
 	multitenancyKeyColumnName := tableMetadata.getMultitenancyKeyColumnName()
 	tableAliasCache := map[string]string{}
-	lookupsToUse := getLookupsForDeploy(data, tableMetadata, foreignFieldName, tableAliasCache)
-	lookupObjectKeys := getLookupObjectKeys(data, lookupsToUse, foreignFieldName)
+	lookupsToUse := getLookupsForDeploy(data, tableMetadata, foreignKey, tableAliasCache)
+	lookupObjectKeys := getLookupObjectKeys(data, lookupsToUse, foreignKey)
 
 	if len(lookupObjectKeys) == 0 || len(lookupsToUse) == 0 {
 		return map[string]interface{}{}, lookupsToUse, nil
@@ -406,7 +407,7 @@ func getMatchObjectProperty(baseObjectProperty string, relatedFieldName string, 
 	return getNewBaseObjectProperty(baseObjectProperty, relatedFieldName) + "." + matchObjectProperty
 }
 
-func getLookupsForDeploy(data interface{}, tableMetadata *tableMetadata, dataPath string, tableAliasCache map[string]string) []Lookup {
+func getLookupsForDeploy(data interface{}, tableMetadata *tableMetadata, foreignKey *ForeignKey, tableAliasCache map[string]string) []Lookup {
 	lookupsToUse := []Lookup{}
 	tableName := tableMetadata.tableName
 	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
@@ -421,8 +422,14 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tableMetadata, dataPat
 	for i := 0; i < s.Len(); i++ {
 		item := s.Index(i)
 
-		if dataPath != "" {
-			item = item.FieldByName(dataPath)
+		if foreignKey != nil {
+			keyMapField := foreignKey.KeyMapField
+			keyValue := item.FieldByName(foreignKey.FieldName)
+			item = item.FieldByName(foreignKey.RelatedFieldName)
+			if keyMapField != "" {
+				relatedKeyField := item.FieldByName(keyMapField)
+				relatedKeyField.Set(keyValue)
+			}
 		}
 
 		// If any piece of data has a primary key we will assume that the data set
@@ -464,14 +471,14 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tableMetadata, dataPat
 	return lookupsToUse
 }
 
-func getLookupObjectKeys(data interface{}, lookupsToUse []Lookup, dataPath string) []string {
+func getLookupObjectKeys(data interface{}, lookupsToUse []Lookup, foreignKey *ForeignKey) []string {
 	keys := []string{}
 	s := reflect.ValueOf(data)
 	for i := 0; i < s.Len(); i++ {
 		item := s.Index(i)
 
-		if dataPath != "" {
-			item = item.FieldByName(dataPath)
+		if foreignKey != nil {
+			item = item.FieldByName(foreignKey.RelatedFieldName)
 		}
 		isZeroField := reflect.DeepEqual(item.Interface(), reflect.Zero(item.Type()).Interface())
 		if isZeroField {
@@ -594,14 +601,14 @@ func (p PersistenceORM) generateChanges(
 	insertsHavePrimaryKey := false
 	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
 
-	results, lookups, err := p.checkForExisting(data, tableMetadata, "")
+	results, lookups, err := p.checkForExisting(data, tableMetadata, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	for index := range foreignKeys {
 		foreignKey := &foreignKeys[index]
-		foreignResults, foreignLookupsUsed, err := p.checkForExisting(data, foreignKey.TableMetadata, foreignKey.RelatedFieldName)
+		foreignResults, foreignLookupsUsed, err := p.checkForExisting(data, foreignKey.TableMetadata, foreignKey)
 		if err != nil {
 			return nil, err
 		}
@@ -812,7 +819,7 @@ func (p PersistenceORM) processObject(
 	serializeJSONBColumns(tableMetadata.getJSONBColumns(), returnObject)
 
 	for _, foreignKey := range foreignKeys {
-		if returnObject[foreignKey.KeyColumn] != "" {
+		if returnObject[foreignKey.KeyColumn] != "" && foreignKey.KeyMapField == "" {
 			continue
 		}
 		foreignValue := metadataObject.FieldByName(foreignKey.RelatedFieldName)

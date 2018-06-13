@@ -253,6 +253,7 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 					RelatedFieldName: relatedField.Name,
 					Required:         isRequired,
 					NeedsLookup:      isLookup,
+					KeyMapField:      tagsMap["key_map"],
 				})
 			}
 		}

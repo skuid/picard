@@ -64,6 +64,20 @@ type ChildTestObject struct {
 	OptionalParent   TestObject `json:"optional_parent" validate:"-"`
 }
 
+// ChildTestObjectWithKeyMap sample child object for tests
+type ChildTestObjectWithKeyMap struct {
+	Metadata Metadata `picard:"tablename=childtest"`
+
+	ID               string     `json:"id" picard:"primary_key,column=id"`
+	OrganizationID   string     `picard:"multitenancy_key,column=organization_id"`
+	Name             string     `json:"name" picard:"lookup,column=name"`
+	OtherInfo        string     `picard:"column=other_info"`
+	ParentID         string     `json:"parent" picard:"foreign_key,lookup,required,related=Parent,column=parent_id,key_map=Name"`
+	Parent           TestObject `validate:"-"`
+	OptionalParentID string     `picard:"foreign_key,related=OptionalParent,column=optional_parent_id"`
+	OptionalParent   TestObject `json:"optional_parent" validate:"-"`
+}
+
 type TestParentSerializedObject struct {
 	Metadata Metadata `picard:"tablename=parent_serialize"`
 
@@ -522,6 +536,39 @@ func TestDeployments(t *testing.T) {
 				})
 
 				ExpectInsert(mock, testChildObjectWithLookupHelper, childObjects, false)
+			},
+			"",
+		},
+		{
+			"Import New Child with Reference to Parent Name Using Key Map",
+			[]string{"ChildWithParentLookupAndKeyMap"},
+			ChildTestObjectWithKeyMap{},
+			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+				parentUUID := uuid.NewV4().String()
+				fixtures := fixturesAbstract.([]ChildTestObjectWithKeyMap)
+				lookupKeys := []string{"ChildItem|Simple"}
+				returnData := [][]driver.Value{}
+
+				childObjects := []ChildTestObjectWithKeyMap{}
+				for _, fixture := range fixtures {
+					childObjects = append(childObjects, ChildTestObjectWithKeyMap{
+						Name:     fixture.Name,
+						ParentID: parentUUID,
+					})
+				}
+
+				ExpectLookup(mock, testChildObjectHelper, lookupKeys, returnData)
+
+				// Expect the foreign key lookup next
+				ExpectLookup(mock, testObjectHelper, []string{"Simple|"}, [][]driver.Value{
+					[]driver.Value{
+						parentUUID,
+						"Simple",
+						"",
+					},
+				})
+
+				ExpectInsert(mock, testChildObjectHelper, childObjects, false)
 			},
 			"",
 		},
