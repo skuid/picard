@@ -68,6 +68,12 @@ type DBChangeSet struct {
 	insertsHavePrimaryKey bool
 }
 
+// QB returns the raw SQL Tx object
+type QB struct {
+	Tx                *sql.Tx
+	MultitenancyValue string
+}
+
 // ORM interface describes the behavior API of any picard ORM
 type ORM interface {
 	FilterModel(interface{}) ([]interface{}, error)
@@ -75,6 +81,7 @@ type ORM interface {
 	CreateModel(model interface{}) error
 	DeleteModel(model interface{}) (int64, error)
 	Deploy(data interface{}) error
+	QueryBuilder() QB
 }
 
 // PersistenceORM provides the necessary configuration to perform an upsert of objects without IDs
@@ -131,7 +138,16 @@ func (p PersistenceORM) Deploy(data interface{}) error {
 	return tx.Commit()
 }
 
-// Upsert takes data in the form of a slice of structs and performs a series of database
+// QueryBuilder returns a QB object that has enough information to craft any
+// query needed against the persistence store
+func (p PersistenceORM) QueryBuilder() QB {
+	return QB{
+		Tx:                p.transaction,
+		MultitenancyValue: p.multitenancyValue,
+	}
+}
+
+// upsert takes data in the form of a slice of structs and performs a series of database
 // operations that will sync the database with the state of that deployment payload
 func (p PersistenceORM) upsert(data interface{}) error {
 

@@ -2,6 +2,8 @@ package picard_test
 
 import (
 	"errors"
+
+	"github.com/skuid/picard"
 )
 
 // MockORM can be used to test client functionality that calls picard.ORM behavior.
@@ -35,6 +37,14 @@ func (morm *MockORM) SaveModel(model interface{}) error {
 	return morm.SaveModelError
 }
 
+// QueryBuilder satisfies the interface
+func (morm *MockORM) QueryBuilder() picard.QB {
+	return picard.QB{
+		Tx:                nil,
+		MultitenancyValue: "",
+	}
+}
+
 // CreateModel returns the error stored in MockORM, and records the call value
 func (morm *MockORM) CreateModel(model interface{}) error {
 	morm.CreateModelCalledWith = model
@@ -57,6 +67,14 @@ func (morm *MockORM) Deploy(data interface{}) error {
 type MultiMockORM struct {
 	MockORMs []MockORM
 	index    int
+}
+
+// QueryBuilder satisfies the interface
+func (multi *MultiMockORM) QueryBuilder() picard.QB {
+	return picard.QB{
+		Tx:                nil,
+		MultitenancyValue: "",
+	}
 }
 
 // Returns the next mock in the series of mocks
