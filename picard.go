@@ -29,6 +29,7 @@ type Lookup struct {
 	JoinKey             string
 	Query               bool
 	Value               interface{}
+	InValues            []interface{}
 }
 
 // Child structure
@@ -70,7 +71,8 @@ type DBChangeSet struct {
 
 // ORM interface describes the behavior API of any picard ORM
 type ORM interface {
-	FilterModel(interface{}) ([]interface{}, error)
+	FilterModel(interface{}, ...FilterAssociations) ([]interface{}, error)
+	Includes(associations ...string) FilterAssociations
 	SaveModel(model interface{}) error
 	CreateModel(model interface{}) error
 	DeleteModel(model interface{}) (int64, error)
@@ -512,7 +514,11 @@ func getQueryParts(tableName string, primaryKeyColumnName string, lookupsToUse [
 		}
 		columns = append(columns, fmt.Sprintf("%[3]v.%[2]v as %[3]v_%[2]v", tableToUse, lookup.MatchDBColumn, tableAlias))
 		if lookup.Query {
-			whereFields = append(whereFields, squirrel.Eq{fmt.Sprintf("%v.%v", tableAlias, lookup.MatchDBColumn): lookup.Value})
+			if lookup.InValues != nil {
+				whereFields = append(whereFields, squirrel.Eq{fmt.Sprintf("%v.%v", tableAlias, lookup.MatchDBColumn): lookup.InValues})
+			} else {
+				whereFields = append(whereFields, squirrel.Eq{fmt.Sprintf("%v.%v", tableAlias, lookup.MatchDBColumn): lookup.Value})
+			}
 		}
 	}
 	return columns, joins, whereFields
@@ -970,7 +976,7 @@ func getColumnValues(columnNames []string, data map[string]interface{}) []interf
 	return columnValues
 }
 
-func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFields []string, parentTableMetadata *tableMetadata, baseJoinKey string, joinKey string, tableAliasCache map[string]string) ([]Lookup, error) {
+func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFields []string, parentTableMetadata *tableMetadata, baseJoinKey string, joinKey string, tableAliasCache map[string]string, eagerLoadValues map[string][]interface{}) ([]Lookup, error) {
 	filterModelType := filterModelValue.Type()
 	tableName := parentTableMetadata.tableName
 	lookups := []Lookup{}
@@ -984,7 +990,12 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 		picardTags := getStructTagsMap(field, "picard")
 		column, hasColumn := picardTags["column"]
 		_, isMultitenancyColumn := picardTags["multitenancy_key"]
-		isZeroField := reflect.DeepEqual(fieldValue.Interface(), reflect.Zero(field.Type).Interface())
+
+		isZeroField := false
+		if fieldValue.CanInterface() {
+			isZeroField = reflect.DeepEqual(fieldValue.Interface(), reflect.Zero(field.Type).Interface())
+		}
+
 		kind := fieldValue.Kind()
 
 		isZeroColumn := false
@@ -992,6 +1003,11 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 			if field.Name == zeroField {
 				isZeroColumn = true
 			}
+		}
+
+		isEagerLoad := false
+		if len(eagerLoadValues[field.Name]) > 0 {
+			isEagerLoad = true
 		}
 
 		switch {
@@ -1010,14 +1026,34 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 				return nil, errors.New("cannot perform queries with where clauses on encrypted fields")
 			}
 
-			lookups = append(lookups, Lookup{
+			lookup := Lookup{
 				MatchDBColumn:       column,
 				MatchObjectProperty: field.Name,
 				TableName:           tableName,
 				JoinKey:             fullJoinKey,
 				Query:               true,
 				Value:               fieldValue.Interface(),
-			})
+			}
+
+			lookups = append(lookups, lookup)
+
+		case hasColumn && isEagerLoad:
+			fmt.Println("eager load for where getfilterlookups")
+			_, isEncrypted := picardTags["encrypted"]
+			if isEncrypted {
+				return nil, errors.New("cannot perform queries with where clauses on encrypted fields")
+			}
+			lookup := Lookup{
+				MatchDBColumn:       column,
+				MatchObjectProperty: field.Name,
+				TableName:           tableName,
+				JoinKey:             fullJoinKey,
+				Query:               true,
+				InValues:            eagerLoadValues[field.Name],
+			}
+
+			lookups = append(lookups, lookup)
+
 		case isZeroColumn:
 			lookups = append(lookups, Lookup{
 				MatchDBColumn:       column,
@@ -1044,7 +1080,7 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 			if tableAlias == tableName {
 				tableAlias = ""
 			}
-			relatedLookups, err := p.getFilterLookups(fieldValue, []string{}, relatedPicardTags, tableAlias, foreignKeyValue, tableAliasCache)
+			relatedLookups, err := p.getFilterLookups(fieldValue, []string{}, relatedPicardTags, tableAlias, foreignKeyValue, tableAliasCache, nil)
 			if err != nil {
 				return nil, err
 			}
@@ -1055,18 +1091,33 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 	return lookups, nil
 }
 
-func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.Value, zeroFields []string) ([]squirrel.Eq, []string, error) {
+func (p PersistenceORM) getEagerLoadLookups(filterModelValue reflect.Value, lookups []interface{}, tableAliasCache map[string]string) ([]Lookup, error) {
+	// take pk lookup values and assign to valuesin
+	// pk lookup a
+	fetchLookups := []Lookup{}
+	/*lookups = append(lookups, Lookup{
+		MatchDBColumn:       column,
+		MatchObjectProperty: field.Name,
+		TableName:           tableName,
+		JoinKey:             "",
+		Query:               true,
+		Value:               reflect.Zero(field.Type).Interface(),
+		ValuesIn:
+	})*/
+	return fetchLookups, nil
+}
+
+func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.Value, zeroFields []string, eagerloadValues map[string][]interface{}) ([]squirrel.Eq, []string, error) {
 
 	filterModelType := filterModelValue.Type()
 	tableMetadata := tableMetadataFromType(filterModelType)
 	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
 	tableAliasCache := map[string]string{}
 
-	lookups, err := p.getFilterLookups(filterModelValue, zeroFields, tableMetadata, "", "", tableAliasCache)
+	lookups, err := p.getFilterLookups(filterModelValue, zeroFields, tableMetadata, "", "", tableAliasCache, eagerloadValues)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	_, joins, whereFields := getQueryParts(tableMetadata.tableName, primaryKeyColumnName, lookups, tableAliasCache)
 
 	return whereFields, joins, nil

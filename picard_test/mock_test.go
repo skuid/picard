@@ -10,37 +10,73 @@ import (
 
 func TestMockFilterModel(t *testing.T) {
 	testCases := []struct {
-		description     string
-		giveFilterModel interface{}
-		giveReturns     []interface{}
-		giveError       error
+		description        string
+		giveFilterModel    interface{}
+		giveAssociations   string
+		giveReturns        []interface{}
+		giveIncludeReturns []interface{}
+		giveError          error
+		giveIncludesError  error
 	}{
 		{
 			"Should return error if present, regardless of returns set",
 			nil,
+			"",
 			[]interface{}{
 				"test 1",
 				"test 2",
 			},
+			nil,
 			errors.New("Some error"),
+			nil,
 		},
 		{
 			"Should return set return interfaces",
 			nil,
+			"",
 			[]interface{}{
 				"test 1",
 				"test 2",
 			},
+			nil,
+			nil,
 			nil,
 		},
 		{
 			"Should set FilterModelCalledWith",
 			"test filter interface",
+			"",
 			[]interface{}{
 				"test 1",
 				"test 2",
 			},
 			nil,
+			nil,
+			nil,
+		},
+		{
+			"Should set IncludesCalledWith",
+			"test filter interface",
+			"a.b",
+			nil,
+			[]interface{}{
+				"test 1",
+				"test 2",
+			},
+			nil,
+			nil,
+		},
+		{
+			"Should return IncludesError",
+			"test filter interface",
+			"a.b",
+			nil,
+			[]interface{}{
+				"test 1",
+				"test 2",
+			},
+			nil,
+			errors.New("Some error"),
 		},
 	}
 
@@ -50,15 +86,32 @@ func TestMockFilterModel(t *testing.T) {
 				FilterModelReturns: tc.giveReturns,
 				FilterModelError:   tc.giveError,
 			}
-			results, err := morm.FilterModel(tc.giveFilterModel)
+
+			if tc.giveAssociations != "" {
+				morm.IncludesReturns = tc.giveIncludeReturns
+				if tc.giveIncludesError != nil {
+					morm.IncludesError = tc.giveIncludesError
+				}
+			}
+
+			results, err := morm.FilterModel(tc.giveFilterModel, morm.Includes(tc.giveAssociations))
 
 			if tc.giveError != nil {
 				assert.Error(t, err)
 				assert.Equal(t, tc.giveError, err)
+			} else if tc.giveIncludesError != nil {
+				assert.Error(t, err)
+				assert.Equal(t, tc.giveIncludesError, err)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tc.giveReturns, results)
-				assert.Equal(t, tc.giveFilterModel, morm.FilterModelCalledWith)
+				if tc.giveAssociations != "" {
+					assert.Equal(t, tc.giveIncludeReturns, results)
+					assert.Equal(t, tc.giveAssociations, morm.IncludesCalledWith)
+				} else {
+					assert.Equal(t, tc.giveReturns, results)
+					assert.Equal(t, tc.giveFilterModel, morm.FilterModelCalledWith)
+				}
+
 			}
 		})
 	}
