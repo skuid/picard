@@ -12,14 +12,17 @@ import (
 
 type FilterAssociations func(reflect.Value, []interface{}) ([]interface{}, error)
 
-func getPrimaryKeyValuesFromResults(primaryKey string, results []interface{}) []interface{} {
+func getPrimaryKeyValuesFromResults(primaryKey string, results []interface{}) ([]interface{}, error) {
 	var primaryKeyValues []interface{}
 	for _, result := range results {
-		resultValue := reflect.ValueOf(result)
+		resultValue, err := getStructValue(result)
+		if err != nil {
+			return nil, err
+		}
 		primaryKeyValue := reflect.Indirect(resultValue).FieldByName(primaryKey).Interface()
 		primaryKeyValues = append(primaryKeyValues, primaryKeyValue)
 	}
-	return primaryKeyValues
+	return primaryKeyValues, nil
 }
 
 func getForeignKeyValues(childMetadata *tableMetadata, pkField string, pkValues []interface{}) map[string][]interface{} {
@@ -82,7 +85,10 @@ func (p PersistenceORM) eagerLoad(filterModelValue reflect.Value, parentResults 
 			parentModelType := filterModelValue.Type()
 			parentMetadata := tableMetadataFromType(parentModelType)
 			parentPKFieldName := parentMetadata.getPrimaryKeyFieldName()
-			parentPKValues := getPrimaryKeyValuesFromResults(parentPKFieldName, parentResults)
+			parentPKValues, err := getPrimaryKeyValuesFromResults(parentPKFieldName, parentResults)
+			if err != nil {
+				return nil, false, err
+			}
 			childValue, childMetadata, _ = parentMetadata.getChildFromParent(nextNode.Name, filterModelValue)
 
 			if !childValue.IsValid() {
@@ -175,7 +181,6 @@ func (p PersistenceORM) filter(filterModelValue reflect.Value, parentResults []i
 // through "." concatenation, ie []string{parent.children", "parent.children.subchildren"}
 func (p PersistenceORM) Includes(associations ...string) FilterAssociations {
 	return func(parentModelValue reflect.Value, parentResults []interface{}) ([]interface{}, error) {
-		// at this level associations is ["parent.children", "otherparent.children.toys"]
 		as, err := getAssociations(associations, parentModelValue)
 		if err != nil {
 			return nil, err
@@ -196,6 +201,9 @@ func (p PersistenceORM) FilterModel(filterModel interface{}, filterAssocs ...Fil
 		return nil, err
 	}
 	results, err := p.filter(filterModelValue, nil, nil)
+	if err != nil {
+		return nil, err
+	}
 	// eager loading for nested associations
 	for _, filterAssoc := range filterAssocs {
 		assocResults, err := filterAssoc(filterModelValue, results)

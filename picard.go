@@ -1091,22 +1091,6 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 	return lookups, nil
 }
 
-func (p PersistenceORM) getEagerLoadLookups(filterModelValue reflect.Value, lookups []interface{}, tableAliasCache map[string]string) ([]Lookup, error) {
-	// take pk lookup values and assign to valuesin
-	// pk lookup a
-	fetchLookups := []Lookup{}
-	/*lookups = append(lookups, Lookup{
-		MatchDBColumn:       column,
-		MatchObjectProperty: field.Name,
-		TableName:           tableName,
-		JoinKey:             "",
-		Query:               true,
-		Value:               reflect.Zero(field.Type).Interface(),
-		ValuesIn:
-	})*/
-	return fetchLookups, nil
-}
-
 func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.Value, zeroFields []string, eagerloadValues map[string][]interface{}) ([]squirrel.Eq, []string, error) {
 
 	filterModelType := filterModelValue.Type()
