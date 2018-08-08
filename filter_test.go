@@ -126,7 +126,6 @@ func TestFilter(t *testing.T) {
 		description          string
 		filterModelValue     reflect.Value
 		associations         associations
-		parentInterfaces     []interface{}
 		wantReturnInterfaces []interface{}
 		expectationFunction  func(sqlmock.Sqlmock)
 		wantErr              error
@@ -138,7 +137,6 @@ func TestFilter(t *testing.T) {
 					Name: "pops",
 				},
 			),
-			nil,
 			nil,
 			[]interface{}{
 				vParentModel{
@@ -161,7 +159,6 @@ func TestFilter(t *testing.T) {
 			reflect.ValueOf(
 				vParentModel{},
 			),
-			nil,
 			nil,
 			[]interface{}{
 				vParentModel{
@@ -211,16 +208,6 @@ func TestFilter(t *testing.T) {
 					ModelLink: &oneToMany{
 						Name: "Animals",
 					},
-				},
-			},
-			[]interface{}{
-				&vParentModel{
-					Name: "pops",
-					ID:   "00000000-0000-0000-0000-000000000001",
-				},
-				&vParentModel{
-					Name: "uncle",
-					ID:   "00000000-0000-0000-0000-000000000004",
 				},
 			},
 			[]interface{}{
@@ -320,20 +307,6 @@ func TestFilter(t *testing.T) {
 							Name: "Toys",
 						},
 					},
-				},
-			},
-			[]interface{}{
-				&vParentModel{
-					Name: "pops",
-					ID:   "00000000-0000-0000-0000-000000000001",
-				},
-				&vParentModel{
-					Name: "uncle",
-					ID:   "00000000-0000-0000-0000-000000000004",
-				},
-				&vParentModel{
-					Name: "aunt",
-					ID:   "00000000-0000-0000-0000-000000000005",
 				},
 			},
 			[]interface{}{
