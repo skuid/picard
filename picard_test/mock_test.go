@@ -10,73 +10,41 @@ import (
 
 func TestMockFilterModel(t *testing.T) {
 	testCases := []struct {
-		description        string
-		giveFilterModel    interface{}
-		giveAssociations   string
-		giveReturns        []interface{}
-		giveIncludeReturns []interface{}
-		giveError          error
-		giveIncludesError  error
+		description      string
+		giveFilterModel  interface{}
+		giveAssociations []string
+		giveReturns      []interface{}
+		giveError        error
 	}{
 		{
 			"Should return error if present, regardless of returns set",
 			nil,
-			"",
+			nil,
 			[]interface{}{
 				"test 1",
 				"test 2",
 			},
-			nil,
 			errors.New("Some error"),
-			nil,
 		},
 		{
 			"Should return set return interfaces",
 			nil,
-			"",
+			nil,
 			[]interface{}{
 				"test 1",
 				"test 2",
 			},
-			nil,
-			nil,
 			nil,
 		},
 		{
 			"Should set FilterModelCalledWith",
 			"test filter interface",
-			"",
-			[]interface{}{
-				"test 1",
-				"test 2",
-			},
-			nil,
-			nil,
-			nil,
-		},
-		{
-			"Should set IncludesCalledWith",
-			"test filter interface",
-			"a.b",
 			nil,
 			[]interface{}{
 				"test 1",
 				"test 2",
 			},
 			nil,
-			nil,
-		},
-		{
-			"Should return IncludesError",
-			"test filter interface",
-			"a.b",
-			nil,
-			[]interface{}{
-				"test 1",
-				"test 2",
-			},
-			nil,
-			errors.New("Some error"),
 		},
 	}
 
@@ -87,31 +55,15 @@ func TestMockFilterModel(t *testing.T) {
 				FilterModelError:   tc.giveError,
 			}
 
-			if tc.giveAssociations != "" {
-				morm.IncludesReturns = tc.giveIncludeReturns
-				if tc.giveIncludesError != nil {
-					morm.IncludesError = tc.giveIncludesError
-				}
-			}
-
-			results, err := morm.FilterModel(tc.giveFilterModel, morm.Includes(tc.giveAssociations))
+			results, err := morm.FilterModel(tc.giveFilterModel, tc.giveAssociations)
 
 			if tc.giveError != nil {
 				assert.Error(t, err)
 				assert.Equal(t, tc.giveError, err)
-			} else if tc.giveIncludesError != nil {
-				assert.Error(t, err)
-				assert.Equal(t, tc.giveIncludesError, err)
 			} else {
 				assert.NoError(t, err)
-				if tc.giveAssociations != "" {
-					assert.Equal(t, tc.giveIncludeReturns, results)
-					assert.Equal(t, tc.giveAssociations, morm.IncludesCalledWith)
-				} else {
-					assert.Equal(t, tc.giveReturns, results)
-					assert.Equal(t, tc.giveFilterModel, morm.FilterModelCalledWith)
-				}
-
+				assert.Equal(t, tc.giveReturns, results)
+				assert.Equal(t, tc.giveFilterModel, morm.FilterModelCalledWith)
 			}
 		})
 	}
@@ -290,11 +242,11 @@ func TestMultiMockFilter(t *testing.T) {
 					Name: "Object2",
 				}
 
-				result1, err := mmorm.FilterModel(callWith1)
+				result1, err := mmorm.FilterModel(callWith1, nil)
 				assert.Equal(t, result1, mmorm.MockORMs[0].FilterModelReturns)
 				assert.Equal(t, err, mmorm.MockORMs[0].FilterModelError)
 				assert.Equal(t, callWith1, mmorm.MockORMs[0].FilterModelCalledWith)
-				result2, err := mmorm.FilterModel(callWith2)
+				result2, err := mmorm.FilterModel(callWith2, nil)
 				assert.Equal(t, result2, mmorm.MockORMs[1].FilterModelReturns)
 				assert.Equal(t, err, mmorm.MockORMs[1].FilterModelError)
 				assert.Equal(t, callWith2, mmorm.MockORMs[1].FilterModelCalledWith)
@@ -307,7 +259,7 @@ func TestMultiMockFilter(t *testing.T) {
 				callWith := simpleObject{
 					Name: "Object1",
 				}
-				result, err := mmorm.FilterModel(callWith)
+				result, err := mmorm.FilterModel(callWith, nil)
 				var expectedResult []interface{}
 				assert.Equal(t, result, expectedResult)
 				assert.Equal(t, err, errors.New("Mock Function was called but not expected"))
