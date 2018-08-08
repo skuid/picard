@@ -6,6 +6,7 @@ import (
 	"github.com/skuid/picard"
 )
 
+// User example struct
 type User struct {
 	Metadata       picard.Metadata `picard:"tablename=user"`
 	ID             string          `picard:"primary_key,column=id"`
@@ -14,6 +15,7 @@ type User struct {
 	Posts          []Post          `picard:"child,foreign_key=UserID"`
 }
 
+// Post example struct
 type Post struct {
 	Metadata       picard.Metadata `picard:"tablename=message"`
 	ID             string          `picard:"primary_key,column=id"`
@@ -24,6 +26,7 @@ type Post struct {
 	Tags           []Tag           `picard:"child,foreign_key=PostID"`
 }
 
+// Tag example struct
 type Tag struct {
 	Metadata picard.Metadata `picard:"tablename=tag"`
 	ID       string          `picard:"primary_key,column=id"`
@@ -57,18 +60,14 @@ func doInserts(p picard.ORM) error {
 		ID:     "00000000-0000-0000-0000-000000000003",
 		PostID: "00000000-0000-0000-0000-000000000002",
 	}
-	if err := p.CreateModel(&newTag); err != nil {
-		return err
-	}
-
-	return nil
+	return p.CreateModel(&newTag)
 }
 
 func doLookup(p picard.ORM) ([]interface{}, error) {
 	filter := User{
 		Name: "JohnDoe",
 	}
-	results, err := p.FilterModel(filter, p.Includes("post.tag"))
+	results, err := p.FilterModel(filter, []string{"post.tag"})
 	if err != nil {
 		return nil, err
 	}
