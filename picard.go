@@ -19,7 +19,7 @@ import (
 )
 
 const separator = "|"
-const insertBatchSize = 100
+const batchSize = 100
 
 // Lookup structure
 type Lookup struct {
@@ -132,14 +132,31 @@ func (p PersistenceORM) Deploy(data interface{}) error {
 	return tx.Commit()
 }
 
-// Upsert takes data in the form of a slice of structs and performs a series of database
-// operations that will sync the database with the state of that deployment payload
 func (p PersistenceORM) upsert(data interface{}) error {
-
 	tableMetadata, err := getTableMetadata(data)
 	if err != nil {
 		return err
 	}
+	dataValue := reflect.ValueOf(data)
+	dataCount := dataValue.Len()
+	if dataCount > 0 {
+		for i := 0; i < dataCount; i += batchSize {
+			end := i + batchSize
+			if end > dataCount {
+				end = dataCount
+			}
+			err := p.upsertBatch(dataValue.Slice(i, end).Interface(), tableMetadata)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// Upsert takes data in the form of a slice of structs and performs a series of database
+// operations that will sync the database with the state of that deployment payload
+func (p PersistenceORM) upsertBatch(data interface{}, tableMetadata *tableMetadata) error {
 
 	changeSet, err := p.generateChanges(data, tableMetadata)
 	if err != nil {
@@ -209,23 +226,6 @@ func (p PersistenceORM) performUpdates(updates []DBChange, tableMetadata *tableM
 }
 
 func (p PersistenceORM) performInserts(inserts []DBChange, insertsHavePrimaryKey bool, tableMetadata *tableMetadata) error {
-	insertCount := len(inserts)
-	if insertCount > 0 {
-		for i := 0; i < insertCount; i += insertBatchSize {
-			end := i + insertBatchSize
-			if end > insertCount {
-				end = insertCount
-			}
-			err := p.performInsertBatch(inserts[i:end], insertsHavePrimaryKey, tableMetadata)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (p PersistenceORM) performInsertBatch(inserts []DBChange, insertsHavePrimaryKey bool, tableMetadata *tableMetadata) error {
 	if len(inserts) > 0 {
 
 		psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
