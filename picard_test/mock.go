@@ -9,9 +9,6 @@ type MockORM struct {
 	FilterModelReturns      []interface{}
 	FilterModelError        error
 	FilterModelCalledWith   interface{}
-	IncludesReturns         []interface{}
-	IncludesError           error
-	IncludesCalledWith      interface{}
 	SaveModelError          error
 	SaveModelCalledWith     interface{}
 	CreateModelError        error
@@ -23,36 +20,13 @@ type MockORM struct {
 	DeleteModelCalledWith   interface{}
 }
 
-type FilterAssociations func(interface{}, []interface{}) ([]interface{}, error)
-
 // FilterModel simply returns an error or return objects when set on the MockORM
-func (morm *MockORM) FilterModel(filterModel interface{}, filterAssocs ...FilterAssociations) ([]interface{}, error) {
+func (morm *MockORM) FilterModel(filterModel interface{}, associations []string) ([]interface{}, error) {
 	morm.FilterModelCalledWith = filterModel
-	if morm.IncludesReturns != nil {
-		for _, filterAssoc := range filterAssocs {
-			results, err := filterAssoc(filterModel, morm.IncludesReturns)
-			if err != nil {
-				return nil, err
-			}
-			if results != nil {
-				return results, nil
-			}
-		}
-	}
 	if morm.FilterModelError != nil {
 		return nil, morm.FilterModelError
 	}
 	return morm.FilterModelReturns, nil
-}
-
-func (morm *MockORM) Includes(associations string) FilterAssociations {
-	morm.IncludesCalledWith = associations
-	return func(filterModel interface{}, parentResults []interface{}) ([]interface{}, error) {
-		if morm.IncludesError != nil {
-			return nil, morm.IncludesError
-		}
-		return parentResults, nil
-	}
 }
 
 // SaveModel returns the error stored in MockORM, and records the call value
