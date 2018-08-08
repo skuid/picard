@@ -2,7 +2,6 @@ package picard
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 	"sort"
 	"strings"
@@ -142,11 +141,6 @@ func populateAssociations(loadedAssocs associations, rootResults []interface{}) 
 				parentMetadata := tableMetadataFromType(rootModelType)
 				rootPKFieldName := parentMetadata.getPrimaryKeyFieldName()
 
-				var ptrChildResults []interface{}
-				for _, r := range childNode.Data {
-					ptrChildResults = append(ptrChildResults, &r)
-				}
-
 				newChildResults, err := hydrateChildModels(rootPKFieldName, childNode.Data, rootResults)
 				if err != nil {
 					return nil, nil
@@ -178,7 +172,6 @@ func populateAssociations(loadedAssocs associations, rootResults []interface{}) 
 // populateChildResults hydrates children structs into multiple parent structs
 // by matching parent's pk field to child's fk field
 func hydrateChildModels(pkField string, children []interface{}, parents []interface{}) ([]interface{}, error) {
-	fmt.Printf("\nPopulate child results:\n pkField:%#v\n children:%#v\n parents:%#v\n", pkField, children, parents)
 	childModelValue := reflect.ValueOf(children[0]).Elem()
 	childModelType := childModelValue.Type()
 	parentModelValue := reflect.ValueOf(parents[0]).Elem()

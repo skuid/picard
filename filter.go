@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"reflect"
 
 	"github.com/Masterminds/squirrel"
@@ -146,72 +145,25 @@ func (p PersistenceORM) getFilterModelResults(filterModelValue reflect.Value, ne
 	return filterResults, nil
 }
 
-func (p PersistenceORM) filter(filterModelValue reflect.Value, parentResults []interface{}, assocs associations) ([]interface{}, error) {
-	var (
-		err     error
-		results []interface{}
-	)
+func (p PersistenceORM) filter(filterModelValue reflect.Value, assocs associations) ([]interface{}, error) {
+
+	// First do the filter with out any of the associations
+	results, err := p.getFilterModelResults(filterModelValue, "", nil)
+	if err != nil {
+		return nil, err
+	}
+
 	// eager load is one select query per child model type
 	if len(assocs) > 0 {
-		loadedAssocs, err := p.eagerLoad(filterModelValue, parentResults, assocs)
+		loadedAssocs, err := p.eagerLoad(filterModelValue, results, assocs)
 		if err != nil {
 			return nil, err
 		}
 		if len(loadedAssocs) > 0 {
-			results, err = populateAssociations(loadedAssocs, parentResults)
+			results, err = populateAssociations(loadedAssocs, results)
 			if err != nil {
 				return nil, err
 			}
-			concreteResults := []interface{}{}
-			for _, result := range results {
-				concreteResults = append(concreteResults, reflect.ValueOf(result).Elem().Interface())
-			}
-			return concreteResults, nil
-		}
-	} else {
-		results, err = p.getFilterModelResults(filterModelValue, "", nil)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return results, nil
-}
-
-// Includes filters multiple associations of a parent model via eager loading
-// through "." concatenation, ie []string{parent.children", "parent.children.subchildren"}
-func (p PersistenceORM) Includes(associations ...string) FilterAssociations {
-	return func(parentModelValue reflect.Value, parentResults []interface{}) ([]interface{}, error) {
-		as, err := getAssociations(associations, parentModelValue)
-		if err != nil {
-			return nil, err
-		}
-		results, err := p.filter(parentModelValue, parentResults, as)
-		if err != nil {
-			return nil, err
-		}
-		return results, nil
-	}
-}
-
-// FilterModel returns models that match the provided struct, ignoring zero values.
-func (p PersistenceORM) FilterModel(filterModel interface{}, filterAssocs ...FilterAssociations) ([]interface{}, error) {
-	// root model results
-	filterModelValue, err := getStructValue(filterModel)
-	if err != nil {
-		return nil, err
-	}
-	results, err := p.filter(filterModelValue, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	// eager loading for nested associations
-	for _, filterAssoc := range filterAssocs {
-		assocResults, err := filterAssoc(filterModelValue, results)
-		if err != nil {
-			return nil, err
-		}
-		if len(assocResults) > 0 {
-			results = assocResults
 		}
 	}
 
@@ -221,6 +173,28 @@ func (p PersistenceORM) FilterModel(filterModel interface{}, filterAssocs ...Fil
 	}
 
 	return concreteResults, nil
+}
+
+// FilterModel returns models that match the provided struct, ignoring zero values.
+func (p PersistenceORM) FilterModel(filterModel interface{}, associations []string) ([]interface{}, error) {
+	// root model results
+	filterModelValue, err := getStructValue(filterModel)
+	if err != nil {
+		return nil, err
+	}
+
+	// Handle the associations now
+	as, err := getAssociations(associations, filterModelValue)
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := p.filter(filterModelValue, as)
+	if err != nil {
+		return nil, err
+	}
+
+	return results, nil
 }
 
 func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClauses []squirrel.Eq, joinClauses []string) ([]interface{}, error) {

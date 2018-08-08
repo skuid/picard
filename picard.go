@@ -71,8 +71,7 @@ type DBChangeSet struct {
 
 // ORM interface describes the behavior API of any picard ORM
 type ORM interface {
-	FilterModel(interface{}, ...FilterAssociations) ([]interface{}, error)
-	Includes(associations ...string) FilterAssociations
+	FilterModel(interface{}, []string) ([]interface{}, error)
 	SaveModel(model interface{}) error
 	CreateModel(model interface{}) error
 	DeleteModel(model interface{}) (int64, error)
@@ -1038,7 +1037,6 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 			lookups = append(lookups, lookup)
 
 		case hasColumn && isEagerLoad:
-			fmt.Println("eager load for where getfilterlookups")
 			_, isEncrypted := picardTags["encrypted"]
 			if isEncrypted {
 				return nil, errors.New("cannot perform queries with where clauses on encrypted fields")

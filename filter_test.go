@@ -141,7 +141,7 @@ func TestFilter(t *testing.T) {
 			nil,
 			nil,
 			[]interface{}{
-				&vParentModel{
+				vParentModel{
 					Name: "pops",
 					ID:   "00000000-0000-0000-0000-000000000002",
 				},
@@ -164,11 +164,11 @@ func TestFilter(t *testing.T) {
 			nil,
 			nil,
 			[]interface{}{
-				&vParentModel{
+				vParentModel{
 					Name: "pops",
 					ID:   "00000000-0000-0000-0000-000000000001",
 				},
-				&vParentModel{
+				vParentModel{
 					Name: "uncle",
 					ID:   "00000000-0000-0000-0000-000000000002",
 				},
@@ -269,6 +269,14 @@ func TestFilter(t *testing.T) {
 				},
 			},
 			func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery("^SELECT parentmodel.id, parentmodel.organization_id, parentmodel.name, parentmodel.parent_id FROM parentmodel WHERE parentmodel.organization_id = \\$1 AND parentmodel.name = \\$2").
+					WithArgs(orgID, "pops").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"name", "id"}).
+							AddRow("pops", "00000000-0000-0000-0000-000000000001").
+							AddRow("uncle", "00000000-0000-0000-0000-000000000004"),
+					)
+
 				// parent is vParentModel
 				mock.ExpectQuery("^SELECT childmodel.id, childmodel.organization_id, childmodel.name, childmodel.parent_id FROM childmodel WHERE childmodel.organization_id = \\$1 AND childmodel.parent_id IN \\(\\$2,\\$3\\)").
 					WithArgs(orgID, "00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000004").
@@ -376,6 +384,14 @@ func TestFilter(t *testing.T) {
 				},
 			},
 			func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery("^SELECT parentmodel.id, parentmodel.organization_id, parentmodel.name, parentmodel.parent_id FROM parentmodel WHERE parentmodel.organization_id = \\$1").
+					WithArgs(orgID).
+					WillReturnRows(
+						sqlmock.NewRows([]string{"name", "id"}).
+							AddRow("pops", "00000000-0000-0000-0000-000000000001").
+							AddRow("uncle", "00000000-0000-0000-0000-000000000004").
+							AddRow("aunt", "00000000-0000-0000-0000-000000000005"),
+					)
 				// parent is vParentModel
 				mock.ExpectQuery("^SELECT childmodel.id, childmodel.organization_id, childmodel.name, childmodel.parent_id FROM childmodel WHERE childmodel.organization_id = \\$1 AND childmodel.parent_id IN \\(\\$2,\\$3,\\$4\\)").
 					WithArgs(orgID, "00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000004", "00000000-0000-0000-0000-000000000005").
@@ -413,7 +429,7 @@ func TestFilter(t *testing.T) {
 				multitenancyValue: orgID,
 			}
 
-			results, err := p.filter(tc.filterModelValue, tc.parentInterfaces, tc.associations)
+			results, err := p.filter(tc.filterModelValue, tc.associations)
 
 			if tc.wantErr != nil {
 				assert.Error(t, err)
@@ -863,7 +879,7 @@ func TestHydrateModel(t *testing.T) {
 		description     string
 		filterModelType reflect.Type
 		hydrationValues map[string]interface{}
-		wantValue       reflect.Value
+		wantValue       interface{}
 	}{
 		{
 			"Should hydrate columns",
@@ -872,12 +888,10 @@ func TestHydrateModel(t *testing.T) {
 				"test_column_one": "column one value",
 				"test_column_two": "column two value",
 			},
-			reflect.ValueOf(
-				&modelTwoField{
-					TestFieldOne: "column one value",
-					TestFieldTwo: "column two value",
-				},
-			),
+			modelTwoField{
+				TestFieldOne: "column one value",
+				TestFieldTwo: "column two value",
+			},
 		},
 		{
 			"Should hydrate multitenancy key like other columns",
@@ -885,11 +899,9 @@ func TestHydrateModel(t *testing.T) {
 			map[string]interface{}{
 				"test_multitenancy_column": "test return value",
 			},
-			reflect.ValueOf(
-				&modelMultitenant{
-					TestMultitenancyField: "test return value",
-				},
-			),
+			modelMultitenant{
+				TestMultitenancyField: "test return value",
+			},
 		},
 		{
 			"Should hydrate primary key like other columns",
@@ -897,11 +909,9 @@ func TestHydrateModel(t *testing.T) {
 			map[string]interface{}{
 				"primary_key_column": "primary key column value",
 			},
-			reflect.ValueOf(
-				&modelPK{
-					PrimaryKeyField: "primary key column value",
-				},
-			),
+			modelPK{
+				PrimaryKeyField: "primary key column value",
+			},
 		},
 		{
 			"Should not hydrate columns not provided",
@@ -909,12 +919,10 @@ func TestHydrateModel(t *testing.T) {
 			map[string]interface{}{
 				"test_column_one": "column one value",
 			},
-			reflect.ValueOf(
-				&modelTwoField{
-					TestFieldOne: "column one value",
-					TestFieldTwo: "",
-				},
-			),
+			modelTwoField{
+				TestFieldOne: "column one value",
+				TestFieldTwo: "",
+			},
 		},
 		{
 			"Should not hydrate columns without tags",
@@ -923,20 +931,17 @@ func TestHydrateModel(t *testing.T) {
 				"test_column_one": "column one value",
 				"test_column_two": "column two value",
 			},
-			reflect.ValueOf(
-				&modelTwoFieldOneTagged{
-					TestFieldOne: "column one value",
-					TestFieldTwo: "",
-				},
-			),
+			modelTwoFieldOneTagged{
+				TestFieldOne: "column one value",
+				TestFieldTwo: "",
+			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			resultValue := hydrateModel(tc.filterModelType, tableMetadataFromType(tc.filterModelType), tc.hydrationValues)
-
-			assert.Equal(t, tc.wantValue, resultValue)
+			assert.True(t, reflect.DeepEqual(tc.wantValue, resultValue.Elem().Interface()))
 		})
 	}
 }
