@@ -21,7 +21,7 @@ type MockORM struct {
 }
 
 // FilterModel simply returns an error or return objects when set on the MockORM
-func (morm *MockORM) FilterModel(filterModel interface{}) ([]interface{}, error) {
+func (morm *MockORM) FilterModel(filterModel interface{}, associations []string) ([]interface{}, error) {
 	morm.FilterModelCalledWith = filterModel
 	if morm.FilterModelError != nil {
 		return nil, morm.FilterModelError
@@ -70,12 +70,12 @@ func (multi *MultiMockORM) next() (*MockORM, error) {
 }
 
 // FilterModel simply returns an error or return objects when set on the MockORM
-func (multi *MultiMockORM) FilterModel(filterModel interface{}) ([]interface{}, error) {
+func (multi *MultiMockORM) FilterModel(filterModel interface{}, associations []string) ([]interface{}, error) {
 	next, err := multi.next()
 	if err != nil {
 		return nil, err
 	}
-	return next.FilterModel(filterModel)
+	return next.FilterModel(filterModel, associations)
 }
 
 // SaveModel returns the error stored in MockORM, and records the call value

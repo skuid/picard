@@ -67,6 +67,27 @@ func (tm tableMetadata) getColumnNamesForUpdate() []string {
 	return columnNames
 }
 
+func (tm tableMetadata) getChildrenNames() []string {
+	var childFields []string
+	for _, child := range tm.children {
+		childFields = append(childFields, child.FieldName)
+	}
+	return childFields
+}
+
+func (tm tableMetadata) getChildFromParent(child string, parentModelValue reflect.Value) (reflect.Value, *tableMetadata, string) {
+	for _, parentChild := range tm.children {
+		if strings.ToLower(parentChild.FieldName) == strings.ToLower(child) {
+			childFieldValue := parentModelValue.FieldByName(parentChild.FieldName)
+			childFieldValueType := childFieldValue.Type()
+			childType := childFieldValueType.Elem()
+			newChildValue := reflect.New(childType).Elem()
+			return newChildValue, tableMetadataFromType(childType), parentChild.FieldName
+		}
+	}
+	return reflect.ValueOf(nil), nil, ""
+}
+
 func (tm tableMetadata) getEncryptedColumns() []string {
 	columnNames := []string{}
 	for _, field := range tm.getFields() {

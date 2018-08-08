@@ -9,29 +9,196 @@ import (
 	"github.com/Masterminds/squirrel"
 )
 
+type FilterAssociations func(reflect.Value, []interface{}) ([]interface{}, error)
+
+func getPrimaryKeyValuesFromResults(primaryKey string, results []interface{}) ([]interface{}, error) {
+	var primaryKeyValues []interface{}
+	for _, result := range results {
+		resultValue, err := getStructValue(result)
+		if err != nil {
+			return nil, err
+		}
+		primaryKeyValue := reflect.Indirect(resultValue).FieldByName(primaryKey).Interface()
+		primaryKeyValues = append(primaryKeyValues, primaryKeyValue)
+	}
+	return primaryKeyValues, nil
+}
+
+func getForeignKeyValues(childMetadata *tableMetadata, pkField string, pkValues []interface{}) map[string][]interface{} {
+	for _, foreignKey := range childMetadata.foreignKeys {
+		if foreignKey.TableMetadata.primaryKeyField == pkField {
+			return map[string][]interface{}{
+				foreignKey.FieldName: pkValues,
+			}
+		}
+	}
+	return nil
+}
+
+// loadNextLoad creates a hydrated node representing an association with query results
+func loadNextNode(head *oneToMany, doNextLoad func() (*oneToMany, bool, error)) (*oneToMany, error) {
+	var list *oneToMany
+	level := 0
+	doNext := true
+	for doNext != false {
+		// load the next hydrated node
+		node, isValidNext, err := doNextLoad()
+		if err != nil {
+			return nil, err
+		}
+		if level == 0 {
+			list = node
+		} else {
+			list.Next = node
+		}
+		doNext = isValidNext
+		level++
+	}
+	return list, nil
+}
+
+type loadModel func(modelValue reflect.Value, parentField string, childForeignKeyValues map[string][]interface{}) ([]interface{}, error)
+
+// eagerLoad hydrates query results into association structs
+func (p PersistenceORM) eagerLoad(filterModelValue reflect.Value, parentResults []interface{}, assocs associations) (associations, error) {
+
+	var (
+		childValue    reflect.Value
+		childMetadata *tableMetadata
+		loadedAssocs  associations
+	)
+
+	topLevelParents := parentResults
+	topLevelModelValue := filterModelValue
+
+	for _, a := range assocs {
+		al := a.ModelLink
+		nextNode := al
+		nextLoad := func() (*oneToMany, bool, error) {
+			next := reflect.ValueOf(nextNode).Elem()
+			if !next.IsValid() {
+				// no more valid nodes to traverse
+				return nil, false, nil
+			}
+
+			parentModelType := filterModelValue.Type()
+			parentMetadata := tableMetadataFromType(parentModelType)
+			parentPKFieldName := parentMetadata.getPrimaryKeyFieldName()
+			parentPKValues, err := getPrimaryKeyValuesFromResults(parentPKFieldName, parentResults)
+			if err != nil {
+				return nil, false, err
+			}
+			childValue, childMetadata, _ = parentMetadata.getChildFromParent(nextNode.Name, filterModelValue)
+
+			if !childValue.IsValid() {
+				// no more valid children to traverse
+				return nil, false, nil
+			}
+			childForeignKeyValues := getForeignKeyValues(childMetadata, parentPKFieldName, parentPKValues)
+			nodeResults, err := p.getFilterModelResults(childValue, parentPKFieldName, childForeignKeyValues)
+
+			// update previous node with results
+			nextNode.Data = nodeResults
+			prevNode := nextNode
+
+			if err != nil {
+				return nil, false, err
+			}
+
+			if prevNode.Next == nil {
+				// first level association (except the first a loop) means we need old parent results
+				// for the next iteration
+				parentResults = topLevelParents
+				filterModelValue = topLevelModelValue
+				return prevNode, false, nil
+			} else {
+				// nested associations mean we can use previous node results as parent results
+				parentResults = nodeResults
+				filterModelValue = childValue
+			}
+			// set next node for next iteration
+			nextNode = nextNode.Next
+			return prevNode, true, nil
+		}
+
+		hydratedModelLink, err := loadNextNode(nextNode, nextLoad)
+		if err != nil {
+			return nil, err
+		}
+		a.ModelLink = hydratedModelLink
+		loadedAssocs = append(loadedAssocs, a)
+	}
+	return loadedAssocs, nil
+}
+
+func (p PersistenceORM) getFilterModelResults(filterModelValue reflect.Value, newParentField string, childForeignKeyValues map[string][]interface{}) ([]interface{}, error) {
+	var zeroFields []string
+	whereClauses, joinClauses, err := p.generateWhereClausesFromModel(filterModelValue, zeroFields, childForeignKeyValues)
+	if err != nil {
+		return nil, err
+	}
+
+	filterResults, err := p.doFilterSelect(filterModelValue.Type(), whereClauses, joinClauses)
+	if err != nil {
+		return nil, err
+	}
+	return filterResults, nil
+}
+
+func (p PersistenceORM) filter(filterModelValue reflect.Value, assocs associations) ([]interface{}, error) {
+
+	// First do the filter with out any of the associations
+	results, err := p.getFilterModelResults(filterModelValue, "", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// eager load is one select query per child model type
+	if len(assocs) > 0 {
+		loadedAssocs, err := p.eagerLoad(filterModelValue, results, assocs)
+		if err != nil {
+			return nil, err
+		}
+		if len(loadedAssocs) > 0 {
+			results, err = populateAssociations(loadedAssocs, results)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	concreteResults := []interface{}{}
+	for _, result := range results {
+		concreteResults = append(concreteResults, reflect.ValueOf(result).Elem().Interface())
+	}
+
+	return concreteResults, nil
+}
+
 // FilterModel returns models that match the provided struct, ignoring zero values.
-func (p PersistenceORM) FilterModel(filterModel interface{}) ([]interface{}, error) {
+func (p PersistenceORM) FilterModel(filterModel interface{}, associations []string) ([]interface{}, error) {
+	// root model results
 	filterModelValue, err := getStructValue(filterModel)
 	if err != nil {
 		return nil, err
 	}
 
-	whereClauses, joinClauses, err := p.generateWhereClausesFromModel(filterModelValue, nil)
-
+	// Handle the associations now
+	as, err := getAssociations(associations, filterModelValue)
 	if err != nil {
 		return nil, err
 	}
 
-	results, err := p.doFilterSelect(filterModelValue.Type(), whereClauses, joinClauses)
+	results, err := p.filter(filterModelValue, as)
 	if err != nil {
 		return nil, err
 	}
+
 	return results, nil
 }
 
 func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClauses []squirrel.Eq, joinClauses []string) ([]interface{}, error) {
 	var returnModels []interface{}
-
 	db := GetConnection()
 
 	tableMetadata := tableMetadataFromType(filterModelType)
@@ -99,7 +266,8 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 			result[column] = decryptedValue
 		}
 
-		returnModels = append(returnModels, hydrateModel(filterModelType, tableMetadata, result).Interface())
+		hydratedModel := hydrateModel(filterModelType, tableMetadata, result).Interface()
+		returnModels = append(returnModels, hydratedModel)
 	}
 
 	return returnModels, nil
@@ -129,5 +297,5 @@ func hydrateModel(modelType reflect.Type, tableMetadata *tableMetadata, values m
 			model.FieldByName(field.name).Set(reflect.ValueOf(value))
 		}
 	}
-	return model
+	return model.Addr()
 }

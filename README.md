@@ -22,6 +22,10 @@ Then you can use any of the functionality on the ORM.
 
 This will execute an SQL query against the database. Everything is based off of the struct you provide. Here's an example
 
+### Eager Loading Associations
+
+We can eager load associations of a model by passing in the Includes functional option to filterModel with the association tree
+
 ```go
 type tableA struct {
 	Metadata       picard.Metadata `picard:"tablename=table_a"`
@@ -29,13 +33,22 @@ type tableA struct {
 	OrganizationID string          `picard:"multitenancy_key,column=organization_id"`
 	Name           string          `picard:"lookup,column=name"`
 	Password       string          `picard:"encrypted,column=password"`
-	AllTheBs       []tableB        `picard:"child,foreign_key=tableb_id"`
+	AllTheBs       []tableB        `picard:"child,foreign_key=TableAID"`
 }
 
 type tableB struct {
-	Metadata picard.Metadata `picard:"tablename=table_b"`
-	ID       string          `picard:"primary_key,column=id"`
-	Name     string          `picard:"lookup,column=name"`
+	Metadata picard.Metadata 	`picard:"tablename=table_b"`
+	ID       string          	`picard:"primary_key,column=id"`
+	Name     string          	`picard:"lookup,column=name"`
+	TableAID string 			`picard:"foreign_key,lookup,required,column=tablea_id"`
+	AllTheCs []tableC			`picard:"child,foreign_key=TableBID"`
+}
+
+type tableC struct {
+	Metadata picard.Metadata 	`picard:"tablename=table_c"`
+	ID       string          	`picard:"primary_key,column=id"`
+	Name     string          	`picard:"lookup,column=name"`
+	TableBID string 			`picard:"foreign_key,lookup,required,column=tableb_id"`
 }
 
 func doLookup() {
@@ -46,6 +59,13 @@ func doLookup() {
 	results, err := picardORM.FilterModel(filterModel)
 	// test err and results array for length
 	tbl := results[0].(tableA)
+}
+func doEagerLoadLookUp() {
+	filter := tableA{
+		Name: "foo"
+	}
+	// association 'allthebs.allthecs'
+	results, err := picardORM.FilterModel(filterModel, []string{"AllTheBs.AllTheCs"}))
 }
 ```
 
