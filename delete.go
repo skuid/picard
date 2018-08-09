@@ -14,7 +14,7 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 		return 0, err
 	}
 
-	whereClauses, joinClauses, err := porm.generateWhereClausesFromModel(modelValue, nil, nil)
+	whereClauses, joinClauses, err := porm.generateWhereClausesFromModel(modelValue, nil)
 	if err != nil {
 		return 0, err
 	}

@@ -67,25 +67,22 @@ func (tm tableMetadata) getColumnNamesForUpdate() []string {
 	return columnNames
 }
 
-func (tm tableMetadata) getChildrenNames() []string {
-	var childFields []string
+func (tm tableMetadata) getChildField(childName string) *Child {
 	for _, child := range tm.children {
-		childFields = append(childFields, child.FieldName)
-	}
-	return childFields
-}
-
-func (tm tableMetadata) getChildFromParent(child string, parentModelValue reflect.Value) (reflect.Value, *tableMetadata, string) {
-	for _, parentChild := range tm.children {
-		if strings.ToLower(parentChild.FieldName) == strings.ToLower(child) {
-			childFieldValue := parentModelValue.FieldByName(parentChild.FieldName)
-			childFieldValueType := childFieldValue.Type()
-			childType := childFieldValueType.Elem()
-			newChildValue := reflect.New(childType).Elem()
-			return newChildValue, tableMetadataFromType(childType), parentChild.FieldName
+		if child.FieldName == childName {
+			return &child
 		}
 	}
-	return reflect.ValueOf(nil), nil, ""
+	return nil
+}
+
+func (tm tableMetadata) getForeignKeyField(foreignKeyName string) *ForeignKey {
+	for _, foreignKey := range tm.foreignKeys {
+		if foreignKey.FieldName == foreignKeyName {
+			return &foreignKey
+		}
+	}
+	return nil
 }
 
 func (tm tableMetadata) getEncryptedColumns() []string {

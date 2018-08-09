@@ -29,7 +29,6 @@ type Lookup struct {
 	JoinKey             string
 	Query               bool
 	Value               interface{}
-	InValues            []interface{}
 }
 
 // Child structure
@@ -513,11 +512,7 @@ func getQueryParts(tableName string, primaryKeyColumnName string, lookupsToUse [
 		}
 		columns = append(columns, fmt.Sprintf("%[3]v.%[2]v as %[3]v_%[2]v", tableToUse, lookup.MatchDBColumn, tableAlias))
 		if lookup.Query {
-			if lookup.InValues != nil {
-				whereFields = append(whereFields, squirrel.Eq{fmt.Sprintf("%v.%v", tableAlias, lookup.MatchDBColumn): lookup.InValues})
-			} else {
-				whereFields = append(whereFields, squirrel.Eq{fmt.Sprintf("%v.%v", tableAlias, lookup.MatchDBColumn): lookup.Value})
-			}
+			whereFields = append(whereFields, squirrel.Eq{fmt.Sprintf("%v.%v", tableAlias, lookup.MatchDBColumn): lookup.Value})
 		}
 	}
 	return columns, joins, whereFields
@@ -975,7 +970,7 @@ func getColumnValues(columnNames []string, data map[string]interface{}) []interf
 	return columnValues
 }
 
-func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFields []string, parentTableMetadata *tableMetadata, baseJoinKey string, joinKey string, tableAliasCache map[string]string, eagerLoadValues map[string][]interface{}) ([]Lookup, error) {
+func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFields []string, parentTableMetadata *tableMetadata, baseJoinKey string, joinKey string, tableAliasCache map[string]string) ([]Lookup, error) {
 	filterModelType := filterModelValue.Type()
 	tableName := parentTableMetadata.tableName
 	lookups := []Lookup{}
@@ -1004,11 +999,6 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 			}
 		}
 
-		isEagerLoad := false
-		if len(eagerLoadValues[field.Name]) > 0 {
-			isEagerLoad = true
-		}
-
 		switch {
 		case hasColumn && isMultitenancyColumn:
 			lookups = append(lookups, Lookup{
@@ -1032,22 +1022,6 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 				JoinKey:             fullJoinKey,
 				Query:               true,
 				Value:               fieldValue.Interface(),
-			}
-
-			lookups = append(lookups, lookup)
-
-		case hasColumn && isEagerLoad:
-			_, isEncrypted := picardTags["encrypted"]
-			if isEncrypted {
-				return nil, errors.New("cannot perform queries with where clauses on encrypted fields")
-			}
-			lookup := Lookup{
-				MatchDBColumn:       column,
-				MatchObjectProperty: field.Name,
-				TableName:           tableName,
-				JoinKey:             fullJoinKey,
-				Query:               true,
-				InValues:            eagerLoadValues[field.Name],
 			}
 
 			lookups = append(lookups, lookup)
@@ -1078,7 +1052,7 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 			if tableAlias == tableName {
 				tableAlias = ""
 			}
-			relatedLookups, err := p.getFilterLookups(fieldValue, []string{}, relatedPicardTags, tableAlias, foreignKeyValue, tableAliasCache, nil)
+			relatedLookups, err := p.getFilterLookups(fieldValue, []string{}, relatedPicardTags, tableAlias, foreignKeyValue, tableAliasCache)
 			if err != nil {
 				return nil, err
 			}
@@ -1089,14 +1063,14 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 	return lookups, nil
 }
 
-func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.Value, zeroFields []string, eagerloadValues map[string][]interface{}) ([]squirrel.Eq, []string, error) {
+func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.Value, zeroFields []string) ([]squirrel.Eq, []string, error) {
 
 	filterModelType := filterModelValue.Type()
 	tableMetadata := tableMetadataFromType(filterModelType)
 	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
 	tableAliasCache := map[string]string{}
 
-	lookups, err := p.getFilterLookups(filterModelValue, zeroFields, tableMetadata, "", "", tableAliasCache, eagerloadValues)
+	lookups, err := p.getFilterLookups(filterModelValue, zeroFields, tableMetadata, "", "", tableAliasCache)
 	if err != nil {
 		return nil, nil, err
 	}

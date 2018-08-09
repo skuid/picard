@@ -937,7 +937,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			whereClauses, joinClauses, err := p.generateWhereClausesFromModel(tc.filterModelValue, tc.zeroFields, nil)
+			whereClauses, joinClauses, err := p.generateWhereClausesFromModel(tc.filterModelValue, tc.zeroFields)
 
 			if tc.wantErr != "" {
 				assert.Error(t, err)
