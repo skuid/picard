@@ -66,7 +66,15 @@ func (p PersistenceORM) FilterModel(filterModel interface{}, associations []stri
 						primaryKeyValue := parentValue.Elem().FieldByName(filterMetadata.getPrimaryKeyFieldName())
 						if foreignKeyValue.Interface() == primaryKeyValue.Interface() {
 							parentChildRelField := parentValue.Elem().FieldByName(child.FieldName)
-							parentChildRelField.Set(reflect.Append(parentChildRelField, childValue))
+							if child.FieldKind == reflect.Slice {
+								parentChildRelField.Set(reflect.Append(parentChildRelField, childValue))
+							} else if child.FieldKind == reflect.Map {
+								if parentChildRelField.IsNil() {
+									parentChildRelField.Set(reflect.MakeMap(child.FieldType))
+								}
+								keyMappingValue := getValueFromLookupString(childValue, child.KeyMapping)
+								parentChildRelField.SetMapIndex(keyMappingValue, childValue)
+							}
 							break
 						}
 					}

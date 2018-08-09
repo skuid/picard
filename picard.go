@@ -37,7 +37,7 @@ type Child struct {
 	FieldType     reflect.Type
 	FieldKind     reflect.Kind
 	ForeignKey    string
-	KeyMappings   []string
+	KeyMapping    string
 	ValueMappings map[string]string
 }
 
@@ -559,11 +559,9 @@ func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, tableMetad
 						valueToChange := getValueFromLookupString(addressibleData, child.ForeignKey)
 						valueToChange.SetString(foreignKeyValue.(string))
 					}
-					if len(child.KeyMappings) > 0 {
-						for _, keyMapping := range child.KeyMappings {
-							valueToChange := getValueFromLookupString(addressibleData, keyMapping)
-							valueToChange.SetString(key.String())
-						}
+					if child.KeyMapping != "" {
+						valueToChange := getValueFromLookupString(addressibleData, child.KeyMapping)
+						valueToChange.SetString(key.String())
 					}
 					if len(child.ValueMappings) > 0 {
 						for valueLocation, valueDestination := range child.ValueMappings {

@@ -40,7 +40,7 @@ type TestObject struct {
 	Type           string                     `json:"type" picard:"column=type"`
 	IsActive       bool                       `json:"is_active" picard:"column=is_active"`
 	Children       []ChildTestObject          `json:"children" picard:"child,foreign_key=ParentID"`
-	ChildrenMap    map[string]ChildTestObject `json:"childrenmap" picard:"child,foreign_key=ParentID,key_mappings=Name,value_mappings=Type->OtherInfo"`
+	ChildrenMap    map[string]ChildTestObject `json:"childrenmap" picard:"child,foreign_key=ParentID,key_mapping=Name,value_mappings=Type->OtherInfo"`
 	ParentID       string                     `picard:"foreign_key,related=Parent,column=parent_id"`
 	Parent         ParentTestObject           `validate:"-"`
 	Config         Config                     `json:"config" picard:"jsonb,column=config"`

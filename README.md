@@ -123,7 +123,7 @@ Only valid on fields that are maps or slices of structs. Indicates that this fie
 #### foreign_key
 Optional. Specifies the field on the related struct that contains the foreign key for this relationship. During a picard deployment, this field will be populated with the value primary_key column of the parent object.
 
-#### key_mappings
+#### key_mapping
 Optional. Only valid for fields that are maps of structs. This indicates which field to map the key of the map to on the child record during a picard deployment.
 
 #### value_mappings

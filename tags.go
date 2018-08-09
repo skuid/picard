@@ -223,13 +223,13 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 		}
 
 		if isChild && (kind == reflect.Slice || kind == reflect.Map) {
-			keyMappings := []string{}
+			keyMapping := ""
 			valueMappingMap := map[string]string{}
-			keyMappingString := tagsMap["key_mappings"]
+			keyMappingString := tagsMap["key_mapping"]
 			valueMappingString := tagsMap["value_mappings"]
 
 			if keyMappingString != "" {
-				keyMappings = strings.Split(keyMappingString, "&")
+				keyMapping = keyMappingString
 			}
 
 			if valueMappingString != "" {
@@ -245,7 +245,7 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 				FieldType:     field.Type,
 				FieldKind:     kind,
 				ForeignKey:    tagsMap["foreign_key"],
-				KeyMappings:   keyMappings,
+				KeyMapping:    keyMapping,
 				ValueMappings: valueMappingMap,
 			})
 		}
