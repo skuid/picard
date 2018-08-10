@@ -76,9 +76,27 @@ func (tm tableMetadata) getChildField(childName string) *Child {
 	return nil
 }
 
+func (tm tableMetadata) getChildFieldFromForeignKey(foreignKeyName string) *Child {
+	for _, child := range tm.children {
+		if child.ForeignKey == foreignKeyName {
+			return &child
+		}
+	}
+	return nil
+}
+
 func (tm tableMetadata) getForeignKeyField(foreignKeyName string) *ForeignKey {
 	for _, foreignKey := range tm.foreignKeys {
 		if foreignKey.FieldName == foreignKeyName {
+			return &foreignKey
+		}
+	}
+	return nil
+}
+
+func (tm tableMetadata) getForeignKeyFieldFromRelation(relationName string) *ForeignKey {
+	for _, foreignKey := range tm.foreignKeys {
+		if foreignKey.RelatedFieldName == relationName {
 			return &foreignKey
 		}
 	}
@@ -152,6 +170,11 @@ func (tm tableMetadata) getFields() []fieldMetadata {
 		fields = append(fields, tm.fields[key])
 	}
 	return fields
+}
+
+// Returns the fields in the order they appear in the struct
+func (tm tableMetadata) getField(fieldName string) fieldMetadata {
+	return tm.fields[fieldName]
 }
 
 func getTableMetadata(data interface{}) (*tableMetadata, error) {

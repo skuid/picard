@@ -674,7 +674,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 		description      string
 		filterModelValue reflect.Value
 		zeroFields       []string
-		wantWhereClauses []squirrel.Eq
+		wantWhereClauses []squirrel.Sqlizer
 		wantJoinClauses  []string
 		wantErr          string
 	}{
@@ -685,7 +685,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				OrgID    string   `picard:"multitenancy_key,column=organization_id"`
 			}{}),
 			nil,
-			[]squirrel.Eq{
+			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"test_table.organization_id": testMultitenancyValue,
 				},
@@ -700,7 +700,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				TestMultitenancyColumn string   `picard:"multitenancy_key,column=test_multitenancy_column"`
 			}{}),
 			nil,
-			[]squirrel.Eq{
+			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"test_table.test_multitenancy_column": testMultitenancyValue,
 				},
@@ -717,7 +717,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				TestMultitenancyColumn: "this value should be ignored",
 			}),
 			nil,
-			[]squirrel.Eq{
+			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"test_table.test_multitenancy_column": testMultitenancyValue,
 				},
@@ -735,7 +735,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				TestField: "first test value",
 			}),
 			nil,
-			[]squirrel.Eq{
+			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"test_table.test_multitenancy_column": testMultitenancyValue,
 				},
@@ -758,7 +758,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				TestFieldTwo: "second test value",
 			}),
 			nil,
-			[]squirrel.Eq{
+			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"test_table.test_multitenancy_column": testMultitenancyValue,
 				},
@@ -783,7 +783,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				TestFieldTwo: "second test value",
 			}),
 			nil,
-			[]squirrel.Eq{
+			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"test_table.test_column_one": "first test value",
 				},
@@ -801,7 +801,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				TestFieldOne: "first test value",
 			}),
 			nil,
-			[]squirrel.Eq{
+			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"test_table.test_column_one": "first test value",
 				},
@@ -819,7 +819,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				TestFieldOne: "first test value",
 			}),
 			[]string{"TestFieldTwo"},
-			[]squirrel.Eq{
+			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"test_table.test_column_one": "first test value",
 				},
@@ -852,7 +852,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				},
 			}),
 			nil,
-			[]squirrel.Eq{
+			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"childtest.organization_id": testMultitenancyValue,
 				},
@@ -876,7 +876,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				},
 			}),
 			nil,
-			[]squirrel.Eq{
+			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"childtest.organization_id": testMultitenancyValue,
 				},
@@ -904,7 +904,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				},
 			}),
 			nil,
-			[]squirrel.Eq{
+			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"childtest.organization_id": testMultitenancyValue,
 				},
@@ -937,7 +937,9 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			whereClauses, joinClauses, err := p.generateWhereClausesFromModel(tc.filterModelValue, tc.zeroFields)
+			filterModelType := tc.filterModelValue.Type()
+			tableMetadata := tableMetadataFromType(filterModelType)
+			whereClauses, joinClauses, err := p.generateWhereClausesFromModel(tc.filterModelValue, tc.zeroFields, tableMetadata)
 
 			if tc.wantErr != "" {
 				assert.Error(t, err)

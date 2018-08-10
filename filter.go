@@ -10,9 +10,9 @@ import (
 	"github.com/Masterminds/squirrel"
 )
 
-func (p PersistenceORM) getFilterModelResults(filterModelValue reflect.Value) ([]interface{}, error) {
+func (p PersistenceORM) getFilterModelResults(filterModelValue reflect.Value, filterMetadata *tableMetadata) ([]interface{}, error) {
 	var zeroFields []string
-	whereClauses, joinClauses, err := p.generateWhereClausesFromModel(filterModelValue, zeroFields)
+	whereClauses, joinClauses, err := p.generateWhereClausesFromModel(filterModelValue, zeroFields, filterMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -32,55 +32,18 @@ func (p PersistenceORM) FilterModel(filterModel interface{}, associations []stri
 		return nil, err
 	}
 
+	filterModelType := filterModelValue.Type()
+	filterMetadata := tableMetadataFromType(filterModelType)
+
 	// First do the filter with out any of the associations
-	results, err := p.getFilterModelResults(filterModelValue)
+	results, err := p.getFilterModelResults(filterModelValue, filterMetadata)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(associations) > 0 {
-		for _, association := range associations {
-			parts := strings.Split(association, ".")
-			firstPart, theRestParts := parts[0], parts[1:]
-			filterModelType := filterModelValue.Type()
-			filterMetadata := tableMetadataFromType(filterModelType)
-			child := filterMetadata.getChildField(firstPart)
-			if child != nil {
-				childType := child.FieldType.Elem()
-				childMetadata := tableMetadataFromType(childType)
-				foreignKey := childMetadata.getForeignKeyField(child.ForeignKey)
-				newFilter := reflect.New(childType)
-				relatedField := newFilter.Elem().FieldByName(foreignKey.RelatedFieldName)
-				relatedField.Set(filterModelValue)
-				childResults, err := p.FilterModel(newFilter.Interface(), []string{strings.Join(theRestParts, ".")})
-				if err != nil {
-					return nil, err
-				}
-				// Attach the results
-				for _, childResult := range childResults {
-					childValue := reflect.ValueOf(childResult)
-					foreignKeyValue := childValue.FieldByName(child.ForeignKey)
-					// Find the parent and attach
-					for _, parentResult := range results {
-						parentValue := reflect.ValueOf(parentResult)
-						primaryKeyValue := parentValue.Elem().FieldByName(filterMetadata.getPrimaryKeyFieldName())
-						if foreignKeyValue.Interface() == primaryKeyValue.Interface() {
-							parentChildRelField := parentValue.Elem().FieldByName(child.FieldName)
-							if child.FieldKind == reflect.Slice {
-								parentChildRelField.Set(reflect.Append(parentChildRelField, childValue))
-							} else if child.FieldKind == reflect.Map {
-								if parentChildRelField.IsNil() {
-									parentChildRelField.Set(reflect.MakeMap(child.FieldType))
-								}
-								keyMappingValue := getValueFromLookupString(childValue, child.KeyMapping)
-								parentChildRelField.SetMapIndex(keyMappingValue, childValue)
-							}
-							break
-						}
-					}
-				}
-			}
-		}
+	err = p.processAssociations(associations, filterModelValue, filterMetadata, results)
+	if err != nil {
+		return nil, err
 	}
 
 	concreteResults := []interface{}{}
@@ -91,7 +54,42 @@ func (p PersistenceORM) FilterModel(filterModel interface{}, associations []stri
 	return concreteResults, nil
 }
 
-func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClauses []squirrel.Eq, joinClauses []string) ([]interface{}, error) {
+func (p PersistenceORM) processAssociations(associations []string, filterModelValue reflect.Value, filterMetadata *tableMetadata, results []interface{}) error {
+	for _, association := range associations {
+		parts := strings.Split(association, ".")
+		firstPart, theRestParts := parts[0], parts[1:]
+		child := filterMetadata.getChildField(firstPart)
+		foreignKey := filterMetadata.getForeignKeyFieldFromRelation(firstPart)
+		if child != nil {
+			childType := child.FieldType.Elem()
+			childMetadata := tableMetadataFromType(childType)
+			foreignKey := childMetadata.getForeignKeyField(child.ForeignKey)
+			newFilter := reflect.New(childType)
+			relatedField := newFilter.Elem().FieldByName(foreignKey.RelatedFieldName)
+			relatedField.Set(filterModelValue)
+			childResults, err := p.FilterModel(newFilter.Interface(), []string{strings.Join(theRestParts, ".")})
+			if err != nil {
+				return err
+			}
+			populateChildResults(results, childResults, child, filterMetadata)
+		} else if foreignKey != nil {
+			relationField := filterModelValue.FieldByName(foreignKey.RelatedFieldName)
+			relationType := relationField.Type()
+			parentRelationField := foreignKey.TableMetadata.getChildFieldFromForeignKey(foreignKey.FieldName)
+			newFilter := reflect.New(relationType)
+			relatedField := newFilter.Elem().FieldByName(parentRelationField.FieldName)
+			relatedField.Set(reflect.Append(relatedField, filterModelValue))
+			foreignResults, err := p.FilterModel(newFilter.Interface(), []string{strings.Join(theRestParts, ".")})
+			if err != nil {
+				return err
+			}
+			populateForeignKeyResults(results, foreignResults, foreignKey)
+		}
+	}
+	return nil
+}
+
+func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClauses []squirrel.Sqlizer, joinClauses []string) ([]interface{}, error) {
 	var returnModels []interface{}
 	db := GetConnection()
 
@@ -99,26 +97,9 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 	columnNames := tableMetadata.getColumnNames()
 	tableName := tableMetadata.tableName
 
-	fullColumnNames := []string{}
+	query := createQueryFromParts(tableName, columnNames, joinClauses, whereClauses)
 
-	for _, columnName := range columnNames {
-		fullColumnNames = append(fullColumnNames, tableName+"."+columnName)
-	}
-
-	// Do select query with provided where clauses and columns/tablename
-	query := squirrel.StatementBuilder.
-		PlaceholderFormat(squirrel.Dollar).
-		Select(fullColumnNames...).
-		From(tableName).
-		RunWith(db)
-
-	for _, join := range joinClauses {
-		query = query.Join(join)
-	}
-
-	for _, where := range whereClauses {
-		query = query.Where(where)
-	}
+	query = query.RunWith(db)
 
 	rows, err := query.Query()
 	if err != nil {
@@ -165,6 +146,48 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 	}
 
 	return returnModels, nil
+}
+
+func populateChildResults(results []interface{}, childResults []interface{}, child *Child, filterMetadata *tableMetadata) {
+	// Attach the results
+	for _, childResult := range childResults {
+		childValue := reflect.ValueOf(childResult)
+		foreignKeyValue := childValue.FieldByName(child.ForeignKey)
+		// Find the parent and attach
+		for _, parentResult := range results {
+			parentValue := reflect.ValueOf(parentResult)
+			primaryKeyValue := parentValue.Elem().FieldByName(filterMetadata.getPrimaryKeyFieldName())
+			if foreignKeyValue.Interface() == primaryKeyValue.Interface() {
+				parentChildRelField := parentValue.Elem().FieldByName(child.FieldName)
+				if child.FieldKind == reflect.Slice {
+					parentChildRelField.Set(reflect.Append(parentChildRelField, childValue))
+				} else if child.FieldKind == reflect.Map {
+					if parentChildRelField.IsNil() {
+						parentChildRelField.Set(reflect.MakeMap(child.FieldType))
+					}
+					keyMappingValue := getValueFromLookupString(childValue, child.KeyMapping)
+					parentChildRelField.SetMapIndex(keyMappingValue, childValue)
+				}
+				break
+			}
+		}
+	}
+}
+
+func populateForeignKeyResults(mainResults []interface{}, foreignResults []interface{}, foreignKey *ForeignKey) {
+	for _, mainResult := range mainResults {
+		mainValue := reflect.ValueOf(mainResult)
+		foreignKeyValue := mainValue.Elem().FieldByName(foreignKey.FieldName)
+		for _, foreignResult := range foreignResults {
+			foreignValue := reflect.ValueOf(foreignResult)
+			primaryKeyValue := foreignValue.FieldByName(foreignKey.TableMetadata.getPrimaryKeyFieldName())
+			if foreignKeyValue.Interface() == primaryKeyValue.Interface() {
+				relField := mainValue.Elem().FieldByName(foreignKey.RelatedFieldName)
+				relField.Set(foreignValue)
+				break
+			}
+		}
+	}
 }
 
 func hydrateModel(modelType reflect.Type, tableMetadata *tableMetadata, values map[string]interface{}) reflect.Value {

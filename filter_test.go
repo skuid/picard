@@ -69,11 +69,11 @@ type modelPK struct {
 }
 
 type vGrandParentModel struct {
-	Metadata       Metadata       `picard:"tablename=parentmodel"`
+	Metadata       Metadata       `picard:"tablename=grandparentmodel"`
 	ID             string         `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string         `picard:"multitenancy_key,column=organization_id"`
 	Name           string         `json:"name" picard:"lookup,column=name"`
-	Age            int            `json:"age" picard:"lookup,column=name"`
+	Age            int            `json:"age" picard:"lookup,column=age"`
 	Children       []vParentModel `json:"children" picard:"child,foreign_key=ParentID"`
 	Animals        []vPetModel    `json:"animals" picard:"child,foreign_key=ParentID"`
 }
@@ -121,7 +121,7 @@ type vPetModel struct {
 	Parent         vParentModel `json:"parent" validate:"-"`
 }
 
-func TestFilter(t *testing.T) {
+func TestFilterModel(t *testing.T) {
 	orgID := "00000000-0000-0000-0000-000000000001"
 	testCases := []struct {
 		description          string
@@ -178,9 +178,41 @@ func TestFilter(t *testing.T) {
 			},
 			nil,
 		},
-
 		{
-			"happy path for filtering nested results for single parent for eager loading multiple associations",
+			"happy path for single parent filter with eager loading parent",
+			vParentModel{
+				Name: "pops",
+			},
+			[]string{"GrandParent"},
+			[]interface{}{
+				vParentModel{
+					Name:     "pops",
+					ID:       "00000000-0000-0000-0000-000000000002",
+					ParentID: "00000000-0000-0000-0000-000000000023",
+					GrandParent: vGrandParentModel{
+						Name: "grandpops",
+						ID:   "00000000-0000-0000-0000-000000000023",
+					},
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery("^SELECT parentmodel.id, parentmodel.organization_id, parentmodel.name, parentmodel.parent_id FROM parentmodel WHERE parentmodel.organization_id = \\$1 AND parentmodel.name = \\$2").
+					WithArgs(orgID, "pops").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
+							AddRow("pops", "00000000-0000-0000-0000-000000000002", "00000000-0000-0000-0000-000000000023"),
+					)
+				mock.ExpectQuery("^SELECT grandparentmodel.id, grandparentmodel.organization_id, grandparentmodel.name, grandparentmodel.age FROM grandparentmodel WHERE grandparentmodel.organization_id = \\$1 AND id IN \\(SELECT parentmodel.parent_id FROM parentmodel WHERE parentmodel.organization_id = \\$1 AND parentmodel.name = \\$2\\)").
+					WithArgs(orgID, orgID, "pops").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"name", "id"}).
+							AddRow("grandpops", "00000000-0000-0000-0000-000000000023"),
+					)
+			},
+			nil,
+		},
+		{
+			"happy path for filtering nested results for multiple parents for eager loading multiple associations",
 			vParentModel{
 				Name: "pops",
 			},
@@ -238,7 +270,6 @@ func TestFilter(t *testing.T) {
 							AddRow("pops", "00000000-0000-0000-0000-000000000001").
 							AddRow("uncle", "00000000-0000-0000-0000-000000000004"),
 					)
-
 				// parent is vParentModel
 				mock.ExpectQuery("^SELECT childmodel.id, childmodel.organization_id, childmodel.name, childmodel.parent_id FROM childmodel JOIN parentmodel as t1 on t1.id = parent_id WHERE childmodel.organization_id = \\$1 AND t1.organization_id = \\$2 AND t1.name = \\$3").
 					WithArgs(orgID, orgID, "pops").
@@ -266,7 +297,7 @@ func TestFilter(t *testing.T) {
 			nil,
 		},
 		{
-			"happy path for filtering nested results for single parent for eager loading into a map with key mappings",
+			"happy path for filtering nested results for multiple parents for eager loading into a map with key mappings",
 			vParentModel{
 				Name: "pops",
 			},
@@ -438,7 +469,7 @@ func TestDoFilterSelect(t *testing.T) {
 	testCases := []struct {
 		description          string
 		filterModelType      reflect.Type
-		whereClauses         []squirrel.Eq
+		whereClauses         []squirrel.Sqlizer
 		joinClauses          []string
 		wantReturnInterfaces []interface{}
 		expectationFunction  func(sqlmock.Sqlmock)
@@ -464,7 +495,7 @@ func TestDoFilterSelect(t *testing.T) {
 		{
 			"Should do query correctly with where clauses and return correct values with single field",
 			reflect.TypeOf(modelOneField{}),
-			[]squirrel.Eq{squirrel.Eq{"test_column_one": "test value 1"}},
+			[]squirrel.Sqlizer{squirrel.Eq{"test_column_one": "test value 1"}},
 			nil,
 			[]interface{}{
 				&modelOneField{
@@ -481,7 +512,7 @@ func TestDoFilterSelect(t *testing.T) {
 		{
 			"Should do query correctly with where clauses and join clauses and return correct values with single field",
 			reflect.TypeOf(modelOneField{}),
-			[]squirrel.Eq{squirrel.Eq{"test_column_one": "test value 1"}},
+			[]squirrel.Sqlizer{squirrel.Eq{"test_column_one": "test value 1"}},
 			[]string{"joinclause"},
 			[]interface{}{
 				&modelOneField{
@@ -585,7 +616,7 @@ func TestDoFilterSelectWithEncrypted(t *testing.T) {
 	testCases := []struct {
 		description          string
 		filterModelType      reflect.Type
-		whereClauses         []squirrel.Eq
+		whereClauses         []squirrel.Sqlizer
 		nonce                string
 		wantReturnInterfaces []interface{}
 		expectationFunction  func(sqlmock.Sqlmock)
@@ -726,7 +757,7 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 	testCases := []struct {
 		description          string
 		filterModelType      reflect.Type
-		whereClauses         []squirrel.Eq
+		whereClauses         []squirrel.Sqlizer
 		wantReturnInterfaces []interface{}
 		expectationFunction  func(sqlmock.Sqlmock)
 		wantErr              error
