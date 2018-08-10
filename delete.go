@@ -14,7 +14,10 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 		return 0, err
 	}
 
-	whereClauses, joinClauses, err := porm.generateWhereClausesFromModel(modelValue, nil, nil)
+	tableMetadata := tableMetadataFromType(modelValue.Type())
+	tableName := tableMetadata.getTableName()
+
+	whereClauses, joinClauses, err := porm.generateWhereClausesFromModel(modelValue, nil, tableMetadata)
 	if err != nil {
 		return 0, err
 	}
@@ -31,9 +34,6 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 
 		porm.transaction = tx
 	}
-
-	tableMetadata := tableMetadataFromType(modelValue.Type())
-	tableName := tableMetadata.tableName
 
 	deleteStatement := squirrel.StatementBuilder.
 		PlaceholderFormat(squirrel.Dollar).

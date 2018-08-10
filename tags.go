@@ -67,25 +67,40 @@ func (tm tableMetadata) getColumnNamesForUpdate() []string {
 	return columnNames
 }
 
-func (tm tableMetadata) getChildrenNames() []string {
-	var childFields []string
+func (tm tableMetadata) getChildField(childName string) *Child {
 	for _, child := range tm.children {
-		childFields = append(childFields, child.FieldName)
-	}
-	return childFields
-}
-
-func (tm tableMetadata) getChildFromParent(child string, parentModelValue reflect.Value) (reflect.Value, *tableMetadata, string) {
-	for _, parentChild := range tm.children {
-		if strings.ToLower(parentChild.FieldName) == strings.ToLower(child) {
-			childFieldValue := parentModelValue.FieldByName(parentChild.FieldName)
-			childFieldValueType := childFieldValue.Type()
-			childType := childFieldValueType.Elem()
-			newChildValue := reflect.New(childType).Elem()
-			return newChildValue, tableMetadataFromType(childType), parentChild.FieldName
+		if child.FieldName == childName {
+			return &child
 		}
 	}
-	return reflect.ValueOf(nil), nil, ""
+	return nil
+}
+
+func (tm tableMetadata) getChildFieldFromForeignKey(foreignKeyName string) *Child {
+	for _, child := range tm.children {
+		if child.ForeignKey == foreignKeyName {
+			return &child
+		}
+	}
+	return nil
+}
+
+func (tm tableMetadata) getForeignKeyField(foreignKeyName string) *ForeignKey {
+	for _, foreignKey := range tm.foreignKeys {
+		if foreignKey.FieldName == foreignKeyName {
+			return &foreignKey
+		}
+	}
+	return nil
+}
+
+func (tm tableMetadata) getForeignKeyFieldFromRelation(relationName string) *ForeignKey {
+	for _, foreignKey := range tm.foreignKeys {
+		if foreignKey.RelatedFieldName == relationName {
+			return &foreignKey
+		}
+	}
+	return nil
 }
 
 func (tm tableMetadata) getEncryptedColumns() []string {
@@ -157,6 +172,11 @@ func (tm tableMetadata) getFields() []fieldMetadata {
 	return fields
 }
 
+// Returns the fields in the order they appear in the struct
+func (tm tableMetadata) getField(fieldName string) fieldMetadata {
+	return tm.fields[fieldName]
+}
+
 func getTableMetadata(data interface{}) (*tableMetadata, error) {
 	// Verify that we've been passed valid input
 	t := reflect.TypeOf(data)
@@ -226,13 +246,13 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 		}
 
 		if isChild && (kind == reflect.Slice || kind == reflect.Map) {
-			keyMappings := []string{}
+			keyMapping := ""
 			valueMappingMap := map[string]string{}
-			keyMappingString := tagsMap["key_mappings"]
+			keyMappingString := tagsMap["key_mapping"]
 			valueMappingString := tagsMap["value_mappings"]
 
 			if keyMappingString != "" {
-				keyMappings = strings.Split(keyMappingString, "&")
+				keyMapping = keyMappingString
 			}
 
 			if valueMappingString != "" {
@@ -248,7 +268,7 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 				FieldType:     field.Type,
 				FieldKind:     kind,
 				ForeignKey:    tagsMap["foreign_key"],
-				KeyMappings:   keyMappings,
+				KeyMapping:    keyMapping,
 				ValueMappings: valueMappingMap,
 			})
 		}
