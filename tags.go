@@ -76,9 +76,9 @@ func (tm tableMetadata) getChildField(childName string) *Child {
 	return nil
 }
 
-func (tm tableMetadata) getChildFieldFromForeignKey(foreignKeyName string) *Child {
+func (tm tableMetadata) getChildFieldFromForeignKey(foreignKeyName string, foreignKeyType reflect.Type) *Child {
 	for _, child := range tm.children {
-		if child.ForeignKey == foreignKeyName {
+		if child.ForeignKey == foreignKeyName && child.FieldType == foreignKeyType {
 			return &child
 		}
 	}

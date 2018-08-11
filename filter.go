@@ -75,7 +75,7 @@ func (p PersistenceORM) processAssociations(associations []string, filterModelVa
 		} else if foreignKey != nil {
 			relationField := filterModelValue.FieldByName(foreignKey.RelatedFieldName)
 			relationType := relationField.Type()
-			parentRelationField := foreignKey.TableMetadata.getChildFieldFromForeignKey(foreignKey.FieldName)
+			parentRelationField := foreignKey.TableMetadata.getChildFieldFromForeignKey(foreignKey.FieldName, reflect.SliceOf(filterModelValue.Type()))
 			newFilter := reflect.New(relationType)
 			relatedField := newFilter.Elem().FieldByName(parentRelationField.FieldName)
 			relatedField.Set(reflect.Append(relatedField, filterModelValue))

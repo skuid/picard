@@ -74,6 +74,7 @@ type vGrandParentModel struct {
 	OrganizationID string         `picard:"multitenancy_key,column=organization_id"`
 	Name           string         `json:"name" picard:"lookup,column=name"`
 	Age            int            `json:"age" picard:"lookup,column=age"`
+	Toys           []vToyModel    `json:"toys" picard:"child,foreign_key=ParentID"`
 	Children       []vParentModel `json:"children" picard:"child,foreign_key=ParentID"`
 	Animals        []vPetModel    `json:"animals" picard:"child,foreign_key=ParentID"`
 }
@@ -202,7 +203,7 @@ func TestFilterModel(t *testing.T) {
 						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
 							AddRow("pops", "00000000-0000-0000-0000-000000000002", "00000000-0000-0000-0000-000000000023"),
 					)
-				mock.ExpectQuery("^SELECT grandparentmodel.id, grandparentmodel.organization_id, grandparentmodel.name, grandparentmodel.age FROM grandparentmodel WHERE grandparentmodel.organization_id = \\$1 AND id IN \\(SELECT parentmodel.parent_id FROM parentmodel WHERE parentmodel.organization_id = \\$1 AND parentmodel.name = \\$2\\)").
+				mock.ExpectQuery("^SELECT grandparentmodel.id, grandparentmodel.organization_id, grandparentmodel.name, grandparentmodel.age FROM grandparentmodel WHERE grandparentmodel.organization_id = \\$1 AND id IN \\(SELECT parentmodel.parent_id FROM parentmodel WHERE parentmodel.organization_id = \\$2 AND parentmodel.name = \\$3\\)").
 					WithArgs(orgID, orgID, "pops").
 					WillReturnRows(
 						sqlmock.NewRows([]string{"name", "id"}).
