@@ -21,6 +21,12 @@ import (
 const separator = "|"
 const batchSize = 100
 
+// Association structure
+type Association struct {
+	Name         string
+	Associations []Association
+}
+
 // Lookup structure
 type Lookup struct {
 	TableName           string
@@ -36,12 +42,13 @@ type Lookup struct {
 
 // Child structure
 type Child struct {
-	FieldName     string
-	FieldType     reflect.Type
-	FieldKind     reflect.Kind
-	ForeignKey    string
-	KeyMapping    string
-	ValueMappings map[string]string
+	FieldName        string
+	FieldType        reflect.Type
+	FieldKind        reflect.Kind
+	ForeignKey       string
+	KeyMapping       string
+	ValueMappings    map[string]string
+	GroupingCriteria map[string]string
 }
 
 // ForeignKey structure
@@ -73,7 +80,7 @@ type DBChangeSet struct {
 
 // ORM interface describes the behavior API of any picard ORM
 type ORM interface {
-	FilterModel(interface{}, []string) ([]interface{}, error)
+	FilterModel(interface{}, []Association) ([]interface{}, error)
 	SaveModel(model interface{}) error
 	CreateModel(model interface{}) error
 	DeleteModel(model interface{}) (int64, error)

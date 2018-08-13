@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/skuid/picard"
 	"github.com/skuid/picard/picard_test"
 	"github.com/stretchr/testify/assert"
 )
@@ -12,7 +13,7 @@ func TestMockFilterModel(t *testing.T) {
 	testCases := []struct {
 		description      string
 		giveFilterModel  interface{}
-		giveAssociations []string
+		giveAssociations []picard.Association
 		giveReturns      []interface{}
 		giveError        error
 	}{

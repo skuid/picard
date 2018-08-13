@@ -127,7 +127,7 @@ func TestFilterModel(t *testing.T) {
 	testCases := []struct {
 		description          string
 		filterModel          interface{}
-		associations         []string
+		associations         []Association
 		wantReturnInterfaces []interface{}
 		expectationFunction  func(sqlmock.Sqlmock)
 		wantErr              error
@@ -184,7 +184,11 @@ func TestFilterModel(t *testing.T) {
 			vParentModel{
 				Name: "pops",
 			},
-			[]string{"GrandParent"},
+			[]Association{
+				{
+					Name: "GrandParent",
+				},
+			},
 			[]interface{}{
 				vParentModel{
 					Name:     "pops",
@@ -217,7 +221,19 @@ func TestFilterModel(t *testing.T) {
 			vParentModel{
 				Name: "pops",
 			},
-			[]string{"Children.Toys", "Animals"},
+			[]Association{
+				{
+					Name: "Children",
+					Associations: []Association{
+						{
+							Name: "Toys",
+						},
+					},
+				},
+				{
+					Name: "Animals",
+				},
+			},
 			[]interface{}{
 				vParentModel{
 					Name: "pops",
@@ -302,7 +318,11 @@ func TestFilterModel(t *testing.T) {
 			vParentModel{
 				Name: "pops",
 			},
-			[]string{"ChildrenMap"},
+			[]Association{
+				{
+					Name: "ChildrenMap",
+				},
+			},
 			[]interface{}{
 				vParentModel{
 					Name: "pops",
@@ -351,7 +371,16 @@ func TestFilterModel(t *testing.T) {
 		{
 			"happy path for filtering multiple parent nested results w/ eager loading associations",
 			vParentModel{},
-			[]string{"Children.Toys"},
+			[]Association{
+				{
+					Name: "Children",
+					Associations: []Association{
+						{
+							Name: "Toys",
+						},
+					},
+				},
+			},
 			[]interface{}{
 				vParentModel{
 					Name: "pops",
