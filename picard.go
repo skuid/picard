@@ -573,6 +573,7 @@ func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, tableMetad
 	for _, child := range tableMetadata.children {
 
 		var data reflect.Value
+		index := 0
 
 		if child.FieldKind == reflect.Slice {
 			// Creates a new Slice of the same type of elements that were stored in the slice of data.
@@ -596,13 +597,15 @@ func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, tableMetad
 						keyField.SetString(foreignKeyValue.(string))
 					}
 					data = reflect.Append(data, value)
+					index = index + 1
 				}
 			} else if childValue.Kind() == reflect.Map {
 				mapKeys := childValue.MapKeys()
-				for index, key := range mapKeys {
+				for _, key := range mapKeys {
 					value := childValue.MapIndex(key)
 					data = reflect.Append(data, value)
 					addressibleData := data.Index(index)
+					index = index + 1
 					if child.ForeignKey != "" {
 						valueToChange := getValueFromLookupString(addressibleData, child.ForeignKey)
 						valueToChange.SetString(foreignKeyValue.(string))
