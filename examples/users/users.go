@@ -67,7 +67,16 @@ func doLookup(p picard.ORM) ([]interface{}, error) {
 	filter := User{
 		Name: "JohnDoe",
 	}
-	results, err := p.FilterModelAssociations(filter, []string{"post.tag"})
+	results, err := p.FilterModelAssociations(filter, []picard.Association{
+		{
+			Name: "post",
+			Associations: []picard.Association{
+				{
+					Name: "tag",
+				},
+			},
+		},
+	})
 	if err != nil {
 		return nil, err
 	}
