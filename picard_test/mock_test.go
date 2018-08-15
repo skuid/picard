@@ -4,22 +4,19 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/skuid/picard"
 	"github.com/skuid/picard/picard_test"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMockFilterModel(t *testing.T) {
+func TestMockFilterModelAssociations(t *testing.T) {
 	testCases := []struct {
-		description      string
-		giveFilterModel  interface{}
-		giveAssociations []picard.Association
-		giveReturns      []interface{}
-		giveError        error
+		description     string
+		giveFilterModel interface{}
+		giveReturns     []interface{}
+		giveError       error
 	}{
 		{
 			"Should return error if present, regardless of returns set",
-			nil,
 			nil,
 			[]interface{}{
 				"test 1",
@@ -30,7 +27,6 @@ func TestMockFilterModel(t *testing.T) {
 		{
 			"Should return set return interfaces",
 			nil,
-			nil,
 			[]interface{}{
 				"test 1",
 				"test 2",
@@ -40,7 +36,6 @@ func TestMockFilterModel(t *testing.T) {
 		{
 			"Should set FilterModelCalledWith",
 			"test filter interface",
-			nil,
 			[]interface{}{
 				"test 1",
 				"test 2",
@@ -56,7 +51,7 @@ func TestMockFilterModel(t *testing.T) {
 				FilterModelError:   tc.giveError,
 			}
 
-			results, err := morm.FilterModel(tc.giveFilterModel, tc.giveAssociations)
+			results, err := morm.FilterModel(tc.giveFilterModel)
 
 			if tc.giveError != nil {
 				assert.Error(t, err)
@@ -243,11 +238,11 @@ func TestMultiMockFilter(t *testing.T) {
 					Name: "Object2",
 				}
 
-				result1, err := mmorm.FilterModel(callWith1, nil)
+				result1, err := mmorm.FilterModel(callWith1)
 				assert.Equal(t, result1, mmorm.MockORMs[0].FilterModelReturns)
 				assert.Equal(t, err, mmorm.MockORMs[0].FilterModelError)
 				assert.Equal(t, callWith1, mmorm.MockORMs[0].FilterModelCalledWith)
-				result2, err := mmorm.FilterModel(callWith2, nil)
+				result2, err := mmorm.FilterModel(callWith2)
 				assert.Equal(t, result2, mmorm.MockORMs[1].FilterModelReturns)
 				assert.Equal(t, err, mmorm.MockORMs[1].FilterModelError)
 				assert.Equal(t, callWith2, mmorm.MockORMs[1].FilterModelCalledWith)
@@ -260,7 +255,7 @@ func TestMultiMockFilter(t *testing.T) {
 				callWith := simpleObject{
 					Name: "Object1",
 				}
-				result, err := mmorm.FilterModel(callWith, nil)
+				result, err := mmorm.FilterModel(callWith)
 				var expectedResult []interface{}
 				assert.Equal(t, result, expectedResult)
 				assert.Equal(t, err, errors.New("Mock Function was called but not expected"))

@@ -80,7 +80,8 @@ type DBChangeSet struct {
 
 // ORM interface describes the behavior API of any picard ORM
 type ORM interface {
-	FilterModel(interface{}, []Association) ([]interface{}, error)
+	FilterModel(interface{}) ([]interface{}, error)
+	FilterModelAssociations(interface{}, []Association) ([]interface{}, error)
 	SaveModel(model interface{}) error
 	CreateModel(model interface{}) error
 	DeleteModel(model interface{}) (int64, error)

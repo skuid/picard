@@ -8,27 +8,39 @@ import (
 
 // MockORM can be used to test client functionality that calls picard.ORM behavior.
 type MockORM struct {
-	FilterModelReturns      []interface{}
-	FilterModelError        error
-	FilterModelCalledWith   interface{}
-	SaveModelError          error
-	SaveModelCalledWith     interface{}
-	CreateModelError        error
-	CreateModelCalledWith   interface{}
-	DeployError             error
-	DeployCalledWith        interface{}
-	DeleteModelRowsAffected int64
-	DeleteModelError        error
-	DeleteModelCalledWith   interface{}
+	FilterModelReturns                []interface{}
+	FilterModelError                  error
+	FilterModelCalledWith             interface{}
+	FilterModelAssociationsReturns    []interface{}
+	FilterModelAssociationsError      error
+	FilterModelAssociationsCalledWith interface{}
+	SaveModelError                    error
+	SaveModelCalledWith               interface{}
+	CreateModelError                  error
+	CreateModelCalledWith             interface{}
+	DeployError                       error
+	DeployCalledWith                  interface{}
+	DeleteModelRowsAffected           int64
+	DeleteModelError                  error
+	DeleteModelCalledWith             interface{}
 }
 
 // FilterModel simply returns an error or return objects when set on the MockORM
-func (morm *MockORM) FilterModel(filterModel interface{}, associations []picard.Association) ([]interface{}, error) {
+func (morm *MockORM) FilterModel(filterModel interface{}) ([]interface{}, error) {
 	morm.FilterModelCalledWith = filterModel
 	if morm.FilterModelError != nil {
 		return nil, morm.FilterModelError
 	}
 	return morm.FilterModelReturns, nil
+}
+
+// FilterModelAssociations simply returns an error or return objects when set on the MockORM
+func (morm *MockORM) FilterModelAssociations(filterModel interface{}, associations []picard.Association) ([]interface{}, error) {
+	morm.FilterModelAssociationsCalledWith = filterModel
+	if morm.FilterModelAssociationsError != nil {
+		return nil, morm.FilterModelAssociationsError
+	}
+	return morm.FilterModelAssociationsReturns, nil
 }
 
 // SaveModel returns the error stored in MockORM, and records the call value
@@ -72,12 +84,21 @@ func (multi *MultiMockORM) next() (*MockORM, error) {
 }
 
 // FilterModel simply returns an error or return objects when set on the MockORM
-func (multi *MultiMockORM) FilterModel(filterModel interface{}, associations []picard.Association) ([]interface{}, error) {
+func (multi *MultiMockORM) FilterModel(filterModel interface{}) ([]interface{}, error) {
 	next, err := multi.next()
 	if err != nil {
 		return nil, err
 	}
-	return next.FilterModel(filterModel, associations)
+	return next.FilterModel(filterModel)
+}
+
+// FilterModelAssociations simply returns an error or return objects when set on the MockORM
+func (multi *MultiMockORM) FilterModelAssociations(filterModel interface{}, associations []picard.Association) ([]interface{}, error) {
+	next, err := multi.next()
+	if err != nil {
+		return nil, err
+	}
+	return next.FilterModelAssociations(filterModel, associations)
 }
 
 // SaveModel returns the error stored in MockORM, and records the call value

@@ -24,7 +24,13 @@ func (p PersistenceORM) getFilterModelResults(filterModelValue reflect.Value, fi
 }
 
 // FilterModel returns models that match the provided struct, ignoring zero values.
-func (p PersistenceORM) FilterModel(filterModel interface{}, associations []Association) ([]interface{}, error) {
+func (p PersistenceORM) FilterModel(filterModel interface{}) ([]interface{}, error) {
+	return p.FilterModelAssociations(filterModel, nil)
+}
+
+// FilterModelAssociations returns models that match the provide struct and also
+// return the requested associated models
+func (p PersistenceORM) FilterModelAssociations(filterModel interface{}, associations []Association) ([]interface{}, error) {
 	// root model results
 	filterModelValue, err := getStructValue(filterModel)
 	if err != nil {
@@ -66,7 +72,7 @@ func (p PersistenceORM) processAssociations(associations []Association, filterMo
 				relatedField := newFilter.Elem().FieldByName(foreignKey.RelatedFieldName)
 				relatedField.Set(filterModelValue)
 			}
-			childResults, err := p.FilterModel(newFilter.Interface(), association.Associations)
+			childResults, err := p.FilterModelAssociations(newFilter.Interface(), association.Associations)
 			if err != nil {
 				return err
 			}
@@ -78,7 +84,7 @@ func (p PersistenceORM) processAssociations(associations []Association, filterMo
 			newFilter := reflect.New(relationType)
 			relatedField := newFilter.Elem().FieldByName(parentRelationField.FieldName)
 			relatedField.Set(reflect.Append(relatedField, filterModelValue))
-			foreignResults, err := p.FilterModel(newFilter.Interface(), association.Associations)
+			foreignResults, err := p.FilterModelAssociations(newFilter.Interface(), association.Associations)
 			if err != nil {
 				return err
 			}
@@ -212,6 +218,9 @@ func parentMatchesChild(childMatchValues []reflect.Value, parentMatchValues []re
 		return false
 	}
 	for i, childMatchValue := range childMatchValues {
+		if !(childMatchValue.CanInterface() && parentMatchValues[i].CanInterface()) {
+			return false
+		}
 		if childMatchValue.Interface() != parentMatchValues[i].Interface() {
 			return false
 		}

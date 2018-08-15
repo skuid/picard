@@ -122,7 +122,7 @@ type vPetModel struct {
 	Parent         vParentModel `json:"parent" validate:"-"`
 }
 
-func TestFilterModel(t *testing.T) {
+func TestFilterModelAssociations(t *testing.T) {
 	orgID := "00000000-0000-0000-0000-000000000001"
 	testCases := []struct {
 		description          string
@@ -474,7 +474,7 @@ func TestFilterModel(t *testing.T) {
 				multitenancyValue: orgID,
 			}
 
-			results, err := p.FilterModel(tc.filterModel, tc.associations)
+			results, err := p.FilterModelAssociations(tc.filterModel, tc.associations)
 
 			if tc.wantErr != nil {
 				assert.Error(t, err)
