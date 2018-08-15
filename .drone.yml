@@ -1,0 +1,11 @@
+workspace:
+  base: /go
+  path: src/github.com/skuid/picard
+
+pipeline:
+  test:
+    image: golang:1.9-alpine
+    environment:
+      CGO_ENABLED: '1'
+    commands:
+      - go test ./...
