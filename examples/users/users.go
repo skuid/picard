@@ -77,6 +77,7 @@ func doLookup(p picard.ORM) ([]interface{}, error) {
 			},
 		},
 	})
+
 	if err != nil {
 		return nil, err
 	}
