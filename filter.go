@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
-	"strings"
 
 	"github.com/Masterminds/squirrel"
 )
@@ -25,7 +24,13 @@ func (p PersistenceORM) getFilterModelResults(filterModelValue reflect.Value, fi
 }
 
 // FilterModel returns models that match the provided struct, ignoring zero values.
-func (p PersistenceORM) FilterModel(filterModel interface{}, associations []string) ([]interface{}, error) {
+func (p PersistenceORM) FilterModel(filterModel interface{}) ([]interface{}, error) {
+	return p.FilterModelAssociations(filterModel, nil)
+}
+
+// FilterModelAssociations returns models that match the provide struct and also
+// return the requested associated models
+func (p PersistenceORM) FilterModelAssociations(filterModel interface{}, associations []Association) ([]interface{}, error) {
 	// root model results
 	filterModelValue, err := getStructValue(filterModel)
 	if err != nil {
@@ -54,20 +59,20 @@ func (p PersistenceORM) FilterModel(filterModel interface{}, associations []stri
 	return concreteResults, nil
 }
 
-func (p PersistenceORM) processAssociations(associations []string, filterModelValue reflect.Value, filterMetadata *tableMetadata, results []interface{}) error {
+func (p PersistenceORM) processAssociations(associations []Association, filterModelValue reflect.Value, filterMetadata *tableMetadata, results []interface{}) error {
 	for _, association := range associations {
-		parts := strings.Split(association, ".")
-		firstPart, theRestParts := parts[0], parts[1:]
-		child := filterMetadata.getChildField(firstPart)
-		foreignKey := filterMetadata.getForeignKeyFieldFromRelation(firstPart)
+		child := filterMetadata.getChildField(association.Name)
+		foreignKey := filterMetadata.getForeignKeyFieldFromRelation(association.Name)
 		if child != nil {
 			childType := child.FieldType.Elem()
 			childMetadata := tableMetadataFromType(childType)
 			foreignKey := childMetadata.getForeignKeyField(child.ForeignKey)
 			newFilter := reflect.New(childType)
-			relatedField := newFilter.Elem().FieldByName(foreignKey.RelatedFieldName)
-			relatedField.Set(filterModelValue)
-			childResults, err := p.FilterModel(newFilter.Interface(), []string{strings.Join(theRestParts, ".")})
+			if foreignKey != nil {
+				relatedField := newFilter.Elem().FieldByName(foreignKey.RelatedFieldName)
+				relatedField.Set(filterModelValue)
+			}
+			childResults, err := p.FilterModelAssociations(newFilter.Interface(), association.Associations)
 			if err != nil {
 				return err
 			}
@@ -75,11 +80,11 @@ func (p PersistenceORM) processAssociations(associations []string, filterModelVa
 		} else if foreignKey != nil {
 			relationField := filterModelValue.FieldByName(foreignKey.RelatedFieldName)
 			relationType := relationField.Type()
-			parentRelationField := foreignKey.TableMetadata.getChildFieldFromForeignKey(foreignKey.FieldName)
+			parentRelationField := foreignKey.TableMetadata.getChildFieldFromForeignKey(foreignKey.FieldName, reflect.SliceOf(filterModelValue.Type()))
 			newFilter := reflect.New(relationType)
 			relatedField := newFilter.Elem().FieldByName(parentRelationField.FieldName)
 			relatedField.Set(reflect.Append(relatedField, filterModelValue))
-			foreignResults, err := p.FilterModel(newFilter.Interface(), []string{strings.Join(theRestParts, ".")})
+			foreignResults, err := p.FilterModelAssociations(newFilter.Interface(), association.Associations)
 			if err != nil {
 				return err
 			}
@@ -149,15 +154,49 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 }
 
 func populateChildResults(results []interface{}, childResults []interface{}, child *Child, filterMetadata *tableMetadata) {
+	var parentGroupingCriteria []string
+	var childGroupingCriteria []string
+	if child.GroupingCriteria != nil {
+		parentGroupingCriteria = []string{}
+		childGroupingCriteria = []string{}
+		for childMatchKey, parentMatchKey := range child.GroupingCriteria {
+			childGroupingCriteria = append(childGroupingCriteria, childMatchKey)
+			parentGroupingCriteria = append(parentGroupingCriteria, parentMatchKey)
+		}
+	}
+
 	// Attach the results
 	for _, childResult := range childResults {
 		childValue := reflect.ValueOf(childResult)
-		foreignKeyValue := childValue.FieldByName(child.ForeignKey)
+		var childMatchValues []reflect.Value
+		// Child Match Value
+		if childGroupingCriteria != nil {
+			for _, childMatchKey := range childGroupingCriteria {
+				matchValue := getValueFromLookupString(childValue, childMatchKey)
+				childMatchValues = append(childMatchValues, matchValue)
+			}
+		} else {
+
+			// Just use the foreign key as a default grouping criteria key
+			childMatchValues = append(childMatchValues, childValue.FieldByName(child.ForeignKey))
+		}
+
 		// Find the parent and attach
 		for _, parentResult := range results {
 			parentValue := reflect.ValueOf(parentResult)
-			primaryKeyValue := parentValue.Elem().FieldByName(filterMetadata.getPrimaryKeyFieldName())
-			if foreignKeyValue.Interface() == primaryKeyValue.Interface() {
+			var parentMatchValues []reflect.Value
+
+			// Parent Match Value
+			if parentGroupingCriteria != nil {
+				for _, parentMatchKey := range parentGroupingCriteria {
+					matchValue := getValueFromLookupString(parentValue.Elem(), parentMatchKey)
+					parentMatchValues = append(parentMatchValues, matchValue)
+				}
+			} else {
+				// Just use the primary key as a default grouping criteria match
+				parentMatchValues = append(parentMatchValues, parentValue.Elem().FieldByName(filterMetadata.getPrimaryKeyFieldName()))
+			}
+			if parentMatchesChild(childMatchValues, parentMatchValues) {
 				parentChildRelField := parentValue.Elem().FieldByName(child.FieldName)
 				if child.FieldKind == reflect.Slice {
 					parentChildRelField.Set(reflect.Append(parentChildRelField, childValue))
@@ -172,6 +211,21 @@ func populateChildResults(results []interface{}, childResults []interface{}, chi
 			}
 		}
 	}
+}
+
+func parentMatchesChild(childMatchValues []reflect.Value, parentMatchValues []reflect.Value) bool {
+	if len(childMatchValues) != len(parentMatchValues) || len(childMatchValues) == 0 {
+		return false
+	}
+	for i, childMatchValue := range childMatchValues {
+		if !(childMatchValue.CanInterface() && parentMatchValues[i].CanInterface()) {
+			return false
+		}
+		if childMatchValue.Interface() != parentMatchValues[i].Interface() {
+			return false
+		}
+	}
+	return true
 }
 
 func populateForeignKeyResults(mainResults []interface{}, foreignResults []interface{}, foreignKey *ForeignKey) {

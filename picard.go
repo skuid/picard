@@ -21,6 +21,12 @@ import (
 const separator = "|"
 const batchSize = 100
 
+// Association structure
+type Association struct {
+	Name         string
+	Associations []Association
+}
+
 // Lookup structure
 type Lookup struct {
 	TableName           string
@@ -36,12 +42,13 @@ type Lookup struct {
 
 // Child structure
 type Child struct {
-	FieldName     string
-	FieldType     reflect.Type
-	FieldKind     reflect.Kind
-	ForeignKey    string
-	KeyMapping    string
-	ValueMappings map[string]string
+	FieldName        string
+	FieldType        reflect.Type
+	FieldKind        reflect.Kind
+	ForeignKey       string
+	KeyMapping       string
+	ValueMappings    map[string]string
+	GroupingCriteria map[string]string
 }
 
 // ForeignKey structure
@@ -73,7 +80,8 @@ type DBChangeSet struct {
 
 // ORM interface describes the behavior API of any picard ORM
 type ORM interface {
-	FilterModel(interface{}, []string) ([]interface{}, error)
+	FilterModel(interface{}) ([]interface{}, error)
+	FilterModelAssociations(interface{}, []Association) ([]interface{}, error)
 	SaveModel(model interface{}) error
 	CreateModel(model interface{}) error
 	DeleteModel(model interface{}) (int64, error)
@@ -524,7 +532,8 @@ func getQueryParts(tableMetadata *tableMetadata, lookupsToUse []Lookup, tableAli
 				_, joinParts, whereParts := getQueryParts(lookup.SubQueryMetadata, lookup.SubQuery, tableAliasCache)
 				subQueryFKField := lookup.SubQueryMetadata.getField(lookup.SubQueryForeignKey)
 				subquery := createQueryFromParts(lookup.SubQueryMetadata.getTableName(), []string{subQueryFKField.columnName}, joinParts, whereParts)
-				sql, args, _ := subquery.ToSql()
+				// Use the question mark placeholder format so that no replacements are made.
+				sql, args, _ := subquery.PlaceholderFormat(squirrel.Question).ToSql()
 				whereFields = append(whereFields, squirrel.Expr(lookup.MatchDBColumn+" IN ("+sql+")", args...))
 			} else {
 				whereFields = append(whereFields, squirrel.Eq{fmt.Sprintf("%v.%v", tableAlias, lookup.MatchDBColumn): lookup.Value})
@@ -565,6 +574,7 @@ func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, tableMetad
 	for _, child := range tableMetadata.children {
 
 		var data reflect.Value
+		index := 0
 
 		if child.FieldKind == reflect.Slice {
 			// Creates a new Slice of the same type of elements that were stored in the slice of data.
@@ -588,13 +598,15 @@ func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, tableMetad
 						keyField.SetString(foreignKeyValue.(string))
 					}
 					data = reflect.Append(data, value)
+					index = index + 1
 				}
 			} else if childValue.Kind() == reflect.Map {
 				mapKeys := childValue.MapKeys()
-				for index, key := range mapKeys {
+				for _, key := range mapKeys {
 					value := childValue.MapIndex(key)
 					data = reflect.Append(data, value)
 					addressibleData := data.Index(index)
+					index = index + 1
 					if child.ForeignKey != "" {
 						valueToChange := getValueFromLookupString(addressibleData, child.ForeignKey)
 						valueToChange.SetString(foreignKeyValue.(string))

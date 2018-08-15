@@ -65,7 +65,7 @@ func doEagerLoadLookUp() {
 		Name: "foo"
 	}
 	// association 'allthebs.allthecs'
-	results, err := picardORM.FilterModel(filterModel, []string{"AllTheBs.AllTheCs"}))
+	results, err := picardORM.FilterModelAssociations(filterModel, []string{"AllTheBs.AllTheCs"}))
 }
 ```
 

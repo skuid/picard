@@ -76,9 +76,9 @@ func (tm tableMetadata) getChildField(childName string) *Child {
 	return nil
 }
 
-func (tm tableMetadata) getChildFieldFromForeignKey(foreignKeyName string) *Child {
+func (tm tableMetadata) getChildFieldFromForeignKey(foreignKeyName string, foreignKeyType reflect.Type) *Child {
 	for _, child := range tm.children {
-		if child.ForeignKey == foreignKeyName {
+		if child.ForeignKey == foreignKeyName && child.FieldType == foreignKeyType {
 			return &child
 		}
 	}
@@ -246,16 +246,28 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 		}
 
 		if isChild && (kind == reflect.Slice || kind == reflect.Map) {
-			keyMapping := ""
-			valueMappingMap := map[string]string{}
+			var keyMapping string
+			var valueMappingMap map[string]string
+			var groupingCriteriaMap map[string]string
 			keyMappingString := tagsMap["key_mapping"]
 			valueMappingString := tagsMap["value_mappings"]
+			groupingCriteriaString := tagsMap["grouping_criteria"]
+
+			if groupingCriteriaString != "" {
+				groupingCriteriaMap = map[string]string{}
+				groupingCriteriaArray := strings.Split(groupingCriteriaString, "&")
+				for _, groupingCriteria := range groupingCriteriaArray {
+					groupingCriteriaSplit := strings.Split(groupingCriteria, "->")
+					groupingCriteriaMap[groupingCriteriaSplit[0]] = groupingCriteriaSplit[1]
+				}
+			}
 
 			if keyMappingString != "" {
 				keyMapping = keyMappingString
 			}
 
 			if valueMappingString != "" {
+				valueMappingMap = map[string]string{}
 				valueMappingArray := strings.Split(valueMappingString, "&")
 				for _, valueMap := range valueMappingArray {
 					valueMapSplit := strings.Split(valueMap, "->")
@@ -264,13 +276,15 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 			}
 
 			children = append(children, Child{
-				FieldName:     field.Name,
-				FieldType:     field.Type,
-				FieldKind:     kind,
-				ForeignKey:    tagsMap["foreign_key"],
-				KeyMapping:    keyMapping,
-				ValueMappings: valueMappingMap,
+				FieldName:        field.Name,
+				FieldType:        field.Type,
+				FieldKind:        kind,
+				ForeignKey:       tagsMap["foreign_key"],
+				KeyMapping:       keyMapping,
+				ValueMappings:    valueMappingMap,
+				GroupingCriteria: groupingCriteriaMap,
 			})
+
 		}
 
 		if isLookup && !isForeignKey {
