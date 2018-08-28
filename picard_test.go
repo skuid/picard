@@ -674,6 +674,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 		description      string
 		filterModelValue reflect.Value
 		zeroFields       []string
+		doJoins          bool
 		wantWhereClauses []squirrel.Sqlizer
 		wantJoinClauses  []string
 		wantErr          string
@@ -685,6 +686,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				OrgID    string   `picard:"multitenancy_key,column=organization_id"`
 			}{}),
 			nil,
+			true,
 			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"test_table.organization_id": testMultitenancyValue,
@@ -700,6 +702,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				TestMultitenancyColumn string   `picard:"multitenancy_key,column=test_multitenancy_column"`
 			}{}),
 			nil,
+			true,
 			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"test_table.test_multitenancy_column": testMultitenancyValue,
@@ -717,6 +720,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				TestMultitenancyColumn: "this value should be ignored",
 			}),
 			nil,
+			true,
 			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"test_table.test_multitenancy_column": testMultitenancyValue,
@@ -735,6 +739,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				TestField: "first test value",
 			}),
 			nil,
+			true,
 			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"test_table.test_multitenancy_column": testMultitenancyValue,
@@ -758,6 +763,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				TestFieldTwo: "second test value",
 			}),
 			nil,
+			true,
 			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"test_table.test_multitenancy_column": testMultitenancyValue,
@@ -783,6 +789,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				TestFieldTwo: "second test value",
 			}),
 			nil,
+			true,
 			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"test_table.test_column_one": "first test value",
@@ -801,6 +808,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				TestFieldOne: "first test value",
 			}),
 			nil,
+			true,
 			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"test_table.test_column_one": "first test value",
@@ -819,6 +827,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				TestFieldOne: "first test value",
 			}),
 			[]string{"TestFieldTwo"},
+			true,
 			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"test_table.test_column_one": "first test value",
@@ -840,6 +849,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				TestField: "first test value",
 			}),
 			nil,
+			true,
 			nil,
 			[]string{},
 			"cannot perform queries with where clauses on encrypted fields",
@@ -852,6 +862,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				},
 			}),
 			nil,
+			true,
 			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"childtest.organization_id": testMultitenancyValue,
@@ -876,6 +887,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				},
 			}),
 			nil,
+			true,
 			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"childtest.organization_id": testMultitenancyValue,
@@ -904,6 +916,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 				},
 			}),
 			nil,
+			true,
 			[]squirrel.Sqlizer{
 				squirrel.Eq{
 					"childtest.organization_id": testMultitenancyValue,
@@ -927,6 +940,23 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 			},
 			"",
 		},
+		{
+			"Filter object without joins and parent values should not add parent fields to where clause",
+			reflect.ValueOf(ChildTestObject{
+				Parent: TestObject{
+					Name: "blah",
+				},
+			}),
+			nil,
+			false,
+			[]squirrel.Sqlizer{
+				squirrel.Eq{
+					"childtest.organization_id": testMultitenancyValue,
+				},
+			},
+			[]string{},
+			"",
+		},
 	}
 
 	// Create the Picard instance
@@ -939,7 +969,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			filterModelType := tc.filterModelValue.Type()
 			tableMetadata := tableMetadataFromType(filterModelType)
-			whereClauses, joinClauses, err := p.generateWhereClausesFromModel(tc.filterModelValue, tc.zeroFields, tableMetadata)
+			whereClauses, joinClauses, err := p.generateWhereClausesFromModel(tc.filterModelValue, tc.zeroFields, tableMetadata, tc.doJoins)
 
 			if tc.wantErr != "" {
 				assert.Error(t, err)
