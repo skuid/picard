@@ -174,6 +174,9 @@ func (p PersistenceORM) upsertBatch(data interface{}, tableMetadata *tableMetada
 	}
 
 	// Execute Delete Queries
+	if err := p.performDeletes(changeSet.deletes, tableMetadata); err != nil {
+		return err
+	}
 
 	// Execute Update Queries
 	if err := p.performUpdates(changeSet.updates, tableMetadata); err != nil {
@@ -194,6 +197,30 @@ func (p PersistenceORM) upsertBatch(data interface{}, tableMetadata *tableMetada
 		return err
 	}
 
+	return nil
+}
+
+func (p PersistenceORM) performDeletes(deletes []DBChange, tableMetadata *tableMetadata) error {
+	if len(deletes) > 0 {
+		tableName := tableMetadata.tableName
+		primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
+		multitenancyKeyColumnName := tableMetadata.getMultitenancyKeyColumnName()
+
+		psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+		for _, delete := range deletes {
+			changes := delete.changes
+			deleteQuery := psql.Delete(tableName)
+			deleteQuery = deleteQuery.Where(squirrel.Eq{primaryKeyColumnName: changes[primaryKeyColumnName]})
+			if multitenancyKeyColumnName != "" {
+				deleteQuery = deleteQuery.Where(squirrel.Eq{multitenancyKeyColumnName: p.multitenancyValue})
+			}
+			justSQL, _, _ := deleteQuery.ToSql()
+			_, err := deleteQuery.RunWith(p.transaction).Exec()
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -308,6 +335,7 @@ func (p PersistenceORM) checkForExisting(
 	data interface{},
 	tableMetadata *tableMetadata,
 	foreignKey *ForeignKey,
+	doLookups bool,
 ) (
 	map[string]interface{},
 	[]Lookup,
@@ -329,27 +357,31 @@ func (p PersistenceORM) checkForExisting(
 
 	columns, joins, whereFields := getQueryParts(tableMetadata, lookupsToUse, tableAliasCache)
 
-	wheres := []string{}
-
 	for _, join := range joins {
 		query = query.Join(join)
 	}
 
-	for _, whereField := range whereFields {
-		eq, ok := whereField.(squirrel.Eq)
-		if ok {
-			for whereFieldKey := range eq {
-				wheres = append(wheres, fmt.Sprintf("COALESCE(%v::\"varchar\",'')", whereFieldKey))
-			}
-		}
-	}
-
 	query = query.Columns(columns...)
 
-	query = query.Where(strings.Join(wheres, " || '"+separator+"' || ")+" = ANY($1)", pq.Array(lookupObjectKeys))
+	wheres := []string{}
+	if doLookups {
+		for _, whereField := range whereFields {
+			eq, ok := whereField.(squirrel.Eq)
+			if ok {
+				for whereFieldKey := range eq {
+					wheres = append(wheres, fmt.Sprintf("COALESCE(%v::\"varchar\",'')", whereFieldKey))
+				}
+			}
+		}
+		query = query.Where(strings.Join(wheres, " || '"+separator+"' || ")+" = ANY($1)", pq.Array(lookupObjectKeys))
+	}
 
 	if multitenancyKeyColumnName != "" {
-		query = query.Where(fmt.Sprintf("%v.%v = $2", tableName, multitenancyKeyColumnName), p.multitenancyValue)
+		arg := "$1"
+		if doLookups {
+			arg = "$2"
+		}
+		query = query.Where(fmt.Sprintf("%v.%v = "+arg, tableName, multitenancyKeyColumnName), p.multitenancyValue)
 	}
 
 	rows, err := query.RunWith(p.transaction).Query()
@@ -650,15 +682,15 @@ func (p PersistenceORM) generateChanges(
 	foreignKeys := tableMetadata.foreignKeys
 	insertsHavePrimaryKey := false
 	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
-
-	results, lookups, err := p.checkForExisting(data, tableMetadata, nil)
+	deleteExisting := tableMetadata.deleteExisting
+	deployResults, lookups, err := p.checkForExisting(data, tableMetadata, nil, false)
 	if err != nil {
 		return nil, err
 	}
 
 	for index := range foreignKeys {
 		foreignKey := &foreignKeys[index]
-		foreignResults, foreignLookupsUsed, err := p.checkForExisting(data, foreignKey.TableMetadata, foreignKey)
+		foreignResults, foreignLookupsUsed, err := p.checkForExisting(data, foreignKey.TableMetadata, foreignKey, true)
 		if err != nil {
 			return nil, err
 		}
@@ -671,17 +703,18 @@ func (p PersistenceORM) generateChanges(
 	deletes := []DBChange{}
 
 	s := reflect.ValueOf(data)
+
 	for i := 0; i < s.Len(); i++ {
 		value := s.Index(i)
 		objectKey := getObjectKeyReflect(value, lookups)
-		object := results[objectKey]
+
+		object := deployResults[objectKey]
 
 		var existingObj map[string]interface{}
 
 		if object != nil {
 			existingObj = object.(map[string]interface{})
 		}
-
 		// TODO: Implement Delete Conditions
 		shouldDelete := false
 
@@ -718,6 +751,51 @@ func (p PersistenceORM) generateChanges(
 				insertsHavePrimaryKey = true
 			}
 			inserts = append(inserts, dbChange)
+		}
+	}
+
+	if deleteExisting {
+		var matchColumns []string
+		for _, lookup := range lookups {
+			matchColumns = append(matchColumns, lookup.MatchDBColumn)
+		}
+
+		// match db columns concatenated is the unique key for each update
+		matchUpdates := make(map[interface{}]interface{})
+		for _, update := range updates {
+			changes := update.changes
+			var matchKeys []string
+			for _, matchColumn := range matchColumns {
+				matchKey := changes[matchColumn]
+				matchKeys = append(matchKeys, matchKey.(string))
+			}
+			matchKeysStr := strings.Join(matchKeys, separator)
+			matchUpdates[matchKeysStr] = update
+		}
+
+		// check for diff of existing results vs new updates from deploy
+		matchDeletes := make(map[interface{}]interface{})
+		for k, result := range deployResults {
+			if _, ok := matchUpdates[k]; !ok {
+				changeResult := result.(map[string]interface{})
+				deleteChange := DBChange{
+					changes: changeResult,
+				}
+				deletes = append(deletes, deleteChange)
+				matchDeletes[k] = deleteChange
+			}
+		}
+
+		// already exists in updates so delete the existing update that
+		// matches the delete
+		newUpdates := updates[:0]
+		if len(deletes) > 0 {
+			for k, matchUpdate := range matchUpdates {
+				if _, ok := matchDeletes[k]; ok {
+					newUpdates = append(newUpdates, matchUpdate.(DBChange))
+				}
+			}
+			updates = newUpdates
 		}
 	}
 
