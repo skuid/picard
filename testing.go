@@ -47,8 +47,6 @@ type ExpectationHelper struct {
 	LookupFields     []string
 	DBColumns        []string
 	DataFields       []string
-	ReplaceIDField   string
-	DeleteExisting   bool
 }
 
 func (eh ExpectationHelper) getTableMetadata() *tableMetadata {
@@ -59,9 +57,9 @@ func (eh ExpectationHelper) getTableMetadata() *tableMetadata {
 	return eh.TableMetadata
 }
 
-func (eh ExpectationHelper) getDeletePrimaryKey() string {
+func (eh ExpectationHelper) getPrimaryKeyColumnName() string {
 	tableMetadata := eh.getTableMetadata()
-	return strings.ToLower(tableMetadata.primaryKeyField)
+	return tableMetadata.getPrimaryKeyColumnName()
 }
 
 func (eh ExpectationHelper) getInsertDBColumns(includePrimaryKey bool) []string {
@@ -139,16 +137,12 @@ func GetReturnDataForLookup(expect ExpectationHelper, foundObjects interface{}) 
 		s := reflect.ValueOf(foundObjects)
 		for i := 0; i < s.Len(); i++ {
 			object := s.Index(i)
-			idValue := uuid.NewV4().String()
 			returnItem := []driver.Value{
-				idValue,
+				uuid.NewV4().String(),
 			}
 			for _, lookup := range expect.LookupFields {
 				field := object.FieldByName(lookup)
 				value := field.String()
-				if expect.ReplaceIDField == lookup {
-					value = idValue
-				}
 				returnItem = append(returnItem, value)
 			}
 
@@ -238,7 +232,7 @@ func getReturnDataForInsert(expect ExpectationHelper, objects interface{}) [][]d
 
 // ExpectDelete Mocks a delete request to the database.
 func ExpectDelete(mock *sqlmock.Sqlmock, expect ExpectationHelper, object interface{}, lookupResults [][]driver.Value) [][]driver.Value {
-	deletePKField := expect.getDeletePrimaryKey()
+	deletePKField := expect.getPrimaryKeyColumnName()
 	expectSQL := `
 		DELETE FROM ` + expect.getTableName() + `
 		WHERE ` + deletePKField + ` = \$1 AND organization_id = \$2`
