@@ -372,18 +372,14 @@ func (p PersistenceORM) checkForExisting(
 				}
 			}
 		}
-		query = query.Where(strings.Join(wheres, " || '"+separator+"' || ")+" = ANY($1)", pq.Array(lookupObjectKeys))
+		query = query.Where(strings.Join(wheres, " || '"+separator+"' || ")+" = ANY(?)", pq.Array(lookupObjectKeys))
 	}
 
 	if multitenancyKeyColumnName != "" {
-		arg := "$1"
-		if doLookups {
-			arg = "$2"
-		}
-		query = query.Where(fmt.Sprintf("%v.%v = "+arg, tableName, multitenancyKeyColumnName), p.multitenancyValue)
+		query = query.Where(fmt.Sprintf("%v.%v = ?", tableName, multitenancyKeyColumnName), p.multitenancyValue)
 	}
 
-	rows, err := query.RunWith(p.transaction).Query()
+	rows, err := query.PlaceholderFormat(squirrel.Dollar).RunWith(p.transaction).Query()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -564,12 +560,11 @@ func getQueryParts(tableMetadata *tableMetadata, lookupsToUse []Lookup, tableAli
 				subQueryFKField := lookup.SubQueryMetadata.getField(lookup.SubQueryForeignKey)
 				subquery := createQueryFromParts(lookup.SubQueryMetadata.getTableName(), []string{subQueryFKField.columnName}, joinParts, whereParts)
 				// Use the question mark placeholder format so that no replacements are made.
-				sql, args, _ := subquery.PlaceholderFormat(squirrel.Question).ToSql()
+				sql, args, _ := subquery.ToSql()
 				whereFields = append(whereFields, squirrel.Expr(lookup.MatchDBColumn+" IN ("+sql+")", args...))
 			} else {
 				whereFields = append(whereFields, squirrel.Eq{fmt.Sprintf("%v.%v", tableAlias, lookup.MatchDBColumn): lookup.Value})
 			}
-
 		}
 	}
 	return columns, joins, whereFields
@@ -584,7 +579,6 @@ func createQueryFromParts(tableName string, columnNames []string, joinClauses []
 
 	// Do select query with provided where clauses and columns/tablename
 	query := squirrel.StatementBuilder.
-		PlaceholderFormat(squirrel.Dollar).
 		Select(fullColumnNames...).
 		From(tableName)
 

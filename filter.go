@@ -104,7 +104,7 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 
 	query := createQueryFromParts(tableName, columnNames, joinClauses, whereClauses)
 
-	query = query.RunWith(db)
+	query = query.PlaceholderFormat(squirrel.Dollar).RunWith(db)
 
 	rows, err := query.Query()
 	if err != nil {
