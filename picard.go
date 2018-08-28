@@ -214,7 +214,6 @@ func (p PersistenceORM) performDeletes(deletes []DBChange, tableMetadata *tableM
 			if multitenancyKeyColumnName != "" {
 				deleteQuery = deleteQuery.Where(squirrel.Eq{multitenancyKeyColumnName: p.multitenancyValue})
 			}
-			justSQL, _, _ := deleteQuery.ToSql()
 			_, err := deleteQuery.RunWith(p.transaction).Exec()
 			if err != nil {
 				return err
