@@ -56,7 +56,7 @@ type TestObjectDelete struct {
 
 	ID             string            `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
-	Name           string            `json:"name" picard:"lookup,column=name" validate:"required"`
+	Name           string            `json:"name" picard:"lookup,column=name,namefield" validate:"required"`
 	IsActive       bool              `json:"is_active" picard:"column=is_active"`
 	Children       []ChildTestObject `json:"children" picard:"child,foreign_key=ParentID"`
 }

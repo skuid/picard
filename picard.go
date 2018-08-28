@@ -33,7 +33,7 @@ type Lookup struct {
 	MatchDBColumn       string
 	MatchObjectProperty string
 	JoinKey             string
-	Query               bool
+	IsNameField         bool
 	Value               interface{}
 	SubQuery            []Lookup
 	SubQueryForeignKey  string
@@ -353,9 +353,9 @@ func (p PersistenceORM) checkForExisting(
 	query := squirrel.Select(fmt.Sprintf("%v.%v", tableName, primaryKeyColumnName))
 	query = query.From(tableName)
 
-	doNameLookups := foreignKey != nil || !tableMetadata.deleteExisting
+	omitNameLookups := foreignKey == nil && tableMetadata.deleteExisting
 
-	columns, joins, whereFields := getQueryParts(tableMetadata, lookupsToUse, tableAliasCache, doNameLookups)
+	columns, joins, whereFields := getQueryParts(tableMetadata, lookupsToUse, tableAliasCache, omitNameLookups)
 
 	for _, join := range joins {
 		query = query.Join(join)
@@ -406,7 +406,7 @@ func getLookupsFromForeignKeys(foreignKeys []ForeignKey, baseJoinKey string, bas
 					MatchDBColumn:       lookup.MatchDBColumn,
 					MatchObjectProperty: getMatchObjectProperty(baseObjectProperty, foreignKey.RelatedFieldName, lookup.MatchObjectProperty),
 					JoinKey:             joinKey,
-					Query:               true,
+					IsNameField:         lookup.IsNameField,
 				})
 			}
 			newBaseJoinKey := getTableAlias(tableMetadata.tableName, joinKey, tableAliasCache)
@@ -485,7 +485,6 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tableMetadata, foreign
 					TableName:           tableName,
 					MatchDBColumn:       primaryKeyColumnName,
 					MatchObjectProperty: primaryKeyFieldName,
-					Query:               true,
 				},
 			}, lookupsToUse...)
 		}
@@ -498,7 +497,6 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tableMetadata, foreign
 				lookupsToUse = append(lookupsToUse, Lookup{
 					MatchDBColumn:       foreignKey.KeyColumn,
 					MatchObjectProperty: foreignKey.FieldName,
-					Query:               true,
 				})
 			}
 		}
@@ -532,7 +530,7 @@ func getLookupObjectKeys(data interface{}, lookupsToUse []Lookup, foreignKey *Fo
 	return keys
 }
 
-func getQueryParts(tableMetadata *tableMetadata, lookupsToUse []Lookup, tableAliasCache map[string]string, doNameLookups bool) ([]string, []string, []squirrel.Sqlizer) {
+func getQueryParts(tableMetadata *tableMetadata, lookupsToUse []Lookup, tableAliasCache map[string]string, omitNameLookups bool) ([]string, []string, []squirrel.Sqlizer) {
 	tableName := tableMetadata.getTableName()
 	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
 	joinMap := map[string]bool{}
@@ -555,9 +553,10 @@ func getQueryParts(tableMetadata *tableMetadata, lookupsToUse []Lookup, tableAli
 			}
 		}
 		columns = append(columns, fmt.Sprintf("%[3]v.%[2]v as %[3]v_%[2]v", tableToUse, lookup.MatchDBColumn, tableAlias))
-		if lookup.Query && doNameLookups {
+		omitFromQuery := lookup.IsNameField && omitNameLookups
+		if !omitFromQuery {
 			if lookup.SubQuery != nil {
-				_, joinParts, whereParts := getQueryParts(lookup.SubQueryMetadata, lookup.SubQuery, tableAliasCache, doNameLookups)
+				_, joinParts, whereParts := getQueryParts(lookup.SubQueryMetadata, lookup.SubQuery, tableAliasCache, omitNameLookups)
 				subQueryFKField := lookup.SubQueryMetadata.getField(lookup.SubQueryForeignKey)
 				subquery := createQueryFromParts(lookup.SubQueryMetadata.getTableName(), []string{subQueryFKField.columnName}, joinParts, whereParts)
 				// Use the question mark placeholder format so that no replacements are made.
@@ -1132,7 +1131,6 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 				MatchObjectProperty: field.Name,
 				TableName:           tableName,
 				JoinKey:             fullJoinKey,
-				Query:               true,
 				Value:               p.multitenancyValue,
 			})
 		case hasColumn && !isZeroField:
@@ -1146,7 +1144,6 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 				MatchObjectProperty: field.Name,
 				TableName:           tableName,
 				JoinKey:             fullJoinKey,
-				Query:               true,
 				Value:               fieldValue.Interface(),
 			})
 
@@ -1156,7 +1153,6 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 				MatchObjectProperty: field.Name,
 				TableName:           tableName,
 				JoinKey:             fullJoinKey,
-				Query:               true,
 				Value:               reflect.Zero(field.Type).Interface(),
 			})
 		case kind == reflect.Struct && !isZeroField:
@@ -1194,7 +1190,6 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 				lookups = append(lookups, Lookup{
 					MatchDBColumn:      primaryKeyColumnName,
 					TableName:          tableName,
-					Query:              true,
 					SubQuery:           subQueryLookups,
 					SubQueryForeignKey: foreignKeyField,
 					SubQueryMetadata:   relatedPicardTags,

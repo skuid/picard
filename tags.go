@@ -218,6 +218,7 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 		_, isEncrypted := tagsMap["encrypted"]
 		_, isJSONB := tagsMap["jsonb"]
 		_, deleteExisting := tagsMap["deleteExisting"]
+		_, isNameField := tagsMap["namefield"]
 		auditType, _ := tagsMap["audit"]
 
 		if field.Type == reflect.TypeOf(metadata) {
@@ -298,7 +299,7 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 			lookups = append(lookups, Lookup{
 				MatchDBColumn:       tagsMap["column"],
 				MatchObjectProperty: field.Name,
-				Query:               true,
+				IsNameField:         isNameField,
 			})
 		}
 
