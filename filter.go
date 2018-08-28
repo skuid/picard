@@ -11,7 +11,7 @@ import (
 
 func (p PersistenceORM) getFilterModelResults(filterModelValue reflect.Value, filterMetadata *tableMetadata) ([]interface{}, error) {
 	var zeroFields []string
-	whereClauses, joinClauses, err := p.generateWhereClausesFromModel(filterModelValue, zeroFields, filterMetadata)
+	whereClauses, joinClauses, err := p.generateWhereClausesFromModel(filterModelValue, zeroFields, filterMetadata, true)
 	if err != nil {
 		return nil, err
 	}

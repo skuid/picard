@@ -1,8 +1,6 @@
 package picard
 
 import (
-	"errors"
-
 	"github.com/Masterminds/squirrel"
 )
 
@@ -17,13 +15,9 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 	tableMetadata := tableMetadataFromType(modelValue.Type())
 	tableName := tableMetadata.getTableName()
 
-	whereClauses, joinClauses, err := porm.generateWhereClausesFromModel(modelValue, nil, tableMetadata)
+	whereClauses, _, err := porm.generateWhereClausesFromModel(modelValue, nil, tableMetadata, false)
 	if err != nil {
 		return 0, err
-	}
-
-	if len(joinClauses) > 0 {
-		return 0, errors.New("Cannot filter on related data for deletes")
 	}
 
 	if porm.transaction == nil {

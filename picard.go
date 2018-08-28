@@ -327,7 +327,7 @@ func (p PersistenceORM) checkForExisting(
 	query := squirrel.Select(fmt.Sprintf("%v.%v", tableName, primaryKeyColumnName))
 	query = query.From(tableName)
 
-	columns, joins, whereFields := getQueryParts(tableMetadata, lookupsToUse, tableAliasCache)
+	columns, joins, whereFields := getQueryParts(tableMetadata, lookupsToUse, tableAliasCache, true)
 
 	wheres := []string{}
 
@@ -504,7 +504,7 @@ func getLookupObjectKeys(data interface{}, lookupsToUse []Lookup, foreignKey *Fo
 	return keys
 }
 
-func getQueryParts(tableMetadata *tableMetadata, lookupsToUse []Lookup, tableAliasCache map[string]string) ([]string, []string, []squirrel.Sqlizer) {
+func getQueryParts(tableMetadata *tableMetadata, lookupsToUse []Lookup, tableAliasCache map[string]string, doJoins bool) ([]string, []string, []squirrel.Sqlizer) {
 	tableName := tableMetadata.getTableName()
 	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
 	joinMap := map[string]bool{}
@@ -517,8 +517,14 @@ func getQueryParts(tableMetadata *tableMetadata, lookupsToUse []Lookup, tableAli
 		if lookup.TableName != "" {
 			tableToUse = lookup.TableName
 		}
+
+		// only include lookups for current table if we don't need joins
+		if !doJoins && lookup.TableName != tableName {
+			continue
+		}
+
 		tableAlias := tableToUse
-		if lookup.JoinKey != "" && lookup.TableName != "" && tableToUse != tableName {
+		if doJoins && lookup.JoinKey != "" && lookup.TableName != "" && tableToUse != tableName {
 			tableAlias = getTableAlias(tableToUse, lookup.JoinKey, tableAliasCache)
 			_, alreadyAddedJoin := joinMap[tableAlias]
 			if !alreadyAddedJoin {
@@ -528,8 +534,8 @@ func getQueryParts(tableMetadata *tableMetadata, lookupsToUse []Lookup, tableAli
 		}
 		columns = append(columns, fmt.Sprintf("%[3]v.%[2]v as %[3]v_%[2]v", tableToUse, lookup.MatchDBColumn, tableAlias))
 		if lookup.Query {
-			if lookup.SubQuery != nil {
-				_, joinParts, whereParts := getQueryParts(lookup.SubQueryMetadata, lookup.SubQuery, tableAliasCache)
+			if doJoins && lookup.SubQuery != nil {
+				_, joinParts, whereParts := getQueryParts(lookup.SubQueryMetadata, lookup.SubQuery, tableAliasCache, true)
 				subQueryFKField := lookup.SubQueryMetadata.getField(lookup.SubQueryForeignKey)
 				subquery := createQueryFromParts(lookup.SubQueryMetadata.getTableName(), []string{subQueryFKField.columnName}, joinParts, whereParts)
 				// Use the question mark placeholder format so that no replacements are made.
@@ -1131,7 +1137,7 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 	return lookups, nil
 }
 
-func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.Value, zeroFields []string, tableMetadata *tableMetadata) ([]squirrel.Sqlizer, []string, error) {
+func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.Value, zeroFields []string, tableMetadata *tableMetadata, doJoins bool) ([]squirrel.Sqlizer, []string, error) {
 
 	tableAliasCache := map[string]string{}
 
@@ -1139,7 +1145,7 @@ func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.V
 	if err != nil {
 		return nil, nil, err
 	}
-	_, joins, whereFields := getQueryParts(tableMetadata, lookups, tableAliasCache)
+	_, joins, whereFields := getQueryParts(tableMetadata, lookups, tableAliasCache, doJoins)
 
 	return whereFields, joins, nil
 
