@@ -334,7 +334,6 @@ func (p PersistenceORM) checkForExisting(
 	data interface{},
 	tableMetadata *tableMetadata,
 	foreignKey *ForeignKey,
-	doLookups bool,
 ) (
 	map[string]interface{},
 	[]Lookup,
@@ -354,7 +353,9 @@ func (p PersistenceORM) checkForExisting(
 	query := squirrel.Select(fmt.Sprintf("%v.%v", tableName, primaryKeyColumnName))
 	query = query.From(tableName)
 
-	columns, joins, whereFields := getQueryParts(tableMetadata, lookupsToUse, tableAliasCache)
+	doNameLookups := foreignKey != nil || !tableMetadata.deleteExisting
+
+	columns, joins, whereFields := getQueryParts(tableMetadata, lookupsToUse, tableAliasCache, doNameLookups)
 
 	for _, join := range joins {
 		query = query.Join(join)
@@ -362,8 +363,8 @@ func (p PersistenceORM) checkForExisting(
 
 	query = query.Columns(columns...)
 
-	wheres := []string{}
-	if doLookups {
+	if len(whereFields) > 0 {
+		wheres := []string{}
 		for _, whereField := range whereFields {
 			eq, ok := whereField.(squirrel.Eq)
 			if ok {
@@ -531,7 +532,7 @@ func getLookupObjectKeys(data interface{}, lookupsToUse []Lookup, foreignKey *Fo
 	return keys
 }
 
-func getQueryParts(tableMetadata *tableMetadata, lookupsToUse []Lookup, tableAliasCache map[string]string) ([]string, []string, []squirrel.Sqlizer) {
+func getQueryParts(tableMetadata *tableMetadata, lookupsToUse []Lookup, tableAliasCache map[string]string, doNameLookups bool) ([]string, []string, []squirrel.Sqlizer) {
 	tableName := tableMetadata.getTableName()
 	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
 	joinMap := map[string]bool{}
@@ -554,9 +555,9 @@ func getQueryParts(tableMetadata *tableMetadata, lookupsToUse []Lookup, tableAli
 			}
 		}
 		columns = append(columns, fmt.Sprintf("%[3]v.%[2]v as %[3]v_%[2]v", tableToUse, lookup.MatchDBColumn, tableAlias))
-		if lookup.Query {
+		if lookup.Query && doNameLookups {
 			if lookup.SubQuery != nil {
-				_, joinParts, whereParts := getQueryParts(lookup.SubQueryMetadata, lookup.SubQuery, tableAliasCache)
+				_, joinParts, whereParts := getQueryParts(lookup.SubQueryMetadata, lookup.SubQuery, tableAliasCache, doNameLookups)
 				subQueryFKField := lookup.SubQueryMetadata.getField(lookup.SubQueryForeignKey)
 				subquery := createQueryFromParts(lookup.SubQueryMetadata.getTableName(), []string{subQueryFKField.columnName}, joinParts, whereParts)
 				// Use the question mark placeholder format so that no replacements are made.
@@ -676,14 +677,14 @@ func (p PersistenceORM) generateChanges(
 	insertsHavePrimaryKey := false
 	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
 	deleteExisting := tableMetadata.deleteExisting
-	deployResults, lookups, err := p.checkForExisting(data, tableMetadata, nil, false)
+	lookupResults, lookups, err := p.checkForExisting(data, tableMetadata, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	for index := range foreignKeys {
 		foreignKey := &foreignKeys[index]
-		foreignResults, foreignLookupsUsed, err := p.checkForExisting(data, foreignKey.TableMetadata, foreignKey, true)
+		foreignResults, foreignLookupsUsed, err := p.checkForExisting(data, foreignKey.TableMetadata, foreignKey)
 		if err != nil {
 			return nil, err
 		}
@@ -701,7 +702,7 @@ func (p PersistenceORM) generateChanges(
 		value := s.Index(i)
 		objectKey := getObjectKeyReflect(value, lookups)
 
-		object := deployResults[objectKey]
+		object := lookupResults[objectKey]
 
 		var existingObj map[string]interface{}
 
@@ -768,7 +769,7 @@ func (p PersistenceORM) generateChanges(
 
 		// check for diff of existing results vs new updates from deploy
 		matchDeletes := make(map[interface{}]interface{})
-		for k, result := range deployResults {
+		for k, result := range lookupResults {
 			if _, ok := matchUpdates[k]; !ok {
 				changeResult := result.(map[string]interface{})
 				deleteChange := DBChange{
@@ -778,18 +779,20 @@ func (p PersistenceORM) generateChanges(
 				matchDeletes[k] = deleteChange
 			}
 		}
-
-		// already exists in updates so delete the existing update that
-		// matches the delete
-		newUpdates := updates[:0]
-		if len(deletes) > 0 {
-			for k, matchUpdate := range matchUpdates {
-				if _, ok := matchDeletes[k]; ok {
-					newUpdates = append(newUpdates, matchUpdate.(DBChange))
+		/*
+			// already exists in updates so delete the existing update that
+			// matches the delete
+			newUpdates := updates[:0]
+			if len(deletes) > 0 {
+				for k, matchUpdate := range matchUpdates {
+					if _, ok := matchDeletes[k]; ok {
+						newUpdates = append(newUpdates, matchUpdate.(DBChange))
+					}
 				}
+				updates = newUpdates
 			}
-			updates = newUpdates
-		}
+		*/
+
 	}
 
 	return &DBChangeSet{
@@ -1210,7 +1213,7 @@ func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.V
 	if err != nil {
 		return nil, nil, err
 	}
-	_, joins, whereFields := getQueryParts(tableMetadata, lookups, tableAliasCache)
+	_, joins, whereFields := getQueryParts(tableMetadata, lookups, tableAliasCache, true)
 
 	return whereFields, joins, nil
 

@@ -77,22 +77,6 @@ func (eh ExpectationHelper) getUpdateDBColumns() []string {
 	return tableMetadata.getColumnNamesForUpdate()
 }
 
-/*func (eh ExpectationHelper) getDeletePrimaryKeyValue(object reflect.Value) interface{} {
-	tableMetadata := eh.getTableMetadata()
-	var value driver.Value
-	for _, dataField := range tableMetadata.getFields() {
-		field := object.FieldByName(dataField.name)
-		if !field.IsValid() {
-			continue
-		}
-		fieldValue := field.Interface()
-		if dataField.isPrimaryKey {
-			value = fieldValue
-		}
-	}
-	return value
-}*/
-
 func (eh ExpectationHelper) getColumnValues(object reflect.Value, isUpdate bool, includePrimaryKey bool) []driver.Value {
 	tableMetadata := eh.getTableMetadata()
 	values := []driver.Value{}
@@ -202,14 +186,10 @@ func GetLookupKeys(expect ExpectationHelper, objects interface{}) []string {
 
 // ExpectLookup Mocks a lookup request to the database. Makes a request for the lookup keys
 // and returns the rows privided in the returnKeys argument
-func ExpectLookup(mock *sqlmock.Sqlmock, expect ExpectationHelper, lookupKeys []string, returnData [][]driver.Value, doLookup bool) {
+func ExpectLookup(mock *sqlmock.Sqlmock, expect ExpectationHelper, lookupKeys []string, returnData [][]driver.Value) {
 
 	returnRows := sqlmock.NewRows(expect.LookupReturnCols)
 	for _, row := range returnData {
-		if expect.DeleteExisting {
-			// change one of the row values so it won't be matched later for deletion
-			row[0] = "fakeID"
-		}
 		returnRows.AddRow(row...)
 	}
 
@@ -223,7 +203,7 @@ func ExpectLookup(mock *sqlmock.Sqlmock, expect ExpectationHelper, lookupKeys []
 		WHERE `
 
 	var expectedArgs []driver.Value
-	if doLookup {
+	if expect.LookupWhere != "" {
 		expectSQL = expectSQL + regexp.QuoteMeta(expect.LookupWhere) + ` = ANY\(\$1\) AND ` + expect.getTableName() + `.organization_id = \$2`
 		expectedArgs = []driver.Value{
 			pq.Array(lookupKeys),
@@ -360,7 +340,7 @@ func ExpectUpdate(mock *sqlmock.Sqlmock, expect ExpectationHelper, objects inter
 }
 
 // RunImportTest Runs a Test Object Import Test
-func RunImportTest(testObjects interface{}, testFunction func(*sqlmock.Sqlmock, interface{}) interface{}) error {
+func RunImportTest(testObjects interface{}, testFunction func(*sqlmock.Sqlmock, interface{})) error {
 	// Open new mock database
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -374,12 +354,7 @@ func RunImportTest(testObjects interface{}, testFunction func(*sqlmock.Sqlmock, 
 	userID := sampleUserID
 
 	mock.ExpectBegin()
-	// when fixtures need to be updated due to new uuid fields
-	// ie. id fields
-	updatedFixtures := testFunction(&mock, testObjects)
-	if updatedFixtures != nil {
-		testObjects = updatedFixtures
-	}
+	testFunction(&mock, testObjects)
 	mock.ExpectCommit()
 	// Deploy the list of data sources
 	return New(orgID, userID).Deploy(testObjects)
