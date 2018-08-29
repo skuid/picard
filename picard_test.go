@@ -622,10 +622,15 @@ func TestDeployments(t *testing.T) {
 					WillReturnRows(
 						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
 							AddRow("ChildRecord", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
-							AddRow("Orphan1", "00000000-0000-0000-0000-000000000002", parentIDs[0]),
+							AddRow("ChildRecord2", "00000000-0000-0000-0000-000000000002", parentIDs[0]).
+							AddRow("ChildRecord3", "00000000-0000-0000-0000-000000000003", parentIDs[1]).
+							// Match on name, but not parent id, still should delete
+							AddRow("ChildRecord4", "00000000-0000-0000-0000-000000000004", parentIDs[0]).
+							AddRow("Orphan1", "00000000-0000-0000-0000-000000000005", parentIDs[0]).
+							AddRow("Orphan2", "00000000-0000-0000-0000-000000000006", parentIDs[0]),
 					)
 
-				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000002"})
+				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000004", "00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000006"})
 				ExpectUpdate(mock, testChildObjectHelper, childObjects, childReturnData)
 
 				// Expect the lookup to find orphans to delete for the second child field
