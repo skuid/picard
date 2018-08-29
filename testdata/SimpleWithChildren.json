@@ -3,7 +3,10 @@
 	"type": "SimpleWithChildrenType",
 	"children": [
 		{
-		   "name": "ChildRecord"
+			"name": "ChildRecord"
+		},
+		{
+			"name": "ChildRecord2"
 		}
 	 ]
  }

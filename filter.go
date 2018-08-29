@@ -1,6 +1,7 @@
 package picard
 
 import (
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -16,7 +17,7 @@ func (p PersistenceORM) getFilterModelResults(filterModelValue reflect.Value, fi
 		return nil, err
 	}
 
-	filterResults, err := p.doFilterSelect(filterModelValue.Type(), whereClauses, joinClauses)
+	filterResults, err := p.doFilterSelect(filterModelValue.Type(), whereClauses, joinClauses, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -26,6 +27,43 @@ func (p PersistenceORM) getFilterModelResults(filterModelValue reflect.Value, fi
 // FilterModel returns models that match the provided struct, ignoring zero values.
 func (p PersistenceORM) FilterModel(filterModel interface{}) ([]interface{}, error) {
 	return p.FilterModelAssociations(filterModel, nil)
+}
+
+// FilterModels returns models that match the provided struct, multiple models can be provided
+func (p PersistenceORM) FilterModels(filterModels interface{}, transaction *sql.Tx) ([]interface{}, error) {
+	s := reflect.ValueOf(filterModels)
+	filterMetadata := tableMetadataFromType(s.Type().Elem())
+	ors := squirrel.Or{}
+
+	for i := 0; i < s.Len(); i++ {
+		filterModelValue := s.Index(i)
+		whereClauses, joinClauses, err := p.generateWhereClausesFromModel(filterModelValue, nil, filterMetadata)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(joinClauses) > 0 {
+			return nil, errors.New("Cannot filter on related data for multi-filters")
+		}
+
+		var ands squirrel.And
+		ands = whereClauses
+		ors = append(ors, ands)
+	}
+	finalWhere := squirrel.And{
+		ors,
+	}
+	filterResults, err := p.doFilterSelect(s.Type().Elem(), finalWhere, nil, transaction)
+	if err != nil {
+		return nil, err
+	}
+
+	concreteResults := []interface{}{}
+	for _, result := range filterResults {
+		concreteResults = append(concreteResults, reflect.ValueOf(result).Elem().Interface())
+	}
+
+	return concreteResults, nil
 }
 
 // FilterModelAssociations returns models that match the provide struct and also
@@ -94,9 +132,14 @@ func (p PersistenceORM) processAssociations(associations []Association, filterMo
 	return nil
 }
 
-func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClauses []squirrel.Sqlizer, joinClauses []string) ([]interface{}, error) {
+func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClauses []squirrel.Sqlizer, joinClauses []string, transaction *sql.Tx) ([]interface{}, error) {
 	var returnModels []interface{}
-	db := GetConnection()
+	var db squirrel.BaseRunner
+	if transaction == nil {
+		db = GetConnection()
+	} else {
+		db = transaction
+	}
 
 	tableMetadata := tableMetadataFromType(filterModelType)
 	columnNames := tableMetadata.getColumnNames()
@@ -104,7 +147,7 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 
 	query := createQueryFromParts(tableName, columnNames, joinClauses, whereClauses)
 
-	query = query.RunWith(db)
+	query = query.PlaceholderFormat(squirrel.Dollar).RunWith(db)
 
 	rows, err := query.Query()
 	if err != nil {

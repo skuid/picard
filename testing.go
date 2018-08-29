@@ -57,6 +57,11 @@ func (eh ExpectationHelper) getTableMetadata() *tableMetadata {
 	return eh.TableMetadata
 }
 
+func (eh ExpectationHelper) getPrimaryKeyColumnName() string {
+	tableMetadata := eh.getTableMetadata()
+	return tableMetadata.getPrimaryKeyColumnName()
+}
+
 func (eh ExpectationHelper) getInsertDBColumns(includePrimaryKey bool) []string {
 	tableMetadata := eh.getTableMetadata()
 	if includePrimaryKey {
@@ -84,6 +89,9 @@ func (eh ExpectationHelper) getColumnValues(object reflect.Value, isUpdate bool,
 		}
 
 		field := object.FieldByName(dataField.name)
+		if !field.IsValid() {
+			continue
+		}
 		value := field.Interface()
 		if dataField.isMultitenancyKey {
 			value = sampleOrgID
@@ -132,7 +140,6 @@ func GetReturnDataForLookup(expect ExpectationHelper, foundObjects interface{}) 
 			returnItem := []driver.Value{
 				uuid.NewV4().String(),
 			}
-
 			for _, lookup := range expect.LookupFields {
 				field := object.FieldByName(lookup)
 				value := field.String()
@@ -176,7 +183,6 @@ func GetLookupKeys(expect ExpectationHelper, objects interface{}) []string {
 func ExpectLookup(mock *sqlmock.Sqlmock, expect ExpectationHelper, lookupKeys []string, returnData [][]driver.Value) {
 
 	returnRows := sqlmock.NewRows(expect.LookupReturnCols)
-
 	for _, row := range returnData {
 		returnRows.AddRow(row...)
 	}
@@ -185,14 +191,14 @@ func ExpectLookup(mock *sqlmock.Sqlmock, expect ExpectationHelper, lookupKeys []
 	if fromStatement == "" {
 		fromStatement = expect.getTableName()
 	}
-
 	expectSQL := `
 		SELECT ` + regexp.QuoteMeta(expect.LookupSelect) + ` 
-		FROM ` + regexp.QuoteMeta(fromStatement) + ` 
-		WHERE ` + regexp.QuoteMeta(expect.LookupWhere) + ` = ANY\(\$1\) AND ` + expect.getTableName() + `.organization_id = \$2
-	`
+		FROM ` + regexp.QuoteMeta(fromStatement) + `
+		WHERE `
 
-	expectedArgs := []driver.Value{
+	var expectedArgs []driver.Value
+	expectSQL = expectSQL + regexp.QuoteMeta(expect.LookupWhere) + ` = ANY\(\$1\) AND ` + expect.getTableName() + `.organization_id = \$2`
+	expectedArgs = []driver.Value{
 		pq.Array(lookupKeys),
 		sampleOrgID,
 	}
@@ -213,6 +219,31 @@ func getReturnDataForInsert(expect ExpectationHelper, objects interface{}) [][]d
 	}
 
 	return returnData
+}
+
+// ExpectQuery is just a wrapper around sqlmock
+func ExpectQuery(mock *sqlmock.Sqlmock, expectSQL string) *sqlmock.ExpectedQuery {
+	return (*mock).ExpectQuery(expectSQL)
+}
+
+// ExpectDelete Mocks a delete request to the database.
+func ExpectDelete(mock *sqlmock.Sqlmock, expect ExpectationHelper, expectedIDs []string) [][]driver.Value {
+	deletePKField := expect.getPrimaryKeyColumnName()
+	valueParams := []string{}
+	for index := range expectedIDs {
+		valueParams = append(valueParams, `\$`+strconv.Itoa(index+1))
+	}
+	expectSQL := `
+		DELETE FROM ` + expect.getTableName() + `
+		WHERE ` + deletePKField + ` IN \(` + strings.Join(valueParams, ",") + `\) AND organization_id = \$` + strconv.Itoa(len(expectedIDs)+1)
+
+	expectedArgs := []driver.Value{}
+	for _, ID := range expectedIDs {
+		expectedArgs = append(expectedArgs, ID)
+	}
+	expectedArgs = append(expectedArgs, sampleOrgID)
+	(*mock).ExpectExec(expectSQL).WithArgs(expectedArgs...).WillReturnResult(sqlmock.NewResult(1, 1))
+	return nil
 }
 
 // ExpectInsert Mocks an insert request to the database.
@@ -317,11 +348,8 @@ func RunImportTest(testObjects interface{}, testFunction func(*sqlmock.Sqlmock, 
 	userID := sampleUserID
 
 	mock.ExpectBegin()
-
 	testFunction(&mock, testObjects)
-
 	mock.ExpectCommit()
-
 	// Deploy the list of data sources
 	return New(orgID, userID).Deploy(testObjects)
 
