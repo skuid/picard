@@ -197,19 +197,10 @@ func ExpectLookup(mock *sqlmock.Sqlmock, expect ExpectationHelper, lookupKeys []
 		WHERE `
 
 	var expectedArgs []driver.Value
-	if expect.LookupWhere != "" {
-		expectSQL = expectSQL + regexp.QuoteMeta(expect.LookupWhere) + ` = ANY\(\$1\) AND ` + expect.getTableName() + `.organization_id = \$2`
-		expectedArgs = []driver.Value{
-			pq.Array(lookupKeys),
-			sampleOrgID,
-		}
-	} else {
-		expectSQL = expectSQL +
-			expect.getTableName() + `.organization_id = \$1`
-		expectedArgs = []driver.Value{
-			sampleOrgID,
-		}
-
+	expectSQL = expectSQL + regexp.QuoteMeta(expect.LookupWhere) + ` = ANY\(\$1\) AND ` + expect.getTableName() + `.organization_id = \$2`
+	expectedArgs = []driver.Value{
+		pq.Array(lookupKeys),
+		sampleOrgID,
 	}
 
 	(*mock).ExpectQuery(expectSQL).WithArgs(expectedArgs...).WillReturnRows(returnRows)
