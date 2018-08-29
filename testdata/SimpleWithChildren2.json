@@ -1,0 +1,12 @@
+{
+	"name": "SimpleWithChildren2",
+	"type": "SimpleWithChildrenType",
+	"children": [
+		{
+			"name": "ChildRecord3"
+		},
+		{
+			"name": "ChildRecord4"
+		}
+	 ]
+ }

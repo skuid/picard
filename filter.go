@@ -49,9 +49,11 @@ func (p PersistenceORM) FilterModels(filterModels interface{}, transaction *sql.
 		var ands squirrel.And
 		ands = whereClauses
 		ors = append(ors, ands)
-
 	}
-	filterResults, err := p.doFilterSelect(s.Type().Elem(), ors, nil, transaction)
+	finalWhere := squirrel.And{
+		ors,
+	}
+	filterResults, err := p.doFilterSelect(s.Type().Elem(), finalWhere, nil, transaction)
 	if err != nil {
 		return nil, err
 	}

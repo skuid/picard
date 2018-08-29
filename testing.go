@@ -221,6 +221,11 @@ func getReturnDataForInsert(expect ExpectationHelper, objects interface{}) [][]d
 	return returnData
 }
 
+// ExpectQuery is just a wrapper around sqlmock
+func ExpectQuery(mock *sqlmock.Sqlmock, expectSQL string) *sqlmock.ExpectedQuery {
+	return (*mock).ExpectQuery(expectSQL)
+}
+
 // ExpectDelete Mocks a delete request to the database.
 func ExpectDelete(mock *sqlmock.Sqlmock, expect ExpectationHelper, expectedIDs []string) [][]driver.Value {
 	deletePKField := expect.getPrimaryKeyColumnName()

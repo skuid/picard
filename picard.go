@@ -623,11 +623,13 @@ func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, tableMetad
 			childValue := originalValue.FieldByName(child.FieldName)
 			foreignKeyValue := changeObject.changes[primaryKeyColumnName]
 
-			// If we're doing deletes
-			filter := reflect.New(child.FieldType.Elem()).Elem()
-			foreignKeyField := filter.FieldByName(child.ForeignKey)
-			foreignKeyField.SetString(foreignKeyValue.(string))
-			deleteFiltersValue = reflect.Append(data, filter)
+			if tableMetadata.deleteOrphans {
+				// If we're doing deletes
+				filter := reflect.New(child.FieldType.Elem()).Elem()
+				foreignKeyField := filter.FieldByName(child.ForeignKey)
+				foreignKeyField.SetString(foreignKeyValue.(string))
+				deleteFiltersValue = reflect.Append(deleteFiltersValue, filter)
+			}
 
 			if childValue.Kind() == reflect.Slice {
 				for i := 0; i < childValue.Len(); i++ {
@@ -665,7 +667,7 @@ func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, tableMetad
 			}
 		}
 
-		if !tableMetadata.deleteOrphans || deleteFiltersValue.Len() == 0 {
+		if deleteFiltersValue.Len() == 0 {
 			deleteFilters = nil
 		} else {
 			deleteFilters = deleteFiltersValue.Interface()
