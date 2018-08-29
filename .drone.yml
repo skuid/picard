@@ -5,7 +5,6 @@ workspace:
 pipeline:
   test:
     image: golang:1.9-alpine
-    pull: true
     environment:
       CGO_ENABLED: '1'
     commands:
