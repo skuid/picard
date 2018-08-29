@@ -1,7 +1,7 @@
 package picard
 
 import (
-	"errors"
+	"reflect"
 
 	"github.com/Masterminds/squirrel"
 )
@@ -16,6 +16,7 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 
 	tableMetadata := tableMetadataFromType(modelValue.Type())
 	tableName := tableMetadata.getTableName()
+	multitenancyKeyColumnName := tableMetadata.getMultitenancyKeyColumnName()
 
 	whereClauses, joinClauses, err := porm.generateWhereClausesFromModel(modelValue, nil, tableMetadata)
 	if err != nil {
@@ -23,7 +24,29 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 	}
 
 	if len(joinClauses) > 0 {
-		return 0, errors.New("Cannot filter on related data for deletes")
+		// If we have join clauses, we'll have to fetch the ids and then delete them.
+		fetchResults, err := porm.FilterModel(model)
+		if err != nil {
+			return 0, err
+		}
+
+		deleteKeys := []string{}
+
+		for _, fetchResult := range fetchResults {
+			resultValue := reflect.ValueOf(fetchResult)
+			resultID := resultValue.FieldByName(tableMetadata.getPrimaryKeyFieldName())
+			deleteKeys = append(deleteKeys, resultID.String())
+		}
+
+		whereClauses = []squirrel.Sqlizer{
+			squirrel.Eq{
+				tableMetadata.getPrimaryKeyColumnName(): deleteKeys,
+			},
+		}
+
+		if multitenancyKeyColumnName != "" {
+			whereClauses = append(whereClauses, squirrel.Eq{multitenancyKeyColumnName: porm.multitenancyValue})
+		}
 	}
 
 	if porm.transaction == nil {
