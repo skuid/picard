@@ -231,18 +231,22 @@ func getReturnDataForInsert(expect ExpectationHelper, objects interface{}) [][]d
 }
 
 // ExpectDelete Mocks a delete request to the database.
-func ExpectDelete(mock *sqlmock.Sqlmock, expect ExpectationHelper, object interface{}, lookupResults [][]driver.Value) [][]driver.Value {
+func ExpectDelete(mock *sqlmock.Sqlmock, expect ExpectationHelper, expectedIDs []string) [][]driver.Value {
 	deletePKField := expect.getPrimaryKeyColumnName()
+	valueParams := []string{}
+	for index := range expectedIDs {
+		valueParams = append(valueParams, `\$`+strconv.Itoa(index+1))
+	}
 	expectSQL := `
 		DELETE FROM ` + expect.getTableName() + `
-		WHERE ` + deletePKField + ` = \$1 AND organization_id = \$2`
+		WHERE ` + deletePKField + ` IN \(` + strings.Join(valueParams, ",") + `\) AND organization_id = \$` + strconv.Itoa(len(expectedIDs)+1)
 
-	pKArg := lookupResults[0][0]
 	expectedArgs := []driver.Value{}
-	expectedArgs = append(expectedArgs, pKArg)
+	for _, ID := range expectedIDs {
+		expectedArgs = append(expectedArgs, ID)
+	}
 	expectedArgs = append(expectedArgs, sampleOrgID)
 	(*mock).ExpectExec(expectSQL).WithArgs(expectedArgs...).WillReturnResult(sqlmock.NewResult(1, 1))
-
 	return nil
 }
 

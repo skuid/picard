@@ -32,7 +32,7 @@ type tableMetadata struct {
 	lookups              []Lookup
 	foreignKeys          []ForeignKey
 	children             []Child
-	deleteExisting       bool
+	deleteOrphans        bool
 }
 
 func (tm tableMetadata) getTableName() string {
@@ -217,16 +217,15 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 		_, isForeignKey := tagsMap["foreign_key"]
 		_, isEncrypted := tagsMap["encrypted"]
 		_, isJSONB := tagsMap["jsonb"]
-		_, deleteExisting := tagsMap["deleteExisting"]
-		_, isNameField := tagsMap["namefield"]
+		_, deleteOrphans := tagsMap["delete_orphans"]
 		auditType, _ := tagsMap["audit"]
 
 		if field.Type == reflect.TypeOf(metadata) {
 			if hasTableName {
 				tableMetadata.tableName = tagsMap["tablename"]
 			}
-			if deleteExisting {
-				tableMetadata.deleteExisting = true
+			if deleteOrphans {
+				tableMetadata.deleteOrphans = true
 			}
 		}
 
@@ -299,7 +298,6 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 			lookups = append(lookups, Lookup{
 				MatchDBColumn:       tagsMap["column"],
 				MatchObjectProperty: field.Name,
-				IsNameField:         isNameField,
 			})
 		}
 

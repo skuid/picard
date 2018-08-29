@@ -621,7 +621,7 @@ func TestDoFilterSelect(t *testing.T) {
 				performedBy:       testPerformedByValue,
 			}
 
-			results, err := p.doFilterSelect(tc.filterModelType, tc.whereClauses, tc.joinClauses)
+			results, err := p.doFilterSelect(tc.filterModelType, tc.whereClauses, tc.joinClauses, nil)
 
 			if tc.wantErr != nil {
 				assert.Error(t, err)
@@ -759,7 +759,7 @@ func TestDoFilterSelectWithEncrypted(t *testing.T) {
 			oldReader := rand.Reader
 			rand.Reader = strings.NewReader(tc.nonce)
 
-			results, err := p.doFilterSelect(tc.filterModelType, tc.whereClauses, []string{})
+			results, err := p.doFilterSelect(tc.filterModelType, tc.whereClauses, []string{}, nil)
 
 			// Tear down known nonce
 			rand.Reader = oldReader
@@ -901,7 +901,7 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 				performedBy:       testPerformedByValue,
 			}
 
-			results, err := p.doFilterSelect(tc.filterModelType, tc.whereClauses, []string{})
+			results, err := p.doFilterSelect(tc.filterModelType, tc.whereClauses, []string{}, nil)
 
 			if tc.wantErr != nil {
 				assert.Error(t, err)
