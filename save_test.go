@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/skuid/picard/dbchange"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -812,7 +813,7 @@ func TestSetPrimaryKeyFromInsertResult(t *testing.T) {
 	testCases := []struct {
 		description  string
 		giveValue    reflect.Value
-		giveDBChange DBChange
+		giveDBChange dbchange.Change
 		wantValue    reflect.Value
 	}{
 		{
@@ -820,8 +821,8 @@ func TestSetPrimaryKeyFromInsertResult(t *testing.T) {
 			reflect.Indirect(reflect.ValueOf(&struct {
 				PrimaryKeyField string `picard:"primary_key,column=primary_key_column"`
 			}{})),
-			DBChange{
-				changes: map[string]interface{}{
+			dbchange.Change{
+				Changes: map[string]interface{}{
 					"primary_key_column": "00000000-0000-0000-0000-000000000001",
 				},
 			},
@@ -836,8 +837,8 @@ func TestSetPrimaryKeyFromInsertResult(t *testing.T) {
 			reflect.Indirect(reflect.ValueOf(&struct {
 				PrimaryKeyField string `picard:"primary_key,column=another_pk_column"`
 			}{})),
-			DBChange{
-				changes: map[string]interface{}{
+			dbchange.Change{
+				Changes: map[string]interface{}{
 					"another_pk_column": "00000000-0000-0000-0000-000000000002",
 				},
 			},
@@ -852,8 +853,8 @@ func TestSetPrimaryKeyFromInsertResult(t *testing.T) {
 			reflect.Indirect(reflect.ValueOf(&struct {
 				PrimaryKeyField string `picard:"column=primary_key_column"`
 			}{})),
-			DBChange{
-				changes: map[string]interface{}{
+			dbchange.Change{
+				Changes: map[string]interface{}{
 					"primary_key_column": "00000000-0000-0000-0000-000000000001",
 				},
 			},

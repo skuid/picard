@@ -94,7 +94,6 @@ func TestTableMetadataFromType(t *testing.T) {
 					Lookup{
 						MatchDBColumn:       "test_lookup",
 						MatchObjectProperty: "TestLookup",
-						Query:               true,
 					},
 				},
 				foreignKeys: []ForeignKey{},

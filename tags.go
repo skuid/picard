@@ -218,8 +218,10 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 		_, isJSONB := tagsMap["jsonb"]
 		auditType, _ := tagsMap["audit"]
 
-		if field.Type == reflect.TypeOf(metadata) && hasTableName {
-			tableMetadata.tableName = tagsMap["tablename"]
+		if field.Type == reflect.TypeOf(metadata) {
+			if hasTableName {
+				tableMetadata.tableName = tagsMap["tablename"]
+			}
 		}
 
 		if hasColumnName {
@@ -252,6 +254,7 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 			keyMappingString := tagsMap["key_mapping"]
 			valueMappingString := tagsMap["value_mappings"]
 			groupingCriteriaString := tagsMap["grouping_criteria"]
+			_, deleteOrphans := tagsMap["delete_orphans"]
 
 			if groupingCriteriaString != "" {
 				groupingCriteriaMap = map[string]string{}
@@ -283,6 +286,7 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 				KeyMapping:       keyMapping,
 				ValueMappings:    valueMappingMap,
 				GroupingCriteria: groupingCriteriaMap,
+				DeleteOrphans:    deleteOrphans,
 			})
 
 		}
@@ -291,7 +295,6 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 			lookups = append(lookups, Lookup{
 				MatchDBColumn:       tagsMap["column"],
 				MatchObjectProperty: field.Name,
-				Query:               true,
 			})
 		}
 

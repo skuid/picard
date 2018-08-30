@@ -15,6 +15,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
+	"github.com/skuid/picard/dbchange"
 	validator "gopkg.in/go-playground/validator.v9"
 )
 
@@ -33,7 +34,6 @@ type Lookup struct {
 	MatchDBColumn       string
 	MatchObjectProperty string
 	JoinKey             string
-	Query               bool
 	Value               interface{}
 	SubQuery            []Lookup
 	SubQueryForeignKey  string
@@ -49,6 +49,7 @@ type Child struct {
 	KeyMapping       string
 	ValueMappings    map[string]string
 	GroupingCriteria map[string]string
+	DeleteOrphans    bool
 }
 
 // ForeignKey structure
@@ -62,20 +63,6 @@ type ForeignKey struct {
 	LookupResults    map[string]interface{}
 	LookupsUsed      []Lookup
 	KeyMapField      string
-}
-
-// DBChange structure
-type DBChange struct {
-	changes       map[string]interface{}
-	originalValue reflect.Value
-}
-
-// DBChangeSet structure
-type DBChangeSet struct {
-	inserts               []DBChange
-	updates               []DBChange
-	deletes               []DBChange
-	insertsHavePrimaryKey bool
 }
 
 // ORM interface describes the behavior API of any picard ORM
@@ -135,14 +122,14 @@ func (p PersistenceORM) Deploy(data interface{}) error {
 
 	p.transaction = tx
 
-	if err = p.upsert(data); err != nil {
+	if err = p.upsert(data, nil); err != nil {
 		return err
 	}
 
 	return tx.Commit()
 }
 
-func (p PersistenceORM) upsert(data interface{}) error {
+func (p PersistenceORM) upsert(data interface{}, deleteFilters interface{}) error {
 	tableMetadata, err := getTableMetadata(data)
 	if err != nil {
 		return err
@@ -155,10 +142,16 @@ func (p PersistenceORM) upsert(data interface{}) error {
 			if end > dataCount {
 				end = dataCount
 			}
-			err := p.upsertBatch(dataValue.Slice(i, end).Interface(), tableMetadata)
+			err := p.upsertBatch(dataValue.Slice(i, end).Interface(), deleteFilters, tableMetadata)
 			if err != nil {
 				return err
 			}
+		}
+	} else {
+		// We need to do an empty batch for certain types of deployments like delete existing
+		err := p.upsertBatch(data, deleteFilters, tableMetadata)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -166,26 +159,29 @@ func (p PersistenceORM) upsert(data interface{}) error {
 
 // Upsert takes data in the form of a slice of structs and performs a series of database
 // operations that will sync the database with the state of that deployment payload
-func (p PersistenceORM) upsertBatch(data interface{}, tableMetadata *tableMetadata) error {
+func (p PersistenceORM) upsertBatch(data interface{}, deleteFilters interface{}, tableMetadata *tableMetadata) error {
 
-	changeSet, err := p.generateChanges(data, tableMetadata)
+	changeSet, err := p.generateChanges(data, deleteFilters, tableMetadata)
 	if err != nil {
 		return err
 	}
 
 	// Execute Delete Queries
+	if err := p.performDeletes(changeSet.Deletes, tableMetadata); err != nil {
+		return err
+	}
 
 	// Execute Update Queries
-	if err := p.performUpdates(changeSet.updates, tableMetadata); err != nil {
+	if err := p.performUpdates(changeSet.Updates, tableMetadata); err != nil {
 		return err
 	}
 
 	// Execute Insert Queries
-	if err := p.performInserts(changeSet.inserts, changeSet.insertsHavePrimaryKey, tableMetadata); err != nil {
+	if err := p.performInserts(changeSet.Inserts, changeSet.InsertsHavePrimaryKey, tableMetadata); err != nil {
 		return err
 	}
 
-	combinedOperations := append(changeSet.updates, changeSet.inserts...)
+	combinedOperations := append(changeSet.Updates, changeSet.Inserts...)
 
 	// Perform Child Upserts
 	err = p.performChildUpserts(combinedOperations, tableMetadata)
@@ -197,7 +193,34 @@ func (p PersistenceORM) upsertBatch(data interface{}, tableMetadata *tableMetada
 	return nil
 }
 
-func (p PersistenceORM) performUpdates(updates []DBChange, tableMetadata *tableMetadata) error {
+func (p PersistenceORM) performDeletes(deletes []dbchange.Change, tableMetadata *tableMetadata) error {
+	if len(deletes) > 0 {
+		tableName := tableMetadata.tableName
+		primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
+		multitenancyKeyColumnName := tableMetadata.getMultitenancyKeyColumnName()
+
+		psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+		keys := []string{}
+		for _, delete := range deletes {
+			changes := delete.Changes
+			keys = append(keys, changes[primaryKeyColumnName].(string))
+		}
+
+		deleteQuery := psql.Delete(tableName)
+		deleteQuery = deleteQuery.Where(squirrel.Eq{primaryKeyColumnName: keys})
+
+		if multitenancyKeyColumnName != "" {
+			deleteQuery = deleteQuery.Where(squirrel.Eq{multitenancyKeyColumnName: p.multitenancyValue})
+		}
+		_, err := deleteQuery.RunWith(p.transaction).Exec()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p PersistenceORM) performUpdates(updates []dbchange.Change, tableMetadata *tableMetadata) error {
 	if len(updates) > 0 {
 
 		tableName := tableMetadata.tableName
@@ -210,7 +233,7 @@ func (p PersistenceORM) performUpdates(updates []DBChange, tableMetadata *tableM
 		psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 		for _, update := range updates {
-			changes := update.changes
+			changes := update.Changes
 			updateQuery := psql.Update(tableName)
 
 			for _, columnName := range columnNames {
@@ -235,7 +258,7 @@ func (p PersistenceORM) performUpdates(updates []DBChange, tableMetadata *tableM
 	return nil
 }
 
-func (p PersistenceORM) performInserts(inserts []DBChange, insertsHavePrimaryKey bool, tableMetadata *tableMetadata) error {
+func (p PersistenceORM) performInserts(inserts []dbchange.Change, insertsHavePrimaryKey bool, tableMetadata *tableMetadata) error {
 	if len(inserts) > 0 {
 
 		psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
@@ -256,7 +279,7 @@ func (p PersistenceORM) performInserts(inserts []DBChange, insertsHavePrimaryKey
 		insertQuery = insertQuery.Columns(columnNames...)
 
 		for _, insert := range inserts {
-			changes := insert.changes
+			changes := insert.Changes
 			insertQuery = insertQuery.Values(getColumnValues(columnNames, changes)...)
 		}
 
@@ -274,7 +297,7 @@ func (p PersistenceORM) performInserts(inserts []DBChange, insertsHavePrimaryKey
 
 		// Insert our new keys into the change objects
 		for index, insert := range inserts {
-			insert.changes[primaryKeyColumnName] = insertResults[index][primaryKeyColumnName]
+			insert.Changes[primaryKeyColumnName] = insertResults[index][primaryKeyColumnName]
 		}
 	}
 	return nil
@@ -329,30 +352,30 @@ func (p PersistenceORM) checkForExisting(
 
 	columns, joins, whereFields := getQueryParts(tableMetadata, lookupsToUse, tableAliasCache)
 
-	wheres := []string{}
-
 	for _, join := range joins {
 		query = query.Join(join)
 	}
 
-	for _, whereField := range whereFields {
-		eq, ok := whereField.(squirrel.Eq)
-		if ok {
-			for whereFieldKey := range eq {
-				wheres = append(wheres, fmt.Sprintf("COALESCE(%v::\"varchar\",'')", whereFieldKey))
-			}
-		}
-	}
-
 	query = query.Columns(columns...)
 
-	query = query.Where(strings.Join(wheres, " || '"+separator+"' || ")+" = ANY($1)", pq.Array(lookupObjectKeys))
-
-	if multitenancyKeyColumnName != "" {
-		query = query.Where(fmt.Sprintf("%v.%v = $2", tableName, multitenancyKeyColumnName), p.multitenancyValue)
+	if len(whereFields) > 0 {
+		wheres := []string{}
+		for _, whereField := range whereFields {
+			eq, ok := whereField.(squirrel.Eq)
+			if ok {
+				for whereFieldKey := range eq {
+					wheres = append(wheres, fmt.Sprintf("COALESCE(%v::\"varchar\",'')", whereFieldKey))
+				}
+			}
+		}
+		query = query.Where(strings.Join(wheres, " || '"+separator+"' || ")+" = ANY(?)", pq.Array(lookupObjectKeys))
 	}
 
-	rows, err := query.RunWith(p.transaction).Query()
+	if multitenancyKeyColumnName != "" {
+		query = query.Where(fmt.Sprintf("%v.%v = ?", tableName, multitenancyKeyColumnName), p.multitenancyValue)
+	}
+
+	rows, err := query.PlaceholderFormat(squirrel.Dollar).RunWith(p.transaction).Query()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -378,7 +401,6 @@ func getLookupsFromForeignKeys(foreignKeys []ForeignKey, baseJoinKey string, bas
 					MatchDBColumn:       lookup.MatchDBColumn,
 					MatchObjectProperty: getMatchObjectProperty(baseObjectProperty, foreignKey.RelatedFieldName, lookup.MatchObjectProperty),
 					JoinKey:             joinKey,
-					Query:               true,
 				})
 			}
 			newBaseJoinKey := getTableAlias(tableMetadata.tableName, joinKey, tableAliasCache)
@@ -457,7 +479,6 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tableMetadata, foreign
 					TableName:           tableName,
 					MatchDBColumn:       primaryKeyColumnName,
 					MatchObjectProperty: primaryKeyFieldName,
-					Query:               true,
 				},
 			}, lookupsToUse...)
 		}
@@ -470,7 +491,6 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tableMetadata, foreign
 				lookupsToUse = append(lookupsToUse, Lookup{
 					MatchDBColumn:       foreignKey.KeyColumn,
 					MatchObjectProperty: foreignKey.FieldName,
-					Query:               true,
 				})
 			}
 		}
@@ -527,18 +547,15 @@ func getQueryParts(tableMetadata *tableMetadata, lookupsToUse []Lookup, tableAli
 			}
 		}
 		columns = append(columns, fmt.Sprintf("%[3]v.%[2]v as %[3]v_%[2]v", tableToUse, lookup.MatchDBColumn, tableAlias))
-		if lookup.Query {
-			if lookup.SubQuery != nil {
-				_, joinParts, whereParts := getQueryParts(lookup.SubQueryMetadata, lookup.SubQuery, tableAliasCache)
-				subQueryFKField := lookup.SubQueryMetadata.getField(lookup.SubQueryForeignKey)
-				subquery := createQueryFromParts(lookup.SubQueryMetadata.getTableName(), []string{subQueryFKField.columnName}, joinParts, whereParts)
-				// Use the question mark placeholder format so that no replacements are made.
-				sql, args, _ := subquery.PlaceholderFormat(squirrel.Question).ToSql()
-				whereFields = append(whereFields, squirrel.Expr(lookup.MatchDBColumn+" IN ("+sql+")", args...))
-			} else {
-				whereFields = append(whereFields, squirrel.Eq{fmt.Sprintf("%v.%v", tableAlias, lookup.MatchDBColumn): lookup.Value})
-			}
-
+		if lookup.SubQuery != nil {
+			_, joinParts, whereParts := getQueryParts(lookup.SubQueryMetadata, lookup.SubQuery, tableAliasCache)
+			subQueryFKField := lookup.SubQueryMetadata.getField(lookup.SubQueryForeignKey)
+			subquery := createQueryFromParts(lookup.SubQueryMetadata.getTableName(), []string{subQueryFKField.columnName}, joinParts, whereParts)
+			// Use the question mark placeholder format so that no replacements are made.
+			sql, args, _ := subquery.ToSql()
+			whereFields = append(whereFields, squirrel.Expr(lookup.MatchDBColumn+" IN ("+sql+")", args...))
+		} else {
+			whereFields = append(whereFields, squirrel.Eq{fmt.Sprintf("%v.%v", tableAlias, lookup.MatchDBColumn): lookup.Value})
 		}
 	}
 	return columns, joins, whereFields
@@ -553,7 +570,6 @@ func createQueryFromParts(tableName string, columnNames []string, joinClauses []
 
 	// Do select query with provided where clauses and columns/tablename
 	query := squirrel.StatementBuilder.
-		PlaceholderFormat(squirrel.Dollar).
 		Select(fullColumnNames...).
 		From(tableName)
 
@@ -567,28 +583,40 @@ func createQueryFromParts(tableName string, columnNames []string, joinClauses []
 	return query
 }
 
-func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, tableMetadata *tableMetadata) error {
+func (p PersistenceORM) performChildUpserts(changeObjects []dbchange.Change, tableMetadata *tableMetadata) error {
 
 	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
 
 	for _, child := range tableMetadata.children {
 
 		var data reflect.Value
+		var deleteFiltersValue reflect.Value
+		var deleteFilters interface{}
 		index := 0
 
 		if child.FieldKind == reflect.Slice {
 			// Creates a new Slice of the same type of elements that were stored in the slice of data.
 			data = reflect.New(child.FieldType).Elem()
+			deleteFiltersValue = reflect.New(child.FieldType).Elem()
 		} else if child.FieldKind == reflect.Map {
 			// Creates a new Slice of the type of elements that were stored in the map of data.
 			data = reflect.New(reflect.SliceOf(child.FieldType.Elem())).Elem()
+			deleteFiltersValue = reflect.New(reflect.SliceOf(child.FieldType.Elem())).Elem()
 		}
 
 		for _, changeObject := range changeObjects {
 			// Add the id of the parent to any foreign keys on the child
-			originalValue := changeObject.originalValue
+			originalValue := changeObject.OriginalValue
 			childValue := originalValue.FieldByName(child.FieldName)
-			foreignKeyValue := changeObject.changes[primaryKeyColumnName]
+			foreignKeyValue := changeObject.Changes[primaryKeyColumnName]
+
+			if child.DeleteOrphans && !childValue.IsNil() && changeObject.Type == dbchange.Update {
+				// If we're doing deletes
+				filter := reflect.New(child.FieldType.Elem()).Elem()
+				foreignKeyField := filter.FieldByName(child.ForeignKey)
+				foreignKeyField.SetString(foreignKeyValue.(string))
+				deleteFiltersValue = reflect.Append(deleteFiltersValue, filter)
+			}
 
 			if childValue.Kind() == reflect.Slice {
 				for i := 0; i < childValue.Len(); i++ {
@@ -624,14 +652,17 @@ func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, tableMetad
 					}
 				}
 			}
-
 		}
 
-		if data.Len() > 0 {
-			err := p.upsert(data.Interface())
-			if err != nil {
-				return err
-			}
+		if deleteFiltersValue.Len() == 0 {
+			deleteFilters = nil
+		} else {
+			deleteFilters = deleteFiltersValue.Interface()
+		}
+
+		err := p.upsert(data.Interface(), deleteFilters)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -642,16 +673,16 @@ func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, tableMetad
 // performed on the database.
 func (p PersistenceORM) generateChanges(
 	data interface{},
+	deleteFilters interface{},
 	tableMetadata *tableMetadata,
 ) (
-	*DBChangeSet,
+	*dbchange.ChangeSet,
 	error,
 ) {
 	foreignKeys := tableMetadata.foreignKeys
 	insertsHavePrimaryKey := false
 	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
-
-	results, lookups, err := p.checkForExisting(data, tableMetadata, nil)
+	lookupResults, lookups, err := p.checkForExisting(data, tableMetadata, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -666,29 +697,31 @@ func (p PersistenceORM) generateChanges(
 		foreignKey.LookupsUsed = foreignLookupsUsed
 	}
 
-	inserts := []DBChange{}
-	updates := []DBChange{}
-	deletes := []DBChange{}
+	inserts := []dbchange.Change{}
+	updates := []dbchange.Change{}
+	deletes := []dbchange.Change{}
 
 	s := reflect.ValueOf(data)
+
 	for i := 0; i < s.Len(); i++ {
 		value := s.Index(i)
 		objectKey := getObjectKeyReflect(value, lookups)
-		object := results[objectKey]
+
+		object := lookupResults[objectKey]
 
 		var existingObj map[string]interface{}
 
 		if object != nil {
 			existingObj = object.(map[string]interface{})
 		}
-
 		// TODO: Implement Delete Conditions
 		shouldDelete := false
 
 		if shouldDelete {
 			if existingObj != nil {
-				deletes = append(deletes, DBChange{
-					changes: existingObj,
+				deletes = append(deletes, dbchange.Change{
+					Changes: existingObj,
+					Type:    dbchange.Delete,
 				})
 			}
 			continue
@@ -707,25 +740,55 @@ func (p PersistenceORM) generateChanges(
 			return nil, err
 		}
 
-		if dbChange.changes == nil {
+		if dbChange.Changes == nil {
 			continue
 		}
 
+		dbChange.Key = objectKey
+
 		if existingObj != nil {
+			dbChange.Type = dbchange.Update
 			updates = append(updates, dbChange)
+
 		} else {
-			if !insertsHavePrimaryKey && dbChange.changes[primaryKeyColumnName] != nil {
+			dbChange.Type = dbchange.Insert
+			if !insertsHavePrimaryKey && dbChange.Changes[primaryKeyColumnName] != nil {
 				insertsHavePrimaryKey = true
 			}
 			inserts = append(inserts, dbChange)
 		}
 	}
 
-	return &DBChangeSet{
-		inserts:               inserts,
-		updates:               updates,
-		deletes:               deletes,
-		insertsHavePrimaryKey: insertsHavePrimaryKey,
+	if deleteFilters != nil {
+		deleteResults, err := p.FilterModels(deleteFilters, p.transaction)
+		if err != nil {
+			return nil, err
+		}
+
+		updateKeyMap := map[string]bool{}
+		for _, update := range updates {
+			updateKeyMap[update.Key] = true
+		}
+
+		for _, result := range deleteResults {
+			resultValue := reflect.ValueOf(result)
+			compoundObjectKey := getObjectKeyReflect(resultValue, lookups)
+			if _, ok := updateKeyMap[compoundObjectKey]; !ok {
+				deletes = append(deletes, dbchange.Change{
+					Changes: map[string]interface{}{
+						tableMetadata.getPrimaryKeyColumnName(): getObjectProperty(resultValue, tableMetadata.getPrimaryKeyFieldName()),
+					},
+					Type: dbchange.Delete,
+				})
+			}
+		}
+	}
+
+	return &dbchange.ChangeSet{
+		Inserts:               inserts,
+		Updates:               updates,
+		Deletes:               deletes,
+		InsertsHavePrimaryKey: insertsHavePrimaryKey,
 	}, nil
 }
 
@@ -776,7 +839,7 @@ func (p PersistenceORM) processObject(
 	databaseObject map[string]interface{},
 	foreignKeys []ForeignKey,
 	tableMetadata *tableMetadata,
-) (DBChange, error) {
+) (dbchange.Change, error) {
 	returnObject := map[string]interface{}{}
 
 	isUpdate := databaseObject != nil
@@ -847,7 +910,7 @@ func (p PersistenceORM) processObject(
 		default:
 			assertedBytes, ok := value.([]byte)
 			if !ok {
-				return DBChange{}, errors.New("can only encrypt values that can be converted to bytes")
+				return dbchange.Change{}, errors.New("can only encrypt values that can be converted to bytes")
 			}
 			valueAsBytes = assertedBytes
 		}
@@ -855,7 +918,7 @@ func (p PersistenceORM) processObject(
 		// Do encryption over bytes
 		encryptedValue, err := EncryptBytes(valueAsBytes)
 		if err != nil {
-			return DBChange{}, err
+			return dbchange.Change{}, err
 		}
 
 		// Base64 encode to get standard character set
@@ -883,20 +946,20 @@ func (p PersistenceORM) processObject(
 		} else {
 			// If it's optional we can just keep going, if it's required, throw an error
 			if foreignKey.Required {
-				return DBChange{}, errors.New("Missing Required Foreign Key Lookup")
+				return dbchange.Change{}, errors.New("Missing Required Foreign Key Lookup")
 			}
 		}
 	}
 
 	if !isUpdate {
 		if err := validator.New().Struct(metadataObject.Interface()); err != nil {
-			return DBChange{}, err
+			return dbchange.Change{}, err
 		}
 	}
 
-	return DBChange{
-		changes:       returnObject,
-		originalValue: metadataObject,
+	return dbchange.Change{
+		Changes:       returnObject,
+		OriginalValue: metadataObject,
 	}, nil
 }
 
@@ -1058,7 +1121,6 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 				MatchObjectProperty: field.Name,
 				TableName:           tableName,
 				JoinKey:             fullJoinKey,
-				Query:               true,
 				Value:               p.multitenancyValue,
 			})
 		case hasColumn && !isZeroField:
@@ -1072,7 +1134,6 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 				MatchObjectProperty: field.Name,
 				TableName:           tableName,
 				JoinKey:             fullJoinKey,
-				Query:               true,
 				Value:               fieldValue.Interface(),
 			})
 
@@ -1082,7 +1143,6 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 				MatchObjectProperty: field.Name,
 				TableName:           tableName,
 				JoinKey:             fullJoinKey,
-				Query:               true,
 				Value:               reflect.Zero(field.Type).Interface(),
 			})
 		case kind == reflect.Struct && !isZeroField:
@@ -1120,7 +1180,6 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 				lookups = append(lookups, Lookup{
 					MatchDBColumn:      primaryKeyColumnName,
 					TableName:          tableName,
-					Query:              true,
 					SubQuery:           subQueryLookups,
 					SubQueryForeignKey: foreignKeyField,
 					SubQueryMetadata:   relatedPicardTags,
