@@ -32,7 +32,6 @@ type tableMetadata struct {
 	lookups              []Lookup
 	foreignKeys          []ForeignKey
 	children             []Child
-	deleteOrphans        bool
 }
 
 func (tm tableMetadata) getTableName() string {
@@ -217,15 +216,11 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 		_, isForeignKey := tagsMap["foreign_key"]
 		_, isEncrypted := tagsMap["encrypted"]
 		_, isJSONB := tagsMap["jsonb"]
-		_, deleteOrphans := tagsMap["delete_orphans"]
 		auditType, _ := tagsMap["audit"]
 
 		if field.Type == reflect.TypeOf(metadata) {
 			if hasTableName {
 				tableMetadata.tableName = tagsMap["tablename"]
-			}
-			if deleteOrphans {
-				tableMetadata.deleteOrphans = true
 			}
 		}
 
@@ -259,6 +254,7 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 			keyMappingString := tagsMap["key_mapping"]
 			valueMappingString := tagsMap["value_mappings"]
 			groupingCriteriaString := tagsMap["grouping_criteria"]
+			_, deleteOrphans := tagsMap["delete_orphans"]
 
 			if groupingCriteriaString != "" {
 				groupingCriteriaMap = map[string]string{}
@@ -290,6 +286,7 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 				KeyMapping:       keyMapping,
 				ValueMappings:    valueMappingMap,
 				GroupingCriteria: groupingCriteriaMap,
+				DeleteOrphans:    deleteOrphans,
 			})
 
 		}

@@ -3,6 +3,8 @@ package picard
 import (
 	"errors"
 	"reflect"
+
+	"github.com/skuid/picard/dbchange"
 )
 
 // SaveModel performs an upsert operation for the provided model.
@@ -60,7 +62,7 @@ func (p PersistenceORM) updateModel(modelValue reflect.Value, tableMetadata *tab
 	if err != nil {
 		return err
 	}
-	return p.performUpdates([]DBChange{change}, tableMetadata)
+	return p.performUpdates([]dbchange.Change{change}, tableMetadata)
 }
 
 func (p PersistenceORM) insertModel(modelValue reflect.Value, tableMetadata *tableMetadata, primaryKeyValue interface{}) error {
@@ -69,17 +71,17 @@ func (p PersistenceORM) insertModel(modelValue reflect.Value, tableMetadata *tab
 		return err
 	}
 	insertsHavePrimaryKey := !(primaryKeyValue == nil || primaryKeyValue == "")
-	if err := p.performInserts([]DBChange{change}, insertsHavePrimaryKey, tableMetadata); err != nil {
+	if err := p.performInserts([]dbchange.Change{change}, insertsHavePrimaryKey, tableMetadata); err != nil {
 		return err
 	}
 	setPrimaryKeyFromInsertResult(modelValue, change, tableMetadata)
 	return nil
 }
 
-func setPrimaryKeyFromInsertResult(v reflect.Value, change DBChange, tableMetadata *tableMetadata) {
+func setPrimaryKeyFromInsertResult(v reflect.Value, change dbchange.Change, tableMetadata *tableMetadata) {
 	fieldName := tableMetadata.getPrimaryKeyFieldName()
 	columnName := tableMetadata.getPrimaryKeyColumnName()
 	if fieldName != "" {
-		v.FieldByName(fieldName).Set(reflect.ValueOf(change.changes[columnName]))
+		v.FieldByName(fieldName).Set(reflect.ValueOf(change.Changes[columnName]))
 	}
 }

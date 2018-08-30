@@ -15,6 +15,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
+	"github.com/skuid/picard/dbchange"
 	validator "gopkg.in/go-playground/validator.v9"
 )
 
@@ -48,6 +49,7 @@ type Child struct {
 	KeyMapping       string
 	ValueMappings    map[string]string
 	GroupingCriteria map[string]string
+	DeleteOrphans    bool
 }
 
 // ForeignKey structure
@@ -61,21 +63,6 @@ type ForeignKey struct {
 	LookupResults    map[string]interface{}
 	LookupsUsed      []Lookup
 	KeyMapField      string
-}
-
-// DBChange structure
-type DBChange struct {
-	changes       map[string]interface{}
-	originalValue reflect.Value
-	key           string
-}
-
-// DBChangeSet structure
-type DBChangeSet struct {
-	inserts               []DBChange
-	updates               []DBChange
-	deletes               []DBChange
-	insertsHavePrimaryKey bool
 }
 
 // ORM interface describes the behavior API of any picard ORM
@@ -180,21 +167,21 @@ func (p PersistenceORM) upsertBatch(data interface{}, deleteFilters interface{},
 	}
 
 	// Execute Delete Queries
-	if err := p.performDeletes(changeSet.deletes, tableMetadata); err != nil {
+	if err := p.performDeletes(changeSet.Deletes, tableMetadata); err != nil {
 		return err
 	}
 
 	// Execute Update Queries
-	if err := p.performUpdates(changeSet.updates, tableMetadata); err != nil {
+	if err := p.performUpdates(changeSet.Updates, tableMetadata); err != nil {
 		return err
 	}
 
 	// Execute Insert Queries
-	if err := p.performInserts(changeSet.inserts, changeSet.insertsHavePrimaryKey, tableMetadata); err != nil {
+	if err := p.performInserts(changeSet.Inserts, changeSet.InsertsHavePrimaryKey, tableMetadata); err != nil {
 		return err
 	}
 
-	combinedOperations := append(changeSet.updates, changeSet.inserts...)
+	combinedOperations := append(changeSet.Updates, changeSet.Inserts...)
 
 	// Perform Child Upserts
 	err = p.performChildUpserts(combinedOperations, tableMetadata)
@@ -206,7 +193,7 @@ func (p PersistenceORM) upsertBatch(data interface{}, deleteFilters interface{},
 	return nil
 }
 
-func (p PersistenceORM) performDeletes(deletes []DBChange, tableMetadata *tableMetadata) error {
+func (p PersistenceORM) performDeletes(deletes []dbchange.Change, tableMetadata *tableMetadata) error {
 	if len(deletes) > 0 {
 		tableName := tableMetadata.tableName
 		primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
@@ -215,7 +202,7 @@ func (p PersistenceORM) performDeletes(deletes []DBChange, tableMetadata *tableM
 		psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 		keys := []string{}
 		for _, delete := range deletes {
-			changes := delete.changes
+			changes := delete.Changes
 			keys = append(keys, changes[primaryKeyColumnName].(string))
 		}
 
@@ -233,7 +220,7 @@ func (p PersistenceORM) performDeletes(deletes []DBChange, tableMetadata *tableM
 	return nil
 }
 
-func (p PersistenceORM) performUpdates(updates []DBChange, tableMetadata *tableMetadata) error {
+func (p PersistenceORM) performUpdates(updates []dbchange.Change, tableMetadata *tableMetadata) error {
 	if len(updates) > 0 {
 
 		tableName := tableMetadata.tableName
@@ -246,7 +233,7 @@ func (p PersistenceORM) performUpdates(updates []DBChange, tableMetadata *tableM
 		psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
 		for _, update := range updates {
-			changes := update.changes
+			changes := update.Changes
 			updateQuery := psql.Update(tableName)
 
 			for _, columnName := range columnNames {
@@ -271,7 +258,7 @@ func (p PersistenceORM) performUpdates(updates []DBChange, tableMetadata *tableM
 	return nil
 }
 
-func (p PersistenceORM) performInserts(inserts []DBChange, insertsHavePrimaryKey bool, tableMetadata *tableMetadata) error {
+func (p PersistenceORM) performInserts(inserts []dbchange.Change, insertsHavePrimaryKey bool, tableMetadata *tableMetadata) error {
 	if len(inserts) > 0 {
 
 		psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
@@ -292,7 +279,7 @@ func (p PersistenceORM) performInserts(inserts []DBChange, insertsHavePrimaryKey
 		insertQuery = insertQuery.Columns(columnNames...)
 
 		for _, insert := range inserts {
-			changes := insert.changes
+			changes := insert.Changes
 			insertQuery = insertQuery.Values(getColumnValues(columnNames, changes)...)
 		}
 
@@ -310,7 +297,7 @@ func (p PersistenceORM) performInserts(inserts []DBChange, insertsHavePrimaryKey
 
 		// Insert our new keys into the change objects
 		for index, insert := range inserts {
-			insert.changes[primaryKeyColumnName] = insertResults[index][primaryKeyColumnName]
+			insert.Changes[primaryKeyColumnName] = insertResults[index][primaryKeyColumnName]
 		}
 	}
 	return nil
@@ -596,7 +583,7 @@ func createQueryFromParts(tableName string, columnNames []string, joinClauses []
 	return query
 }
 
-func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, tableMetadata *tableMetadata) error {
+func (p PersistenceORM) performChildUpserts(changeObjects []dbchange.Change, tableMetadata *tableMetadata) error {
 
 	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
 
@@ -619,11 +606,11 @@ func (p PersistenceORM) performChildUpserts(changeObjects []DBChange, tableMetad
 
 		for _, changeObject := range changeObjects {
 			// Add the id of the parent to any foreign keys on the child
-			originalValue := changeObject.originalValue
+			originalValue := changeObject.OriginalValue
 			childValue := originalValue.FieldByName(child.FieldName)
-			foreignKeyValue := changeObject.changes[primaryKeyColumnName]
+			foreignKeyValue := changeObject.Changes[primaryKeyColumnName]
 
-			if tableMetadata.deleteOrphans {
+			if child.DeleteOrphans && !childValue.IsNil() && changeObject.Type == dbchange.Update {
 				// If we're doing deletes
 				filter := reflect.New(child.FieldType.Elem()).Elem()
 				foreignKeyField := filter.FieldByName(child.ForeignKey)
@@ -689,7 +676,7 @@ func (p PersistenceORM) generateChanges(
 	deleteFilters interface{},
 	tableMetadata *tableMetadata,
 ) (
-	*DBChangeSet,
+	*dbchange.ChangeSet,
 	error,
 ) {
 	foreignKeys := tableMetadata.foreignKeys
@@ -710,9 +697,9 @@ func (p PersistenceORM) generateChanges(
 		foreignKey.LookupsUsed = foreignLookupsUsed
 	}
 
-	inserts := []DBChange{}
-	updates := []DBChange{}
-	deletes := []DBChange{}
+	inserts := []dbchange.Change{}
+	updates := []dbchange.Change{}
+	deletes := []dbchange.Change{}
 
 	s := reflect.ValueOf(data)
 
@@ -732,8 +719,9 @@ func (p PersistenceORM) generateChanges(
 
 		if shouldDelete {
 			if existingObj != nil {
-				deletes = append(deletes, DBChange{
-					changes: existingObj,
+				deletes = append(deletes, dbchange.Change{
+					Changes: existingObj,
+					Type:    dbchange.Delete,
 				})
 			}
 			continue
@@ -752,16 +740,19 @@ func (p PersistenceORM) generateChanges(
 			return nil, err
 		}
 
-		if dbChange.changes == nil {
+		if dbChange.Changes == nil {
 			continue
 		}
 
-		dbChange.key = objectKey
+		dbChange.Key = objectKey
 
 		if existingObj != nil {
+			dbChange.Type = dbchange.Update
 			updates = append(updates, dbChange)
+
 		} else {
-			if !insertsHavePrimaryKey && dbChange.changes[primaryKeyColumnName] != nil {
+			dbChange.Type = dbchange.Insert
+			if !insertsHavePrimaryKey && dbChange.Changes[primaryKeyColumnName] != nil {
 				insertsHavePrimaryKey = true
 			}
 			inserts = append(inserts, dbChange)
@@ -776,27 +767,28 @@ func (p PersistenceORM) generateChanges(
 
 		updateKeyMap := map[string]bool{}
 		for _, update := range updates {
-			updateKeyMap[update.key] = true
+			updateKeyMap[update.Key] = true
 		}
 
 		for _, result := range deleteResults {
 			resultValue := reflect.ValueOf(result)
 			compoundObjectKey := getObjectKeyReflect(resultValue, lookups)
 			if _, ok := updateKeyMap[compoundObjectKey]; !ok {
-				deletes = append(deletes, DBChange{
-					changes: map[string]interface{}{
+				deletes = append(deletes, dbchange.Change{
+					Changes: map[string]interface{}{
 						tableMetadata.getPrimaryKeyColumnName(): getObjectProperty(resultValue, tableMetadata.getPrimaryKeyFieldName()),
 					},
+					Type: dbchange.Delete,
 				})
 			}
 		}
 	}
 
-	return &DBChangeSet{
-		inserts:               inserts,
-		updates:               updates,
-		deletes:               deletes,
-		insertsHavePrimaryKey: insertsHavePrimaryKey,
+	return &dbchange.ChangeSet{
+		Inserts:               inserts,
+		Updates:               updates,
+		Deletes:               deletes,
+		InsertsHavePrimaryKey: insertsHavePrimaryKey,
 	}, nil
 }
 
@@ -847,7 +839,7 @@ func (p PersistenceORM) processObject(
 	databaseObject map[string]interface{},
 	foreignKeys []ForeignKey,
 	tableMetadata *tableMetadata,
-) (DBChange, error) {
+) (dbchange.Change, error) {
 	returnObject := map[string]interface{}{}
 
 	isUpdate := databaseObject != nil
@@ -918,7 +910,7 @@ func (p PersistenceORM) processObject(
 		default:
 			assertedBytes, ok := value.([]byte)
 			if !ok {
-				return DBChange{}, errors.New("can only encrypt values that can be converted to bytes")
+				return dbchange.Change{}, errors.New("can only encrypt values that can be converted to bytes")
 			}
 			valueAsBytes = assertedBytes
 		}
@@ -926,7 +918,7 @@ func (p PersistenceORM) processObject(
 		// Do encryption over bytes
 		encryptedValue, err := EncryptBytes(valueAsBytes)
 		if err != nil {
-			return DBChange{}, err
+			return dbchange.Change{}, err
 		}
 
 		// Base64 encode to get standard character set
@@ -954,20 +946,20 @@ func (p PersistenceORM) processObject(
 		} else {
 			// If it's optional we can just keep going, if it's required, throw an error
 			if foreignKey.Required {
-				return DBChange{}, errors.New("Missing Required Foreign Key Lookup")
+				return dbchange.Change{}, errors.New("Missing Required Foreign Key Lookup")
 			}
 		}
 	}
 
 	if !isUpdate {
 		if err := validator.New().Struct(metadataObject.Interface()); err != nil {
-			return DBChange{}, err
+			return dbchange.Change{}, err
 		}
 	}
 
-	return DBChange{
-		changes:       returnObject,
-		originalValue: metadataObject,
+	return dbchange.Change{
+		Changes:       returnObject,
+		OriginalValue: metadataObject,
 	}, nil
 }
 
