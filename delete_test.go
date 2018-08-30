@@ -2,6 +2,7 @@ package picard
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
@@ -43,6 +44,7 @@ func TestDeleteModel(t *testing.T) {
 		},
 		// Handle join filter
 		{
+			//"Runs correct query when we add a join filter to the delete",
 			"Runs correct query when we add a join filter to the delete",
 			TestObject{
 				Parent: ParentTestObject{
@@ -50,16 +52,13 @@ func TestDeleteModel(t *testing.T) {
 				},
 			},
 			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("^SELECT testobject.id, testobject.organization_id, testobject.name, testobject.nullable_lookup, testobject.type, testobject.is_active, testobject.parent_id, testobject.config, testobject.created_by_id, testobject.updated_by_id, testobject.created_at, testobject.updated_at FROM testobject JOIN parenttest as t1 on t1.id = parent_id WHERE testobject.organization_id = \\$1 AND t1.organization_id = \\$2 AND t1.name = \\$3$").
-					WithArgs("00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000001", "ParentName").
-					WillReturnRows(
-						sqlmock.NewRows([]string{"id"}).
-							AddRow("00000000-0000-0000-0000-000000000005").
-							AddRow("00000000-0000-0000-0000-000000000007"),
-					)
+				orgID := "00000000-0000-0000-0000-000000000001"
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM testobject WHERE id IN \(\$1,\$2\) AND organization_id = \$3$`).
-					WithArgs("00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000007", "00000000-0000-0000-0000-000000000001").
+
+				selectSubQuery := "SELECT t1.id FROM parenttest as t1 WHERE t1.id = testobject.parent_id AND t1.organization_id = \\$2 AND t1.name = \\$3$"
+				deleteQuery := fmt.Sprintf("^DELETE FROM testobject WHERE EXISTS \\(%s\\) AND organization_id = \\$4$", selectSubQuery)
+				mock.ExpectExec(deleteQuery).
+					WithArgs("00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000007", orgID, orgID).
 					WillReturnResult(sqlmock.NewResult(0, 1))
 				mock.ExpectCommit()
 			},

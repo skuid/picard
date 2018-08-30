@@ -1,7 +1,7 @@
 package picard
 
 import (
-	"reflect"
+	"strings"
 
 	"github.com/Masterminds/squirrel"
 )
@@ -24,6 +24,36 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 	}
 
 	if len(joinClauses) > 0 {
+
+		// whereFields = append(whereFields, squirrel.Expr(lookup.MatchDBColumn+" IN ("+sql+")", args...))
+		existsStr := ""
+		for _, joinClause := range joinClauses {
+			subTableName := ""
+			if err != nil {
+				return 0, err
+			}
+			joinStr := strings.Split(joinClause, " ")
+			if len(joinStr) > 0 {
+				subTableName = joinStr[0]
+			}
+		}
+		for _, whereClause := range whereClauses {
+			query, _, err := whereClause.ToSql()
+			if err != nil {
+				return _, err
+			}
+			eqStr := strings.Split('.')
+			tableAlias := ""
+			if len(eqStr) > 0 {
+				tableAlias = eqStr[0]
+			}
+			// check
+			if tableAlias != tableMetadata {
+				// we got a join
+			}
+		}*/
+
+
 		// If we have join clauses, we'll have to fetch the ids and then delete them.
 		fetchResults, err := porm.FilterModel(model)
 		if err != nil {
