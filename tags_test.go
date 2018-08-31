@@ -4,11 +4,12 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/skuid/picard/metadata"
 	"github.com/stretchr/testify/assert"
 )
 
 type TagsTestStruct struct {
-	Metadata `picard:"tablename=test_tablename"`
+	metadata.Metadata `picard:"tablename=test_tablename"`
 
 	TestPrimaryKeyField   string `picard:"primary_key,column=test_pk"`
 	TestMultitenancyField string `picard:"multitenancy_key,column=test_multitenancy_key"`

@@ -1,4 +1,4 @@
-package picard
+package metadata
 
 import (
 	"reflect"
@@ -12,7 +12,7 @@ type Metadata struct {
 	DefinedFields []string
 }
 
-func addDefinedField(metadataValue reflect.Value, fieldName string) {
+func AddDefinedField(metadataValue reflect.Value, fieldName string) {
 	// Put Defined values into the Defined nested struct
 	if metadataValue.IsValid() {
 		definedFields := metadataValue.FieldByName("DefinedFields")
@@ -21,7 +21,7 @@ func addDefinedField(metadataValue reflect.Value, fieldName string) {
 	return
 }
 
-func initializeDefinedFields(metadataValue reflect.Value) {
+func InitializeDefinedFields(metadataValue reflect.Value) {
 	if metadataValue.IsValid() {
 		definedFields := metadataValue.FieldByName("DefinedFields")
 		definedFields.Set(reflect.ValueOf([]string{}))
@@ -29,7 +29,7 @@ func initializeDefinedFields(metadataValue reflect.Value) {
 	return
 }
 
-func getMetadataValue(picardStruct reflect.Value) reflect.Value {
+func GetMetadataValue(picardStruct reflect.Value) reflect.Value {
 	var metadataValue reflect.Value
 	var metadata Metadata
 	for i := 0; i < picardStruct.Type().NumField(); i++ {
@@ -42,9 +42,9 @@ func getMetadataValue(picardStruct reflect.Value) reflect.Value {
 	return metadataValue
 }
 
-func getMetadataFromPicardStruct(picardStruct reflect.Value) Metadata {
+func GetMetadataFromPicardStruct(picardStruct reflect.Value) Metadata {
 	var metadata Metadata
-	metadataValue := getMetadataValue(picardStruct)
+	metadataValue := GetMetadataValue(picardStruct)
 	if metadataValue.CanInterface() {
 		metadata = metadataValue.Interface().(Metadata)
 	}

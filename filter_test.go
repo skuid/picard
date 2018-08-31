@@ -8,45 +8,46 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/Masterminds/squirrel"
+	"github.com/skuid/picard/metadata"
 	"github.com/stretchr/testify/assert"
 )
 
 type modelMutitenantPKWithTwoFields struct {
-	Metadata              Metadata `picard:"tablename=test_table"`
-	TestMultitenancyField string   `picard:"multitenancy_key,column=test_multitenancy_column"`
-	TestPrimaryKeyField   string   `picard:"primary_key,column=primary_key_column"`
-	TestFieldOne          string   `picard:"column=test_column_one"`
-	TestFieldTwo          string   `picard:"column=test_column_two"`
+	Metadata              metadata.Metadata `picard:"tablename=test_table"`
+	TestMultitenancyField string            `picard:"multitenancy_key,column=test_multitenancy_column"`
+	TestPrimaryKeyField   string            `picard:"primary_key,column=primary_key_column"`
+	TestFieldOne          string            `picard:"column=test_column_one"`
+	TestFieldTwo          string            `picard:"column=test_column_two"`
 }
 
 type modelOneField struct {
-	Metadata     Metadata `picard:"tablename=test_table"`
-	TestFieldOne string   `picard:"column=test_column_one"`
+	Metadata     metadata.Metadata `picard:"tablename=test_table"`
+	TestFieldOne string            `picard:"column=test_column_one"`
 }
 
 type modelOneFieldEncrypted struct {
-	Metadata     Metadata `picard:"tablename=test_table"`
-	TestFieldOne string   `picard:"encrypted,column=test_column_one"`
+	Metadata     metadata.Metadata `picard:"tablename=test_table"`
+	TestFieldOne string            `picard:"encrypted,column=test_column_one"`
 }
 
 type modelTwoFieldEncrypted struct {
-	Metadata     Metadata `picard:"tablename=test_table"`
-	TestFieldOne string   `picard:"encrypted,column=test_column_one"`
-	TestFieldTwo string   `picard:"encrypted,column=test_column_two"`
+	Metadata     metadata.Metadata `picard:"tablename=test_table"`
+	TestFieldOne string            `picard:"encrypted,column=test_column_one"`
+	TestFieldTwo string            `picard:"encrypted,column=test_column_two"`
 }
 
 type modelOneFieldJSONB struct {
-	Metadata     Metadata             `picard:"tablename=test_table"`
+	Metadata     metadata.Metadata    `picard:"tablename=test_table"`
 	TestFieldOne TestSerializedObject `picard:"jsonb,column=test_column_one"`
 }
 
 type modelOnePointerFieldJSONB struct {
-	Metadata     Metadata              `picard:"tablename=test_table"`
+	Metadata     metadata.Metadata     `picard:"tablename=test_table"`
 	TestFieldOne *TestSerializedObject `picard:"jsonb,column=test_column_one"`
 }
 
 type modelOneArrayFieldJSONB struct {
-	Metadata     Metadata               `picard:"tablename=test_table"`
+	Metadata     metadata.Metadata      `picard:"tablename=test_table"`
 	TestFieldOne []TestSerializedObject `picard:"jsonb,column=test_column_one"`
 }
 
@@ -69,18 +70,18 @@ type modelPK struct {
 }
 
 type vGrandParentModel struct {
-	Metadata       Metadata       `picard:"tablename=grandparentmodel"`
-	ID             string         `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string         `picard:"multitenancy_key,column=organization_id"`
-	Name           string         `json:"name" picard:"lookup,column=name"`
-	Age            int            `json:"age" picard:"lookup,column=age"`
-	Toys           []vToyModel    `json:"toys" picard:"child,foreign_key=ParentID"`
-	Children       []vParentModel `json:"children" picard:"child,foreign_key=ParentID"`
-	Animals        []vPetModel    `json:"animals" picard:"child,foreign_key=ParentID"`
+	Metadata       metadata.Metadata `picard:"tablename=grandparentmodel"`
+	ID             string            `json:"id" picard:"primary_key,column=id"`
+	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
+	Name           string            `json:"name" picard:"lookup,column=name"`
+	Age            int               `json:"age" picard:"lookup,column=age"`
+	Toys           []vToyModel       `json:"toys" picard:"child,foreign_key=ParentID"`
+	Children       []vParentModel    `json:"children" picard:"child,foreign_key=ParentID"`
+	Animals        []vPetModel       `json:"animals" picard:"child,foreign_key=ParentID"`
 }
 
 type vParentModel struct {
-	Metadata       Metadata               `picard:"tablename=parentmodel"`
+	Metadata       metadata.Metadata      `picard:"tablename=parentmodel"`
 	ID             string                 `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string                 `picard:"multitenancy_key,column=organization_id"`
 	Name           string                 `json:"name" picard:"lookup,column=name"`
@@ -92,7 +93,7 @@ type vParentModel struct {
 }
 
 type vChildModel struct {
-	Metadata Metadata `picard:"tablename=childmodel"`
+	Metadata metadata.Metadata `picard:"tablename=childmodel"`
 
 	ID             string       `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string       `picard:"multitenancy_key,column=organization_id"`
@@ -103,7 +104,7 @@ type vChildModel struct {
 }
 
 type vToyModel struct {
-	Metadata Metadata `picard:"tablename=toymodel"`
+	Metadata metadata.Metadata `picard:"tablename=toymodel"`
 
 	ID             string      `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string      `picard:"multitenancy_key,column=organization_id"`
@@ -113,7 +114,7 @@ type vToyModel struct {
 }
 
 type vPetModel struct {
-	Metadata Metadata `picard:"tablename=petmodel"`
+	Metadata metadata.Metadata `picard:"tablename=petmodel"`
 
 	ID             string       `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string       `picard:"multitenancy_key,column=organization_id"`

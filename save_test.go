@@ -9,6 +9,7 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/skuid/picard/dbchange"
+	"github.com/skuid/picard/metadata"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,7 +25,7 @@ func TestCreateModel(t *testing.T) {
 		{
 			"should run insert for model without primary key value",
 			&struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -46,7 +47,7 @@ func TestCreateModel(t *testing.T) {
 		{
 			"should run insert for model with primary key value",
 			&struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -69,7 +70,7 @@ func TestCreateModel(t *testing.T) {
 		{
 			"both created and updated audit fields should be added",
 			&struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -139,7 +140,7 @@ func TestSaveModel(t *testing.T) {
 		{
 			"should run insert for model without primary key value",
 			&struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -161,13 +162,13 @@ func TestSaveModel(t *testing.T) {
 		{
 			"should insert nulls for missing values in model without primary key value",
 			&struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
 				TestFieldOne           string `picard:"column=test_column_one"`
 			}{
-				Metadata: Metadata{
+				Metadata: metadata.Metadata{
 					DefinedFields: []string{},
 				},
 			},
@@ -185,13 +186,13 @@ func TestSaveModel(t *testing.T) {
 		{
 			"should fail validation for missing values in model",
 			&struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
 				TestFieldOne           string `picard:"column=test_column_one" validate:"required"`
 			}{
-				Metadata: Metadata{
+				Metadata: metadata.Metadata{
 					DefinedFields: []string{},
 				},
 			},
@@ -204,7 +205,7 @@ func TestSaveModel(t *testing.T) {
 		{
 			"should run update for model with primary key value",
 			&struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -234,7 +235,7 @@ func TestSaveModel(t *testing.T) {
 		{
 			"should run update for model with primary key value and update the updated by audit fields but not created by",
 			&struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -260,7 +261,7 @@ func TestSaveModel(t *testing.T) {
 		{
 			"should fail update if model not found",
 			&struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -282,7 +283,7 @@ func TestSaveModel(t *testing.T) {
 		{
 			"should run update for model with primary key value, but never try to update the multitenancy key",
 			&struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -309,14 +310,14 @@ func TestSaveModel(t *testing.T) {
 		{
 			"should run partial update for model with primary key value and DefinedFields populated",
 			&struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
 				TestFieldOne           string `picard:"column=test_column_one"`
 				TestFieldTwo           string `picard:"column=test_column_two"`
 			}{
-				Metadata: Metadata{
+				Metadata: metadata.Metadata{
 					DefinedFields: []string{"TestFieldOne", "PrimaryKeyField"},
 				},
 				PrimaryKeyField: "00000000-0000-0000-0000-000000000001",
@@ -382,7 +383,7 @@ func TestJSONBSaveModel(t *testing.T) {
 		{
 			"should run insert for model with serialized field",
 			&struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string               `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string               `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -410,7 +411,7 @@ func TestJSONBSaveModel(t *testing.T) {
 		{
 			"should run insert for model with array serialized field",
 			&struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string                 `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string                 `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -445,7 +446,7 @@ func TestJSONBSaveModel(t *testing.T) {
 		{
 			"should run insert for model with pointer serialized field",
 			&struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string                `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string                `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -515,7 +516,7 @@ func TestEncryptedSaveModel(t *testing.T) {
 		{
 			"should run insert for model without primary key value",
 			&struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -537,7 +538,7 @@ func TestEncryptedSaveModel(t *testing.T) {
 		{
 			"should run update for model with primary key value",
 			&struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -563,14 +564,14 @@ func TestEncryptedSaveModel(t *testing.T) {
 		{
 			"should run partial update for model with primary key value and DefinedFields populated",
 			&struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
 				TestFieldOne           string `picard:"encrypted,column=test_column_one"`
 				TestFieldTwo           string `picard:"column=test_column_two"`
 			}{
-				Metadata: Metadata{
+				Metadata: metadata.Metadata{
 					DefinedFields: []string{"TestFieldOne", "PrimaryKeyField"},
 				},
 				PrimaryKeyField: "00000000-0000-0000-0000-000000000001",
@@ -593,7 +594,7 @@ func TestEncryptedSaveModel(t *testing.T) {
 		{
 			"should run update with nil value when not doing partial update",
 			&struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -671,10 +672,10 @@ func TestUpdateModel(t *testing.T) {
 		{
 			"should run update",
 			struct {
-				Metadata             Metadata `picard:"tablename=test_tablename"`
-				PrimaryKeyField      string   `picard:"primary_key,column=primary_key_column"`
-				MultiTenancyKeyField string   `picard:"multitenancy_key,column=multitenancy_key_column"`
-				TestFieldOne         string   `picard:"column=test_column_one"`
+				Metadata             metadata.Metadata `picard:"tablename=test_tablename"`
+				PrimaryKeyField      string            `picard:"primary_key,column=primary_key_column"`
+				MultiTenancyKeyField string            `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne         string            `picard:"column=test_column_one"`
 			}{
 				PrimaryKeyField: "00000000-0000-0000-0000-000000000001",
 				TestFieldOne:    "test value one",
@@ -739,8 +740,8 @@ func TestInsertModel(t *testing.T) {
 		{
 			"should run insert with given value, tablename, columns, and pk column",
 			&struct {
-				Metadata        Metadata `picard:"tablename=test_tablename"`
-				PrimaryKeyField string   `picard:"primary_key,column=primary_key_column"`
+				Metadata        metadata.Metadata `picard:"tablename=test_tablename"`
+				PrimaryKeyField string            `picard:"primary_key,column=primary_key_column"`
 			}{
 				PrimaryKeyField: "00000000-0000-0000-0000-000000000001",
 			},
@@ -758,9 +759,9 @@ func TestInsertModel(t *testing.T) {
 		{
 			"should run insert with two values in struct",
 			&struct {
-				Metadata        Metadata `picard:"tablename=test_tablename"`
-				PrimaryKeyField string   `picard:"primary_key,column=primary_key_column"`
-				TestFieldOne    string   `picard:"column=test_column_one"`
+				Metadata        metadata.Metadata `picard:"tablename=test_tablename"`
+				PrimaryKeyField string            `picard:"primary_key,column=primary_key_column"`
+				TestFieldOne    string            `picard:"column=test_column_one"`
 			}{
 				TestFieldOne: "test value one",
 			},

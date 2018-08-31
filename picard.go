@@ -15,7 +15,10 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
+	jsoniter "github.com/plusplusben/json-iterator-go"
 	"github.com/skuid/picard/dbchange"
+	"github.com/skuid/picard/decoding"
+	"github.com/skuid/picard/metadata"
 	validator "gopkg.in/go-playground/validator.v9"
 )
 
@@ -97,11 +100,15 @@ func Decode(body io.Reader, destination interface{}) error {
 	if err != nil {
 		return err
 	}
-	err = Unmarshal(bytes, destination)
+	err = GetDecoder(nil).Unmarshal(bytes, &destination)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func GetDecoder(config *decoding.Config) jsoniter.API {
+	return decoding.GetDecoder(config)
 }
 
 func getStructValue(v interface{}) (reflect.Value, error) {
@@ -819,7 +826,7 @@ func serializeJSONBColumn(value interface{}) (interface{}, error) {
 	return json.Marshal(value)
 }
 
-func isFieldDefinedOnStruct(modelMetadata Metadata, fieldName string) bool {
+func isFieldDefinedOnStruct(modelMetadata metadata.Metadata, fieldName string) bool {
 	// Check for nil here instead of the length of the slice.
 	// The decode method in picard sets defined fields to an empty slice if it has been run.
 	if modelMetadata.DefinedFields == nil {
@@ -845,7 +852,7 @@ func (p PersistenceORM) processObject(
 	isUpdate := databaseObject != nil
 
 	// Get Defined Fields if they exist
-	modelMetadata := getMetadataFromPicardStruct(metadataObject)
+	modelMetadata := metadata.GetMetadataFromPicardStruct(metadataObject)
 
 	for _, field := range tableMetadata.getFields() {
 		var returnValue interface{}

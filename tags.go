@@ -4,6 +4,8 @@ import (
 	"errors"
 	"reflect"
 	"strings"
+
+	"github.com/skuid/picard/metadata"
 )
 
 const picardTagKey = "picard"
@@ -193,7 +195,7 @@ func getTableMetadata(data interface{}) (*tableMetadata, error) {
 }
 
 func tableMetadataFromType(t reflect.Type) *tableMetadata {
-	var metadata Metadata
+	var metadata metadata.Metadata
 	tableMetadata := tableMetadata{
 		fields: map[string]fieldMetadata{},
 	}

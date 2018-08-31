@@ -10,6 +10,7 @@ import (
 	"github.com/Masterminds/squirrel"
 	_ "github.com/lib/pq"
 	uuid "github.com/satori/go.uuid"
+	"github.com/skuid/picard/metadata"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,7 +22,7 @@ type Config struct {
 
 // ParentTestObject sample parent object for tests
 type ParentTestObject struct {
-	Metadata Metadata `picard:"tablename=parenttest"`
+	Metadata metadata.Metadata `picard:"tablename=parenttest"`
 
 	ID             string       `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string       `picard:"multitenancy_key,column=organization_id"`
@@ -31,7 +32,7 @@ type ParentTestObject struct {
 
 // TestObject sample parent object for tests
 type TestObject struct {
-	Metadata Metadata `picard:"tablename=testobject"`
+	Metadata metadata.Metadata `picard:"tablename=testobject"`
 
 	ID             string                     `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string                     `picard:"multitenancy_key,column=organization_id"`
@@ -52,7 +53,7 @@ type TestObject struct {
 
 // TestObject sample parent object for tests
 type TestObjectWithOrphans struct {
-	Metadata Metadata `picard:"tablename=testobject"`
+	Metadata metadata.Metadata `picard:"tablename=testobject"`
 
 	ID             string                     `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string                     `picard:"multitenancy_key,column=organization_id"`
@@ -73,7 +74,7 @@ type TestObjectWithOrphans struct {
 
 // ChildTestObject sample child object for tests
 type ChildTestObject struct {
-	Metadata Metadata `picard:"tablename=childtest"`
+	Metadata metadata.Metadata `picard:"tablename=childtest"`
 
 	ID               string     `json:"id" picard:"primary_key,column=id"`
 	OrganizationID   string     `picard:"multitenancy_key,column=organization_id"`
@@ -87,7 +88,7 @@ type ChildTestObject struct {
 
 // ChildTestObjectWithKeyMap sample child object for tests
 type ChildTestObjectWithKeyMap struct {
-	Metadata Metadata `picard:"tablename=childtest"`
+	Metadata metadata.Metadata `picard:"tablename=childtest"`
 
 	ID               string     `json:"id" picard:"primary_key,column=id"`
 	OrganizationID   string     `picard:"multitenancy_key,column=organization_id"`
@@ -100,7 +101,7 @@ type ChildTestObjectWithKeyMap struct {
 }
 
 type TestParentSerializedObject struct {
-	Metadata Metadata `picard:"tablename=parent_serialize"`
+	Metadata metadata.Metadata `picard:"tablename=parent_serialize"`
 
 	ID               string                 `json:"id" picard:"primary_key,column=id"`
 	SerializedThings []TestSerializedObject `json:"serialized_things" picard:"jsonb,column=serialized_things"`
@@ -931,8 +932,8 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 		{
 			"Filter object with no values should add multitenancy key",
 			reflect.ValueOf(struct {
-				Metadata Metadata `picard:"tablename=test_table"`
-				OrgID    string   `picard:"multitenancy_key,column=organization_id"`
+				Metadata metadata.Metadata `picard:"tablename=test_table"`
+				OrgID    string            `picard:"multitenancy_key,column=organization_id"`
 			}{}),
 			nil,
 			[]squirrel.Sqlizer{
@@ -946,8 +947,8 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 		{
 			"Filter object with no values and different multitenancy column should add multitenancy key",
 			reflect.ValueOf(struct {
-				Metadata               Metadata `picard:"tablename=test_table"`
-				TestMultitenancyColumn string   `picard:"multitenancy_key,column=test_multitenancy_column"`
+				Metadata               metadata.Metadata `picard:"tablename=test_table"`
+				TestMultitenancyColumn string            `picard:"multitenancy_key,column=test_multitenancy_column"`
 			}{}),
 			nil,
 			[]squirrel.Sqlizer{
@@ -961,8 +962,8 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 		{
 			"Filter object with value for multitenancy column should be overwritten with picard multitenancy value",
 			reflect.ValueOf(struct {
-				Metadata               Metadata `picard:"tablename=test_table"`
-				TestMultitenancyColumn string   `picard:"multitenancy_key,column=test_multitenancy_column"`
+				Metadata               metadata.Metadata `picard:"tablename=test_table"`
+				TestMultitenancyColumn string            `picard:"multitenancy_key,column=test_multitenancy_column"`
 			}{
 				TestMultitenancyColumn: "this value should be ignored",
 			}),
@@ -978,9 +979,9 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 		{
 			"Filter object with one value and multitenancy column should add both where clauses",
 			reflect.ValueOf(struct {
-				Metadata               Metadata `picard:"tablename=test_table"`
-				TestMultitenancyColumn string   `picard:"multitenancy_key,column=test_multitenancy_column"`
-				TestField              string   `picard:"column=test_column_one"`
+				Metadata               metadata.Metadata `picard:"tablename=test_table"`
+				TestMultitenancyColumn string            `picard:"multitenancy_key,column=test_multitenancy_column"`
+				TestField              string            `picard:"column=test_column_one"`
 			}{
 				TestField: "first test value",
 			}),
@@ -999,10 +1000,10 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 		{
 			"Filter object with two values and multitenancy column should add all where clauses",
 			reflect.ValueOf(struct {
-				Metadata               Metadata `picard:"tablename=test_table"`
-				TestMultitenancyColumn string   `picard:"multitenancy_key,column=test_multitenancy_column"`
-				TestFieldOne           string   `picard:"column=test_column_one"`
-				TestFieldTwo           string   `picard:"column=test_column_two"`
+				Metadata               metadata.Metadata `picard:"tablename=test_table"`
+				TestMultitenancyColumn string            `picard:"multitenancy_key,column=test_multitenancy_column"`
+				TestFieldOne           string            `picard:"column=test_column_one"`
+				TestFieldTwo           string            `picard:"column=test_column_two"`
 			}{
 				TestFieldOne: "first test value",
 				TestFieldTwo: "second test value",
@@ -1025,8 +1026,8 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 		{
 			"Filter object with two values and only one is picard column should add only one where clause",
 			reflect.ValueOf(struct {
-				Metadata     Metadata `picard:"tablename=test_table"`
-				TestFieldOne string   `picard:"column=test_column_one"`
+				Metadata     metadata.Metadata `picard:"tablename=test_table"`
+				TestFieldOne string            `picard:"column=test_column_one"`
 				TestFieldTwo string
 			}{
 				TestFieldOne: "first test value",
@@ -1044,9 +1045,9 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 		{
 			"Filter object with two values and one is zero value should add only one where clause",
 			reflect.ValueOf(struct {
-				Metadata     Metadata `picard:"tablename=test_table"`
-				TestFieldOne string   `picard:"column=test_column_one"`
-				TestFieldTwo string   `picard:"column=test_column_two"`
+				Metadata     metadata.Metadata `picard:"tablename=test_table"`
+				TestFieldOne string            `picard:"column=test_column_one"`
+				TestFieldTwo string            `picard:"column=test_column_two"`
 			}{
 				TestFieldOne: "first test value",
 			}),
@@ -1062,9 +1063,9 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 		{
 			"Filter object with two values and one is zero value and in zeroFields list should add both where clauses",
 			reflect.ValueOf(struct {
-				Metadata     Metadata `picard:"tablename=test_table"`
-				TestFieldOne string   `picard:"column=test_column_one"`
-				TestFieldTwo string   `picard:"column=test_column_two"`
+				Metadata     metadata.Metadata `picard:"tablename=test_table"`
+				TestFieldOne string            `picard:"column=test_column_one"`
+				TestFieldTwo string            `picard:"column=test_column_two"`
 			}{
 				TestFieldOne: "first test value",
 			}),
@@ -1083,9 +1084,9 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 		{
 			"Filter object with value for encrypted field should return error",
 			reflect.ValueOf(struct {
-				Metadata               Metadata `picard:"tablename=test_table"`
-				TestMultitenancyColumn string   `picard:"multitenancy_key,column=test_multitenancy_column"`
-				TestField              string   `picard:"encrypted,column=test_column_one"`
+				Metadata               metadata.Metadata `picard:"tablename=test_table"`
+				TestMultitenancyColumn string            `picard:"multitenancy_key,column=test_multitenancy_column"`
+				TestField              string            `picard:"encrypted,column=test_column_one"`
 			}{
 				TestField: "first test value",
 			}),

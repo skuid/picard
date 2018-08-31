@@ -4,35 +4,36 @@ import (
 	"log"
 
 	"github.com/skuid/picard"
+	"github.com/skuid/picard/metadata"
 )
 
 // User example struct
 type User struct {
-	Metadata       picard.Metadata `picard:"tablename=user"`
-	ID             string          `picard:"primary_key,column=id"`
-	OrganizationID string          `picard:"multitenancy_key,column=organization_id"`
-	Name           string          `picard:"lookup,column=name"`
-	Posts          []Post          `picard:"child,foreign_key=UserID"`
+	Metadata       metadata.Metadata `picard:"tablename=user"`
+	ID             string            `picard:"primary_key,column=id"`
+	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
+	Name           string            `picard:"lookup,column=name"`
+	Posts          []Post            `picard:"child,foreign_key=UserID"`
 }
 
 // Post example struct
 type Post struct {
-	Metadata       picard.Metadata `picard:"tablename=message"`
-	ID             string          `picard:"primary_key,column=id"`
-	OrganizationID string          `picard:"multitenancy_key,column=organization_id"`
-	Name           string          `picard:"lookup,column=name"`
-	UserID         string          `picard:"foreign_key,lookup,required,related=User,column=user_id"`
-	User           User            `validate:"-"`
-	Tags           []Tag           `picard:"child,foreign_key=PostID"`
+	Metadata       metadata.Metadata `picard:"tablename=message"`
+	ID             string            `picard:"primary_key,column=id"`
+	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
+	Name           string            `picard:"lookup,column=name"`
+	UserID         string            `picard:"foreign_key,lookup,required,related=User,column=user_id"`
+	User           User              `validate:"-"`
+	Tags           []Tag             `picard:"child,foreign_key=PostID"`
 }
 
 // Tag example struct
 type Tag struct {
-	Metadata picard.Metadata `picard:"tablename=tag"`
-	ID       string          `picard:"primary_key,column=id"`
-	Name     string          `picard:"lookup,column=name"`
-	PostID   string          `picard:"foreign_key,lookup,required,related=Post,column=post_id"`
-	Post     Post            `validate:"-"`
+	Metadata metadata.Metadata `picard:"tablename=tag"`
+	ID       string            `picard:"primary_key,column=id"`
+	Name     string            `picard:"lookup,column=name"`
+	PostID   string            `picard:"foreign_key,lookup,required,related=Post,column=post_id"`
+	Post     Post              `validate:"-"`
 }
 
 func doInserts(p picard.ORM) error {
