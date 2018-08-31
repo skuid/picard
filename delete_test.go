@@ -34,7 +34,7 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.primary_key_column = \$1 AND test_tablename.multitenancy_key_column = \$2$`).
+				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.primary_key_column = \? AND test_tablename.multitenancy_key_column = \?$`).
 					WithArgs("00000000-0000-0000-0000-000000000555", "00000000-0000-0000-0000-000000000001").
 					WillReturnResult(sqlmock.NewResult(0, 1))
 				mock.ExpectCommit()
@@ -42,9 +42,7 @@ func TestDeleteModel(t *testing.T) {
 			1,
 			"",
 		},
-		// Handle join filter
 		{
-			//"Runs correct query when we add a join filter to the delete",
 			"Runs correct query when we add a join filter to the delete",
 			TestObject{
 				Parent: ParentTestObject{
@@ -52,13 +50,12 @@ func TestDeleteModel(t *testing.T) {
 				},
 			},
 			func(mock sqlmock.Sqlmock) {
-				orgID := "00000000-0000-0000-0000-000000000001"
 				mock.ExpectBegin()
 
-				selectSubQuery := "SELECT t1.id FROM parenttest as t1 WHERE t1.id = testobject.parent_id AND t1.organization_id = \\$2 AND t1.name = \\$3$"
-				deleteQuery := fmt.Sprintf("^DELETE FROM testobject WHERE EXISTS \\(%s\\) AND organization_id = \\$4$", selectSubQuery)
+				selectSubQuery := "SELECT t1.id FROM parenttest as t1 WHERE t1.id = testobject.parent_id AND t1.organization_id = \\? AND t1.name = \\?"
+				deleteQuery := fmt.Sprintf("^DELETE FROM testobject WHERE testobject.organization_id = \\? AND EXISTS \\(%s\\)$", selectSubQuery)
 				mock.ExpectExec(deleteQuery).
-					WithArgs("00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000007", orgID, orgID).
+					WithArgs(testMultitenancyValue, testMultitenancyValue, "ParentName").
 					WillReturnResult(sqlmock.NewResult(0, 1))
 				mock.ExpectCommit()
 			},
@@ -79,7 +76,7 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.multitenancy_key_column = \$1 AND test_tablename.test_column_one = \$2$`).
+				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.multitenancy_key_column = \? AND test_tablename.test_column_one = \?$`).
 					WithArgs("00000000-0000-0000-0000-000000000001", "test value 1").
 					WillReturnResult(sqlmock.NewResult(0, 2))
 				mock.ExpectCommit()
@@ -101,7 +98,7 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.multitenancy_key_column = \$1$`).
+				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.multitenancy_key_column = \?$`).
 					WithArgs("00000000-0000-0000-0000-000000000001").
 					WillReturnResult(sqlmock.NewResult(0, 20))
 				mock.ExpectCommit()
@@ -143,7 +140,7 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE  test_tablename.multitenancy_key_column = \$1$`).
+				mock.ExpectExec(`^DELETE FROM test_tablename WHERE  test_tablename.multitenancy_key_column = \?$`).
 					WithArgs("00000000-0000-0000-0000-000000000001").
 					WillReturnError(errors.New("some test error 2"))
 			},
@@ -164,7 +161,7 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.multitenancy_key_column = \$1$`).
+				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.multitenancy_key_column = \?$`).
 					WithArgs("00000000-0000-0000-0000-000000000001").
 					WillReturnResult(sqlmock.NewResult(0, 20))
 				mock.ExpectCommit().

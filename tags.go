@@ -94,6 +94,15 @@ func (tm tableMetadata) getForeignKeyField(foreignKeyName string) *ForeignKey {
 	return nil
 }
 
+func (tm tableMetadata) getForeignKeyPrimaryKeyColumn(foreignKeyName string) string {
+	for _, foreignKey := range tm.foreignKeys {
+		if foreignKey.KeyColumn == foreignKeyName {
+			return foreignKey.TableMetadata.getPrimaryKeyColumnName()
+		}
+	}
+	return ""
+}
+
 func (tm tableMetadata) getForeignKeyFieldFromRelation(relationName string) *ForeignKey {
 	for _, foreignKey := range tm.foreignKeys {
 		if foreignKey.RelatedFieldName == relationName {
