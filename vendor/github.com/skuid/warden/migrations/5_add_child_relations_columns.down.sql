@@ -1,0 +1,1 @@
+ALTER TABLE public.data_source_field DROP child_relations;

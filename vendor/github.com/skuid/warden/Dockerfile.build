@@ -1,0 +1,18 @@
+FROM golang:1.9-alpine
+
+MAINTAINER Matt Hardwick, <matt.hardwick@skuid.com>
+
+RUN apk -U add ca-certificates
+RUN apk add --no-cache gcc musl-dev
+ENV SRC_DIR /go/src/github.com/skuid/warden
+
+ADD . $SRC_DIR
+WORKDIR $SRC_DIR
+
+RUN go build -v -a -tags netgo -installsuffix netgo -ldflags '-w' && \
+    go install .
+
+EXPOSE 3000
+
+ENTRYPOINT ["./warden"]
+CMD ["serve"]

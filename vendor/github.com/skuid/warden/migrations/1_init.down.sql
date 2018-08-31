@@ -1,0 +1,13 @@
+DROP TABLE IF EXISTS data_source_action_permission;
+DROP TABLE IF EXISTS data_source_action_output;
+DROP TABLE IF EXISTS data_source_action_input;
+DROP TABLE IF EXISTS data_source_action;
+DROP TABLE IF EXISTS data_source_field_permission;
+DROP TABLE IF EXISTS data_source_field;
+DROP TABLE IF EXISTS data_source_condition_permission;
+DROP TABLE IF EXISTS data_source_condition;
+DROP TABLE IF EXISTS data_source_object_permission;
+DROP TABLE IF EXISTS data_source_object;
+DROP TABLE IF EXISTS data_source_credential;
+DROP TABLE IF EXISTS data_source_permission;
+DROP TABLE IF EXISTS data_source;

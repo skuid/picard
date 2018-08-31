@@ -1,0 +1,10 @@
+{
+	"name": "local_dvdrental",
+	"is_active": true,
+	"url": "localhost:16543",
+	"type": "PostgreSQL",
+	"database_type": "",
+	"database_name": "dvdrental",
+	"database_username": "dvduser",
+	"datbase_password": "MyPassword"
+}

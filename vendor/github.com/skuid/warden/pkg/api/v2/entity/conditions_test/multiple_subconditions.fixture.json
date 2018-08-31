@@ -1,0 +1,41 @@
+[
+	{
+		"sourceType": "fieldvalue",
+		"type": "join",
+		"operator": "in",
+		"inactive": false,
+		"encloseValueInQuotes": false,
+		"field": "customer_id",
+		"value": null,
+		"joinObject": "rental",
+		"joinField": "customer_id",
+		"subConditionLogic": "1 OR 2",
+		"subConditions": [
+			{
+				"encloseValueInQuotes": true,
+				"field": "inventory_id__rel.store_id__rel.manager_staff_id",
+				"fieldTargetObjects": "staff",
+				"inactive": false,
+				"operator": "=",
+				"originalInactive": false,
+				"originalValue": "1",
+				"sourceType": "fieldvalue",
+				"type": "fieldvalue",
+				"value": "1"
+			},
+			{
+				"encloseValueInQuotes": false,
+				"field": "last_update",
+				"inactive": false,
+				"operator": "=",
+				"originalInactive": false,
+				"originalValue": "LAST_WEEK",
+				"sourceType": "fieldvalue",
+				"type": "fieldvalue",
+				"value": "LAST_WEEK"
+			}
+		],
+		"originalInactive": false,
+		"originalValue": null
+	}
+]
