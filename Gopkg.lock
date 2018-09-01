@@ -64,8 +64,8 @@
 [[projects]]
   name = "github.com/plusplusben/json-iterator-go"
   packages = ["."]
-  revision = "1624edc4454b8682399def8740d46db5e4362ba4"
-  version = "1.1.5"
+  revision = "d0a8e940581317dc89a46750fa3e8b8d52cc7499"
+  version = "1.1.6"
 
 [[projects]]
   name = "github.com/pmezard/go-difflib"

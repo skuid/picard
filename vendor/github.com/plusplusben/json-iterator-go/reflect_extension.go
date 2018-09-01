@@ -47,6 +47,8 @@ type Binding struct {
 // Can also rename fields by UpdateStructDescriptor.
 type Extension interface {
 	UpdateStructDescriptor(structDescriptor *StructDescriptor)
+	StructDecodedHook(ptr unsafe.Pointer, typ reflect2.Type)
+	StructFieldDecodedHook(field string, ptr unsafe.Pointer, typ reflect2.Type)
 	CreateMapKeyDecoder(typ reflect2.Type) ValDecoder
 	CreateMapKeyEncoder(typ reflect2.Type) ValEncoder
 	CreateDecoder(typ reflect2.Type) ValDecoder
@@ -61,6 +63,14 @@ type DummyExtension struct {
 
 // UpdateStructDescriptor No-op
 func (extension *DummyExtension) UpdateStructDescriptor(structDescriptor *StructDescriptor) {
+}
+
+// StructDecodedHook No-op
+func (extension *DummyExtension) StructDecodedHook(ptr unsafe.Pointer, typ reflect2.Type) {
+}
+
+// StructFieldDecodedHook No-op
+func (extension *DummyExtension) StructFieldDecodedHook(field string, ptr unsafe.Pointer, typ reflect2.Type) {
 }
 
 // CreateMapKeyDecoder No-op
@@ -99,6 +109,14 @@ type EncoderExtension map[reflect2.Type]ValEncoder
 func (extension EncoderExtension) UpdateStructDescriptor(structDescriptor *StructDescriptor) {
 }
 
+// StructDecodedHook No-op
+func (extension EncoderExtension) StructDecodedHook(ptr unsafe.Pointer, typ reflect2.Type) {
+}
+
+// StructFieldDecodedHook No-op
+func (extension EncoderExtension) StructFieldDecodedHook(field string, ptr unsafe.Pointer, typ reflect2.Type) {
+}
+
 // CreateDecoder No-op
 func (extension EncoderExtension) CreateDecoder(typ reflect2.Type) ValDecoder {
 	return nil
@@ -133,6 +151,14 @@ type DecoderExtension map[reflect2.Type]ValDecoder
 
 // UpdateStructDescriptor No-op
 func (extension DecoderExtension) UpdateStructDescriptor(structDescriptor *StructDescriptor) {
+}
+
+// StructDecodedHook No-op
+func (extension DecoderExtension) StructDecodedHook(ptr unsafe.Pointer, typ reflect2.Type) {
+}
+
+// StructFieldDecodedHook No-op
+func (extension DecoderExtension) StructFieldDecodedHook(field string, ptr unsafe.Pointer, typ reflect2.Type) {
 }
 
 // CreateMapKeyDecoder No-op
