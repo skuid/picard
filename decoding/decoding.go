@@ -16,8 +16,6 @@ type Config struct {
 	TagKey string
 }
 
-var globalConfig *Config
-
 // GetDecoder returns a decoder that implements the standard encoding/json api
 func GetDecoder(config *Config) jsoniter.API {
 	if config == nil {
@@ -26,7 +24,6 @@ func GetDecoder(config *Config) jsoniter.API {
 	if config.TagKey == "" {
 		config.TagKey = "json"
 	}
-	globalConfig = config
 	api := jsoniter.Config{
 		EscapeHTML:             true,
 		SortMapKeys:            true,
@@ -34,24 +31,24 @@ func GetDecoder(config *Config) jsoniter.API {
 		OnlyTaggedField:        true,
 		TagKey:                 config.TagKey,
 	}.Froze()
-	api.RegisterExtension(&picardExtension{jsoniter.DummyExtension{}})
+	api.RegisterExtension(&picardExtension{jsoniter.DummyExtension{}, config})
 	return api
 }
 
 // JsonIter Extension for metadata marshalling/unmarshalling
 type picardExtension struct {
 	jsoniter.DummyExtension
+	config *Config
 }
 
 func (extension *picardExtension) UpdateStructDescriptor(structDescriptor *jsoniter.StructDescriptor) {
 	for _, binding := range structDescriptor.Fields {
-		metadataTag, hasMetadataTag := binding.Field.Tag().Lookup(globalConfig.TagKey)
+		metadataTag, hasMetadataTag := binding.Field.Tag().Lookup(extension.config.TagKey)
 		if hasMetadataTag {
 			options := strings.Split(metadataTag, ",")[1:]
 			if mapvalue.StringSliceContainsKey(options, "omitretrieve") {
 				// Don't do bindings for tags that have the "omitretrieve" option
 				binding.ToNames = []string{}
-				binding.FromNames = []string{}
 			}
 		}
 	}
