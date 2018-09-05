@@ -1,0 +1,13 @@
+{
+	"operation": "import",
+	"payload": [
+		{
+			"entity": "address",
+			"schema": "public"
+		},
+		{
+			"entity": "customer",
+			"schema": "public"
+		}
+	]
+}

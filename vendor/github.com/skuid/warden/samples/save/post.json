@@ -1,0 +1,28 @@
+{
+	"operations": [
+		{
+			"id": "Customer",
+			"type": "customer",
+			"inserts": {},
+			"updates": {
+				"{\"customer_id\":1}": {
+					"first_name": "Mary Jane3"
+				}
+			},
+			"deletes": {},
+			"returning": [
+				"activebool",
+				"active",
+				"address_id",
+				"address_id__rel.address_id",
+				"create_date",
+				"customer_id",
+				"email",
+				"first_name",
+				"last_name",
+				"last_update",
+				"store_id"
+			]
+		}
+	]
+}

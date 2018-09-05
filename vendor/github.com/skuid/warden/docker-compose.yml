@@ -1,0 +1,45 @@
+version: "2"
+services:
+  warden:
+    build:
+      context: "."
+      dockerfile: "Dockerfile.build"
+    ports:
+      - "3004:3004"
+    environment:
+      - WARDEN_PLINY_ADDRESS=https://localhost:3000
+      - WARDEN_SEAQUILL_ADDRESS=http://seaquill:13113
+      - WARDEN_TLS_CERT_FILE=/var/lib/certs/pliny.pem
+      - WARDEN_TLS_KEY_FILE=/var/lib/certs/pliny-key.pem
+      - WARDEN_PORT=3004
+      - WARDEN_DEBUG=true
+    volumes:
+      - "./certs:/var/lib/certs"
+    depends_on:
+      - "postgres"
+      - "redis"
+      - "seaquill"
+    links:
+      - "postgres"
+      - "seaquill"
+  postgres:
+    image: "jkatskuid/docker-postgres-uuid"
+    ports:
+      - "15433:5432"
+    environment:
+      POSTGRES_USER: "warden"
+      POSTGRES_PASSWORD: "wardenDBpass"
+    volumes:
+      - "./pgdata:/var/lib/postgresql/data"
+  redis:
+    image: "redis:3.0.7"
+    ports:
+      - "16379:6379"
+    volumes:
+      - "./redis:/data"
+  seaquill:
+    image: "quay.io/skuid/seaquill:latest"
+    ports:
+      - "3113:13113"
+    environment:
+      - PORT=3113

@@ -1,0 +1,15 @@
+{
+	"cSpell.words": [
+		"deserializer",
+		"picard",
+		"psql",
+		"serializer",
+		"skuid",
+		"struct",
+		"structs",
+		"upsert",
+		"upserts",
+		"uuid"
+	],
+	"git.ignoreLimitWarning": true
+}

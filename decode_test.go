@@ -3,6 +3,7 @@ package picard
 import (
 	"testing"
 
+	"github.com/skuid/picard/metadata"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,6 +17,20 @@ func TestUnmarshal(t *testing.T) {
 		outErrMsg       string
 	}{
 		{
+			"Unmarshal a testObject with empty object",
+			[]byte(`{}`),
+			&TestObject{},
+			&TestObject{
+				Metadata: metadata.Metadata{
+					DefinedFields: []string{},
+				},
+				ID:       "",
+				Name:     "",
+				Children: nil,
+			},
+			"",
+		},
+		{
 			"Unmarshal a testObject with only some fields populated",
 			[]byte(`{
 				"id":"myID",
@@ -23,7 +38,7 @@ func TestUnmarshal(t *testing.T) {
 			}`),
 			&TestObject{},
 			&TestObject{
-				Metadata: Metadata{
+				Metadata: metadata.Metadata{
 					DefinedFields: []string{"ID", "Name"},
 				},
 				ID:       "myID",
@@ -40,7 +55,23 @@ func TestUnmarshal(t *testing.T) {
 			}`),
 			&TestObject{},
 			&TestObject{
-				Metadata: Metadata{
+				Metadata: metadata.Metadata{
+					DefinedFields: []string{"ID", "Name"},
+				},
+				ID:       "myID",
+				Name:     "",
+				Children: nil,
+			},
+			"",
+		},
+		{
+			"Unmarshal a testObject with an undefined value",
+			[]byte(`{
+				"id":"myID"
+			}`),
+			&TestObject{},
+			&TestObject{
+				Metadata: metadata.Metadata{
 					DefinedFields: []string{"ID"},
 				},
 				ID:       "myID",
@@ -52,22 +83,80 @@ func TestUnmarshal(t *testing.T) {
 		{
 			"Unmarshal a testObject with a child object",
 			[]byte(`{
-				"id":"anotherID",
-				"name":"anotherName",
-				"children":[{
-					"name":"childName"
-				}]	
-			}`),
+					"id":"anotherID",
+					"name":"anotherName",
+					"children":[{
+						"name":"childName"
+					}]
+				}`),
 			&TestObject{},
 			&TestObject{
-				Metadata: Metadata{
+				Metadata: metadata.Metadata{
 					DefinedFields: []string{"ID", "Name", "Children"},
 				},
 				ID:   "anotherID",
 				Name: "anotherName",
 				Children: []ChildTestObject{
 					{
-						Metadata: Metadata{
+						Metadata: metadata.Metadata{
+							DefinedFields: []string{"Name"},
+						},
+						Name: "childName",
+					},
+				},
+			},
+			"",
+		},
+		{
+			"Unmarshal a testObject with an empty child object",
+			[]byte(`{
+					"id":"anotherID",
+					"name":"anotherName",
+					"children":[{}]
+				}`),
+			&TestObject{},
+			&TestObject{
+				Metadata: metadata.Metadata{
+					DefinedFields: []string{"ID", "Name", "Children"},
+				},
+				ID:   "anotherID",
+				Name: "anotherName",
+				Children: []ChildTestObject{
+					{
+						Metadata: metadata.Metadata{
+							DefinedFields: []string{},
+						},
+						Name: "",
+					},
+				},
+			},
+			"",
+		},
+		{
+			"Unmarshal a testObject with multiple child objects",
+			[]byte(`{
+					"id":"anotherID",
+					"name":"anotherName",
+					"children":[{},{
+						"name":"childName"
+					}]
+				}`),
+			&TestObject{},
+			&TestObject{
+				Metadata: metadata.Metadata{
+					DefinedFields: []string{"ID", "Name", "Children"},
+				},
+				ID:   "anotherID",
+				Name: "anotherName",
+				Children: []ChildTestObject{
+					{
+						Metadata: metadata.Metadata{
+							DefinedFields: []string{},
+						},
+						Name: "",
+					},
+					{
+						Metadata: metadata.Metadata{
 							DefinedFields: []string{"Name"},
 						},
 						Name: "childName",
@@ -80,7 +169,7 @@ func TestUnmarshal(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.testDescription, func(t *testing.T) {
-			err := Unmarshal(tc.inData, tc.inStruct)
+			err := GetDecoder(nil).Unmarshal(tc.inData, tc.inStruct)
 			if tc.outErrMsg != "" {
 				assert.EqualError(t, err, tc.outErrMsg)
 			} else {

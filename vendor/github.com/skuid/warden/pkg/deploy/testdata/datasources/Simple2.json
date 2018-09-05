@@ -1,0 +1,12 @@
+{
+	"name": "Simple2",
+	"authentication": "none",
+	"type": "PostgreSQL",
+	"credentialSource": "none",
+	"url": "104.155.173.133:5432",
+	"database_username": "dbuser",
+	"database_password": "dbpass",
+	"database_name": "dbname",
+	"objects": [],
+	"actions": []
+ }

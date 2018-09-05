@@ -1,0 +1,82 @@
+{
+	"inventory_id__rel.store_id": {
+		"object": "rental",
+		"field": "inventory_id",
+		"conditions": [
+			{
+				"encloseValueInQuotes": false,
+				"field": "inventory_id",
+				"inactive": false,
+				"joinField": "inventory_id",
+				"joinObject": "inventory",
+				"operator": "in",
+				"originalInactive": false,
+				"originalValue": null,
+				"sourceType": "fieldvalue",
+				"subConditionLogic": "1",
+				"subConditions": [
+					{
+						"encloseValueInQuotes": true,
+						"field": "store_id",
+						"inactive": false,
+						"operator": "=",
+						"originalInactive": false,
+						"originalValue": "1",
+						"sourceType": "fieldvalue",
+						"type": "fieldvalue",
+						"value": "1"
+					}
+				],
+				"type": "join",
+				"value": null
+			}
+		]
+	},
+	"inventory_id__rel.store_id__rel.manager_staff_id": {
+		"object": "rental",
+		"field": "inventory_id",
+		"conditions": [
+			{
+				"encloseValueInQuotes": false,
+				"field": "inventory_id",
+				"joinField": "inventory_id",
+				"joinObject": "inventory",
+				"operator": "in",
+				"inactive": false,
+				"originalInactive": false,
+				"sourceType": "fieldvalue",
+				"type": "join",
+				"originalValue": null,
+				"value": null
+			},
+			{
+				"encloseValueInQuotes": false,
+				"field": "store_id",
+				"joinField": "store_id",
+				"joinObject": "store",
+				"sourceObject": "inventory",
+				"operator": "in",
+				"inactive": false,
+				"originalInactive": false,
+				"sourceType": "fieldvalue",
+				"subConditionLogic": "1",
+				"subConditions": [
+					{
+						"encloseValueInQuotes": true,
+						"field": "manager_staff_id",
+						"inactive": false,
+						"operator": "=",
+						"originalInactive": false,
+						"originalValue": "1",
+						"sourceType": "fieldvalue",
+						"type": "fieldvalue",
+						"value": "1"
+					}
+				],
+				"type": "join",
+				"originalValue": null,
+				"value": null
+			}
+		]
+	}
+}

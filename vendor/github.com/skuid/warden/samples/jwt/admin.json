@@ -1,0 +1,17 @@
+{
+	"sub": "1234567890",
+	"name": "John Doe",
+	"iat": 1516239022,
+	"user_id": "B44226D0-8F9A-46C9-8E6B-D1667FB07876",
+	"given_name": "John",
+	"family_name": "Doe",
+	"email": "john.doe@skuid.com",
+	"preferred_username": "johndoe",
+	"site_id": "558529cb-7b66-4658-9488-c5852ceb289b",
+	"profile_name": "admin",
+	"named_permissions": {
+		"skuid": [
+			"configure_site"
+		]
+	}
+}

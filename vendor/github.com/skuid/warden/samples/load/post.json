@@ -1,0 +1,44 @@
+{
+	"operationModels": [
+		{
+			"id": "Address",
+			"objectName": "address",
+			"recordsLimit": null,
+			"doQuery": true,
+			"fields": [
+				{
+					"id": "address"
+				},
+				{
+					"id": "city_id"
+				},
+				{
+					"id": "city_id__rel.city_id"
+				}
+			]
+		},
+		{
+			"id": "Customer",
+			"objectName": "customer",
+			"recordsLimit": null,
+			"doQuery": true,
+			"fields": [
+				{
+					"id": "address_id"
+				},
+				{
+					"id": "address_id__rel.address_id"
+				},
+				{
+					"id": "first_name"
+				},
+				{
+					"id": "last_name"
+				}
+			]
+		}
+	],
+	"options": {
+		"excludeMetadata": false
+	}
+}

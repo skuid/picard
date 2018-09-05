@@ -1,0 +1,13 @@
+{
+	"id": "6e472188-595f-41f3-9791-45045b0a96f4",
+	"organization_id": "",
+	"name": "local_dvdrental",
+	"is_active": false,
+	"type": "PostgreSQL",
+	"url": "localhost:16543",
+	"database_type": "",
+	"database_username": "dvduser",
+	"database_password": "",
+	"database_name": "dvdrental",
+	"objects": null
+}

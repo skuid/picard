@@ -50,6 +50,24 @@
   revision = "83612a56d3dd153a94a629cd64925371c9adad78"
 
 [[projects]]
+  name = "github.com/modern-go/concurrent"
+  packages = ["."]
+  revision = "bacd9c7ef1dd9b15be4a9909b8ac7a4e313eec94"
+  version = "1.0.3"
+
+[[projects]]
+  name = "github.com/modern-go/reflect2"
+  packages = ["."]
+  revision = "4b7aa43c6742a2c18fdef89dd197aaae7dac7ccd"
+  version = "1.0.1"
+
+[[projects]]
+  name = "github.com/plusplusben/json-iterator-go"
+  packages = ["."]
+  revision = "d0a8e940581317dc89a46750fa3e8b8d52cc7499"
+  version = "1.1.6"
+
+[[projects]]
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
@@ -60,6 +78,12 @@
   packages = ["."]
   revision = "879c5887cd475cd7864858769793b2ceb0d44feb"
   version = "v1.1.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/skuid/warden"
+  packages = ["pkg/mapvalue"]
+  revision = "f22b8bca3a4550a12380459144aafaa2104f7c39"
 
 [[projects]]
   name = "github.com/stretchr/testify"
@@ -76,6 +100,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8d471c909bc116bde353268c56defff4a097955119a93a5234aeca612022da72"
+  inputs-digest = "b3d472be17bb7333324e54bf0f71999332d507a5491d809b21bad42a8ab4ab59"
   solver-name = "gps-cdcl"
   solver-version = 1

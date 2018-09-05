@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/skuid/picard/metadata"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,7 +23,7 @@ func TestDeleteModel(t *testing.T) {
 		{
 			"Runs correct query on specified model on pk",
 			struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -69,7 +70,7 @@ func TestDeleteModel(t *testing.T) {
 		{
 			"Runs correct query with data column specified, and multiple rows affected",
 			struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -91,7 +92,7 @@ func TestDeleteModel(t *testing.T) {
 		{
 			"Overwrites specified multitenancy column value",
 			struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -114,7 +115,7 @@ func TestDeleteModel(t *testing.T) {
 		{
 			"returns error on begin transaction",
 			struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -133,7 +134,7 @@ func TestDeleteModel(t *testing.T) {
 		{
 			"returns error on Exec delete statement",
 			struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
@@ -154,7 +155,7 @@ func TestDeleteModel(t *testing.T) {
 		{
 			"returns error on Exec delete statement",
 			struct {
-				Metadata `picard:"tablename=test_tablename"`
+				metadata.Metadata `picard:"tablename=test_tablename"`
 
 				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
 				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
