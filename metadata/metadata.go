@@ -18,7 +18,14 @@ func AddDefinedField(metadataValue reflect.Value, fieldName string) {
 		definedFields := metadataValue.FieldByName("DefinedFields")
 		definedFields.Set(reflect.Append(definedFields, reflect.ValueOf(fieldName)))
 	}
-	return
+}
+
+func HasDefinedFields(metadataValue reflect.Value) bool {
+	if metadataValue.IsValid() {
+		definedFields := metadataValue.FieldByName("DefinedFields")
+		return definedFields.Len() > 0
+	}
+	return true
 }
 
 func InitializeDefinedFields(metadataValue reflect.Value) {
@@ -26,7 +33,6 @@ func InitializeDefinedFields(metadataValue reflect.Value) {
 		definedFields := metadataValue.FieldByName("DefinedFields")
 		definedFields.Set(reflect.ValueOf([]string{}))
 	}
-	return
 }
 
 func GetMetadataValue(picardStruct reflect.Value) reflect.Value {
