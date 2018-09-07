@@ -62,7 +62,8 @@ func (eh ExpectationHelper) getPrimaryKeyColumnName() string {
 	return tableMetadata.getPrimaryKeyColumnName()
 }
 
-func (eh ExpectationHelper) getInsertDBColumns(includePrimaryKey bool) []string {
+// GetInsertDBColumns returns the columns that should inserted into
+func (eh ExpectationHelper) GetInsertDBColumns(includePrimaryKey bool) []string {
 	tableMetadata := eh.getTableMetadata()
 	if includePrimaryKey {
 		return tableMetadata.getColumnNames()
@@ -75,7 +76,8 @@ func (eh ExpectationHelper) getUpdateDBColumns() []string {
 	return tableMetadata.getColumnNamesForUpdate()
 }
 
-func (eh ExpectationHelper) getUpdateDBColumnsForFixture(fixtures interface{}, index int) []string {
+//GetUpdateDBColumnsForFixture returnst the fields that should be updated for a particular fixture
+func (eh ExpectationHelper) GetUpdateDBColumnsForFixture(fixtures interface{}, index int) []string {
 	tableMetadata := eh.getTableMetadata()
 	definedColumns := []string{}
 	fixture := reflect.ValueOf(fixtures).Index(index)
@@ -91,7 +93,8 @@ func (eh ExpectationHelper) getUpdateDBColumnsForFixture(fixtures interface{}, i
 	return definedColumns
 }
 
-func (eh ExpectationHelper) getFixtureValue(fixtures interface{}, index int, fieldName string) driver.Value {
+// GetFixtureValue returns the value of a particular field on a fixture
+func (eh ExpectationHelper) GetFixtureValue(fixtures interface{}, index int, fieldName string) driver.Value {
 	tableMetadata := eh.getTableMetadata()
 	fieldMetadata := tableMetadata.getField(fieldName)
 	fixture := reflect.ValueOf(fixtures).Index(index)
@@ -107,8 +110,8 @@ func (eh ExpectationHelper) getFixtureValue(fixtures interface{}, index int, fie
 	return field.Interface()
 }
 
-// Returns the first column at a given index of return data
-func (eh ExpectationHelper) getReturnDataKey(returnData [][]driver.Value, index int) string {
+// GetReturnDataKey Returns the first column at a given index of return data
+func (eh ExpectationHelper) GetReturnDataKey(returnData [][]driver.Value, index int) string {
 	return returnData[index][0].(string)
 }
 
