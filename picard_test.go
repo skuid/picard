@@ -201,7 +201,7 @@ func TestSerializeJSONBColumns(t *testing.T) {
 // Loads in a fixture data source from file
 func loadTestObjects(names []string, structType interface{}) (interface{}, error) {
 
-	fixtures, err := LoadFixturesFromFiles(names, "./testdata/", reflect.TypeOf(structType))
+	fixtures, err := LoadFixturesFromFiles(names, "./testdata/", reflect.TypeOf(structType), "")
 	if err != nil {
 		return nil, err
 	}

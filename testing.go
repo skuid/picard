@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/lib/pq"
+	"github.com/skuid/picard/decoding"
 	"github.com/skuid/picard/metadata"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
@@ -16,7 +17,7 @@ import (
 )
 
 // LoadFixturesFromFiles creates a slice of structs from a slice of file names
-func LoadFixturesFromFiles(names []string, path string, loadType reflect.Type) (interface{}, error) {
+func LoadFixturesFromFiles(names []string, path string, loadType reflect.Type, jsonTagKey string) (interface{}, error) {
 
 	sliceOfStructs := reflect.New(reflect.SliceOf(loadType)).Elem()
 
@@ -26,7 +27,9 @@ func LoadFixturesFromFiles(names []string, path string, loadType reflect.Type) (
 		if err != nil {
 			return nil, err
 		}
-		err = GetDecoder(nil).Unmarshal(raw, &testObject)
+		err = GetDecoder(&decoding.Config{
+			TagKey: jsonTagKey,
+		}).Unmarshal(raw, &testObject)
 		if err != nil {
 			return nil, err
 		}
