@@ -8,7 +8,7 @@ import (
 	"github.com/modern-go/reflect2"
 	jsoniter "github.com/plusplusben/json-iterator-go"
 	"github.com/skuid/picard/metadata"
-	"github.com/skuid/warden/pkg/mapvalue"
+	"github.com/skuid/picard/stringutils"
 )
 
 // Config specifies options for the picard decoder
@@ -46,7 +46,7 @@ func (extension *picardExtension) UpdateStructDescriptor(structDescriptor *jsoni
 		metadataTag, hasMetadataTag := binding.Field.Tag().Lookup(extension.config.TagKey)
 		if hasMetadataTag {
 			options := strings.Split(metadataTag, ",")[1:]
-			if mapvalue.StringSliceContainsKey(options, "omitretrieve") {
+			if stringutils.StringSliceContainsKey(options, "omitretrieve") {
 				// Don't do bindings for tags that have the "omitretrieve" option
 				binding.ToNames = []string{}
 			}

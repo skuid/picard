@@ -80,12 +80,6 @@
   version = "v1.1.0"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/skuid/warden"
-  packages = ["pkg/mapvalue"]
-  revision = "f22b8bca3a4550a12380459144aafaa2104f7c39"
-
-[[projects]]
   name = "github.com/stretchr/testify"
   packages = ["assert"]
   revision = "b91bfb9ebec76498946beb6af7c0230c7cc7ba6c"
@@ -100,6 +94,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b3d472be17bb7333324e54bf0f71999332d507a5491d809b21bad42a8ab4ab59"
+  inputs-digest = "c69636c95f2e22c790d4d347693fbe9ea465417c05c0cba45cc56138ab84d306"
   solver-name = "gps-cdcl"
   solver-version = 1
