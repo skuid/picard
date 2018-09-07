@@ -228,14 +228,14 @@ func TestDeployments(t *testing.T) {
 				returnData := GetReturnDataForLookup(helper, nil)
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
-				ExpectInsert(mock, helper, helper.getInsertDBColumns(true), [][]driver.Value{
+				ExpectInsert(mock, helper, helper.GetInsertDBColumns(true), [][]driver.Value{
 					[]driver.Value{
-						helper.getFixtureValue(fixtures, 0, "ID"),
+						helper.GetFixtureValue(fixtures, 0, "ID"),
 						sampleOrgID,
-						helper.getFixtureValue(fixtures, 0, "Name"),
+						helper.GetFixtureValue(fixtures, 0, "Name"),
 						nil,
-						helper.getFixtureValue(fixtures, 0, "Type"),
-						helper.getFixtureValue(fixtures, 0, "IsActive"),
+						helper.GetFixtureValue(fixtures, 0, "Type"),
+						helper.GetFixtureValue(fixtures, 0, "IsActive"),
 						nil,
 						nil,
 						sampleUserID,
@@ -257,12 +257,12 @@ func TestDeployments(t *testing.T) {
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
-					helper.getUpdateDBColumnsForFixture(fixtures, 0),
+					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
 				}, [][]driver.Value{
 					[]driver.Value{
-						helper.getFixtureValue(fixtures, 0, "Name"),
-						helper.getFixtureValue(fixtures, 0, "Type"),
-						helper.getFixtureValue(fixtures, 0, "IsActive"),
+						helper.GetFixtureValue(fixtures, 0, "Name"),
+						helper.GetFixtureValue(fixtures, 0, "Type"),
+						helper.GetFixtureValue(fixtures, 0, "IsActive"),
 						sampleUserID,
 						sqlmock.AnyArg(),
 					},
@@ -279,15 +279,15 @@ func TestDeployments(t *testing.T) {
 				returnData := GetReturnDataForLookup(helper, nil)
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
-				ExpectInsert(mock, helper, helper.getInsertDBColumns(false), [][]driver.Value{
+				ExpectInsert(mock, helper, helper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
-						helper.getFixtureValue(fixtures, 0, "Name"),
+						helper.GetFixtureValue(fixtures, 0, "Name"),
 						nil,
-						helper.getFixtureValue(fixtures, 0, "Type"),
-						helper.getFixtureValue(fixtures, 0, "IsActive"),
+						helper.GetFixtureValue(fixtures, 0, "Type"),
+						helper.GetFixtureValue(fixtures, 0, "IsActive"),
 						nil,
-						helper.getFixtureValue(fixtures, 0, "Config"),
+						helper.GetFixtureValue(fixtures, 0, "Config"),
 						sampleUserID,
 						sampleUserID,
 						sqlmock.AnyArg(),
@@ -307,13 +307,13 @@ func TestDeployments(t *testing.T) {
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
-					helper.getUpdateDBColumnsForFixture(fixtures, 0),
+					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
 				}, [][]driver.Value{
 					[]driver.Value{
-						helper.getFixtureValue(fixtures, 0, "Name"),
-						helper.getFixtureValue(fixtures, 0, "Type"),
-						helper.getFixtureValue(fixtures, 0, "IsActive"),
-						helper.getFixtureValue(fixtures, 0, "Config"),
+						helper.GetFixtureValue(fixtures, 0, "Name"),
+						helper.GetFixtureValue(fixtures, 0, "Type"),
+						helper.GetFixtureValue(fixtures, 0, "IsActive"),
+						helper.GetFixtureValue(fixtures, 0, "Config"),
 						sampleUserID,
 						sqlmock.AnyArg(),
 					},
@@ -344,13 +344,13 @@ func TestDeployments(t *testing.T) {
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
-					helper.getUpdateDBColumnsForFixture(fixtures, 0),
+					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
 				}, [][]driver.Value{
 					[]driver.Value{
-						helper.getFixtureValue(fixtures, 0, "Name"),
-						helper.getFixtureValue(fixtures, 0, "Type"),
-						helper.getFixtureValue(fixtures, 0, "IsActive"),
-						helper.getFixtureValue(fixtures, 0, "Config"),
+						helper.GetFixtureValue(fixtures, 0, "Name"),
+						helper.GetFixtureValue(fixtures, 0, "Type"),
+						helper.GetFixtureValue(fixtures, 0, "IsActive"),
+						helper.GetFixtureValue(fixtures, 0, "Config"),
 						sampleUserID,
 						sqlmock.AnyArg(),
 					},
@@ -367,15 +367,15 @@ func TestDeployments(t *testing.T) {
 				returnData := GetReturnDataForLookup(helper, nil)
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
-				ExpectInsert(mock, helper, helper.getInsertDBColumns(false), [][]driver.Value{
+				ExpectInsert(mock, helper, helper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
-						helper.getFixtureValue(fixtures, 0, "Name"),
+						helper.GetFixtureValue(fixtures, 0, "Name"),
 						nil,
-						helper.getFixtureValue(fixtures, 0, "Type"),
-						helper.getFixtureValue(fixtures, 0, "IsActive"),
+						helper.GetFixtureValue(fixtures, 0, "Type"),
+						helper.GetFixtureValue(fixtures, 0, "IsActive"),
 						nil,
-						helper.getFixtureValue(fixtures, 0, "Config"),
+						helper.GetFixtureValue(fixtures, 0, "Config"),
 						sampleUserID,
 						sampleUserID,
 						sqlmock.AnyArg(),
@@ -383,9 +383,9 @@ func TestDeployments(t *testing.T) {
 					},
 					[]driver.Value{
 						sampleOrgID,
-						helper.getFixtureValue(fixtures, 1, "Name"),
+						helper.GetFixtureValue(fixtures, 1, "Name"),
 						nil,
-						helper.getFixtureValue(fixtures, 1, "Type"),
+						helper.GetFixtureValue(fixtures, 1, "Type"),
 						nil,
 						nil,
 						nil,
@@ -408,20 +408,20 @@ func TestDeployments(t *testing.T) {
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
-					helper.getUpdateDBColumnsForFixture(fixtures, 0),
-					helper.getUpdateDBColumnsForFixture(fixtures, 1),
+					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
+					helper.GetUpdateDBColumnsForFixture(fixtures, 1),
 				}, [][]driver.Value{
 					[]driver.Value{
-						helper.getFixtureValue(fixtures, 0, "Name"),
-						helper.getFixtureValue(fixtures, 0, "Type"),
-						helper.getFixtureValue(fixtures, 0, "IsActive"),
-						helper.getFixtureValue(fixtures, 0, "Config"),
+						helper.GetFixtureValue(fixtures, 0, "Name"),
+						helper.GetFixtureValue(fixtures, 0, "Type"),
+						helper.GetFixtureValue(fixtures, 0, "IsActive"),
+						helper.GetFixtureValue(fixtures, 0, "Config"),
 						sampleUserID,
 						sqlmock.AnyArg(),
 					},
 					[]driver.Value{
-						helper.getFixtureValue(fixtures, 1, "Name"),
-						helper.getFixtureValue(fixtures, 1, "Type"),
+						helper.GetFixtureValue(fixtures, 1, "Name"),
+						helper.GetFixtureValue(fixtures, 1, "Type"),
 						sampleUserID,
 						sqlmock.AnyArg(),
 					},
@@ -442,23 +442,23 @@ func TestDeployments(t *testing.T) {
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
-					helper.getUpdateDBColumnsForFixture(fixtures, 0),
+					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
 				}, [][]driver.Value{
 					[]driver.Value{
-						helper.getFixtureValue(fixtures, 0, "Name"),
-						helper.getFixtureValue(fixtures, 0, "Type"),
-						helper.getFixtureValue(fixtures, 0, "IsActive"),
-						helper.getFixtureValue(fixtures, 0, "Config"),
+						helper.GetFixtureValue(fixtures, 0, "Name"),
+						helper.GetFixtureValue(fixtures, 0, "Type"),
+						helper.GetFixtureValue(fixtures, 0, "IsActive"),
+						helper.GetFixtureValue(fixtures, 0, "Config"),
 						sampleUserID,
 						sqlmock.AnyArg(),
 					},
 				}, returnData)
-				ExpectInsert(mock, helper, helper.getInsertDBColumns(false), [][]driver.Value{
+				ExpectInsert(mock, helper, helper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
-						helper.getFixtureValue(fixtures, 1, "Name"),
+						helper.GetFixtureValue(fixtures, 1, "Name"),
 						nil,
-						helper.getFixtureValue(fixtures, 1, "Type"),
+						helper.GetFixtureValue(fixtures, 1, "Type"),
 						nil,
 						nil,
 						nil,
@@ -477,10 +477,10 @@ func TestDeployments(t *testing.T) {
 			ParentTestObject{},
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				fixtures := fixturesAbstract.([]ParentTestObject)
-				insertRows := ExpectInsert(mock, parentObjectHelper, parentObjectHelper.getInsertDBColumns(false), [][]driver.Value{
+				insertRows := ExpectInsert(mock, parentObjectHelper, parentObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
-						parentObjectHelper.getFixtureValue(fixtures, 0, "Name"),
+						parentObjectHelper.GetFixtureValue(fixtures, 0, "Name"),
 					},
 				})
 
@@ -496,14 +496,14 @@ func TestDeployments(t *testing.T) {
 				testLookupKeys := GetLookupKeys(testObjectHelper, testObjects)
 				ExpectLookup(mock, testObjectHelper, testLookupKeys, testReturnData)
 
-				childInsertRows := ExpectInsert(mock, testObjectHelper, testObjectHelper.getInsertDBColumns(false), [][]driver.Value{
+				childInsertRows := ExpectInsert(mock, testObjectHelper, testObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
-						testObjectHelper.getFixtureValue(testObjects, 0, "Name"),
+						testObjectHelper.GetFixtureValue(testObjects, 0, "Name"),
 						nil,
-						testObjectHelper.getFixtureValue(testObjects, 0, "Type"),
+						testObjectHelper.GetFixtureValue(testObjects, 0, "Type"),
 						nil,
-						testChildObjectHelper.getFixtureValue(testObjects, 0, "ParentID"),
+						testChildObjectHelper.GetFixtureValue(testObjects, 0, "ParentID"),
 						nil,
 						sampleUserID,
 						sampleUserID,
@@ -523,12 +523,12 @@ func TestDeployments(t *testing.T) {
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
-				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.getInsertDBColumns(false), [][]driver.Value{
+				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
-						testChildObjectHelper.getFixtureValue(childObjects, 0, "Name"),
+						testChildObjectHelper.GetFixtureValue(childObjects, 0, "Name"),
 						nil,
-						testChildObjectHelper.getFixtureValue(childObjects, 0, "ParentID"),
+						testChildObjectHelper.GetFixtureValue(childObjects, 0, "ParentID"),
 						nil,
 					},
 				})
@@ -544,12 +544,12 @@ func TestDeployments(t *testing.T) {
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
 				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
 				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
-				insertRows := ExpectInsert(mock, testObjectHelper, testObjectHelper.getInsertDBColumns(false), [][]driver.Value{
+				insertRows := ExpectInsert(mock, testObjectHelper, testObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
-						testObjectHelper.getFixtureValue(fixtures, 0, "Name"),
+						testObjectHelper.GetFixtureValue(fixtures, 0, "Name"),
 						nil,
-						testObjectHelper.getFixtureValue(fixtures, 0, "Type"),
+						testObjectHelper.GetFixtureValue(fixtures, 0, "Type"),
 						nil,
 						nil,
 						nil,
@@ -571,19 +571,19 @@ func TestDeployments(t *testing.T) {
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
-				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.getInsertDBColumns(false), [][]driver.Value{
+				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
-						testChildObjectHelper.getFixtureValue(childObjects, 0, "Name"),
+						testChildObjectHelper.GetFixtureValue(childObjects, 0, "Name"),
 						nil,
-						testChildObjectHelper.getFixtureValue(childObjects, 0, "ParentID"),
+						testChildObjectHelper.GetFixtureValue(childObjects, 0, "ParentID"),
 						nil,
 					},
 					[]driver.Value{
 						sampleOrgID,
-						testChildObjectHelper.getFixtureValue(childObjects, 1, "Name"),
+						testChildObjectHelper.GetFixtureValue(childObjects, 1, "Name"),
 						nil,
-						testChildObjectHelper.getFixtureValue(childObjects, 1, "ParentID"),
+						testChildObjectHelper.GetFixtureValue(childObjects, 1, "ParentID"),
 						nil,
 					},
 				})
@@ -599,12 +599,12 @@ func TestDeployments(t *testing.T) {
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
 				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
 				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
-				insertRows := ExpectInsert(mock, testObjectHelper, testObjectHelper.getInsertDBColumns(false), [][]driver.Value{
+				insertRows := ExpectInsert(mock, testObjectHelper, testObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
-						testObjectHelper.getFixtureValue(fixtures, 0, "Name"),
+						testObjectHelper.GetFixtureValue(fixtures, 0, "Name"),
 						nil,
-						testObjectHelper.getFixtureValue(fixtures, 0, "Type"),
+						testObjectHelper.GetFixtureValue(fixtures, 0, "Type"),
 						nil,
 						nil,
 						nil,
@@ -626,19 +626,19 @@ func TestDeployments(t *testing.T) {
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
-				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.getInsertDBColumns(false), [][]driver.Value{
+				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
-						testChildObjectHelper.getFixtureValue(childObjects, 0, "Name"),
+						testChildObjectHelper.GetFixtureValue(childObjects, 0, "Name"),
 						nil,
-						testChildObjectHelper.getFixtureValue(childObjects, 0, "ParentID"),
+						testChildObjectHelper.GetFixtureValue(childObjects, 0, "ParentID"),
 						nil,
 					},
 					[]driver.Value{
 						sampleOrgID,
-						testChildObjectHelper.getFixtureValue(childObjects, 1, "Name"),
+						testChildObjectHelper.GetFixtureValue(childObjects, 1, "Name"),
 						nil,
-						testChildObjectHelper.getFixtureValue(childObjects, 1, "ParentID"),
+						testChildObjectHelper.GetFixtureValue(childObjects, 1, "ParentID"),
 						nil,
 					},
 				})
@@ -654,12 +654,12 @@ func TestDeployments(t *testing.T) {
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
 				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
 				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
-				insertRows := ExpectInsert(mock, testObjectHelper, testObjectHelper.getInsertDBColumns(false), [][]driver.Value{
+				insertRows := ExpectInsert(mock, testObjectHelper, testObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
-						testObjectHelper.getFixtureValue(fixtures, 0, "Name"),
+						testObjectHelper.GetFixtureValue(fixtures, 0, "Name"),
 						nil,
-						testObjectHelper.getFixtureValue(fixtures, 0, "Type"),
+						testObjectHelper.GetFixtureValue(fixtures, 0, "Type"),
 						nil,
 						nil,
 						nil,
@@ -681,14 +681,14 @@ func TestDeployments(t *testing.T) {
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
-				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.getInsertDBColumns(false), [][]driver.Value{
+				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
 						// Tests that the key mapping "Name" worked correctly
 						"ChildRecord1",
 						// Tests that the value mapping "Type->OtherInfo" worked correctly
-						testObjectHelper.getFixtureValue(fixtures, 0, "Type"),
-						testObjectHelper.getReturnDataKey(insertRows, 0),
+						testObjectHelper.GetFixtureValue(fixtures, 0, "Type"),
+						testObjectHelper.GetReturnDataKey(insertRows, 0),
 						nil,
 					},
 				})
@@ -706,11 +706,11 @@ func TestDeployments(t *testing.T) {
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
-					helper.getUpdateDBColumnsForFixture(fixtures, 0),
+					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
 				}, [][]driver.Value{
 					[]driver.Value{
-						helper.getFixtureValue(fixtures, 0, "Name"),
-						helper.getFixtureValue(fixtures, 0, "Type"),
+						helper.GetFixtureValue(fixtures, 0, "Name"),
+						helper.GetFixtureValue(fixtures, 0, "Type"),
 						sampleUserID,
 						sqlmock.AnyArg(),
 					},
@@ -727,19 +727,19 @@ func TestDeployments(t *testing.T) {
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
-				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.getInsertDBColumns(false), [][]driver.Value{
+				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
-						testChildObjectHelper.getFixtureValue(childObjects, 0, "Name"),
+						testChildObjectHelper.GetFixtureValue(childObjects, 0, "Name"),
 						nil,
-						testChildObjectHelper.getReturnDataKey(returnData, 0),
+						testChildObjectHelper.GetReturnDataKey(returnData, 0),
 						nil,
 					},
 					[]driver.Value{
 						sampleOrgID,
-						testChildObjectHelper.getFixtureValue(childObjects, 1, "Name"),
+						testChildObjectHelper.GetFixtureValue(childObjects, 1, "Name"),
 						nil,
-						testChildObjectHelper.getReturnDataKey(returnData, 0),
+						testChildObjectHelper.GetReturnDataKey(returnData, 0),
 						nil,
 					},
 				})
@@ -757,11 +757,11 @@ func TestDeployments(t *testing.T) {
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
-					helper.getUpdateDBColumnsForFixture(fixtures, 0),
+					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
 				}, [][]driver.Value{
 					[]driver.Value{
-						helper.getFixtureValue(fixtures, 0, "Name"),
-						helper.getFixtureValue(fixtures, 0, "Type"),
+						helper.GetFixtureValue(fixtures, 0, "Name"),
+						helper.GetFixtureValue(fixtures, 0, "Type"),
 						sampleUserID,
 						sqlmock.AnyArg(),
 					},
@@ -793,19 +793,19 @@ func TestDeployments(t *testing.T) {
 					)
 
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"})
-				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.getInsertDBColumns(false), [][]driver.Value{
+				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
-						testChildObjectHelper.getFixtureValue(childObjects, 0, "Name"),
+						testChildObjectHelper.GetFixtureValue(childObjects, 0, "Name"),
 						nil,
-						testChildObjectHelper.getReturnDataKey(returnData, 0),
+						testChildObjectHelper.GetReturnDataKey(returnData, 0),
 						nil,
 					},
 					[]driver.Value{
 						sampleOrgID,
-						testChildObjectHelper.getFixtureValue(childObjects, 1, "Name"),
+						testChildObjectHelper.GetFixtureValue(childObjects, 1, "Name"),
 						nil,
-						testChildObjectHelper.getReturnDataKey(returnData, 0),
+						testChildObjectHelper.GetReturnDataKey(returnData, 0),
 						nil,
 					},
 				})
@@ -823,11 +823,11 @@ func TestDeployments(t *testing.T) {
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
-					helper.getUpdateDBColumnsForFixture(fixtures, 0),
+					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
 				}, [][]driver.Value{
 					[]driver.Value{
-						helper.getFixtureValue(fixtures, 0, "Name"),
-						helper.getFixtureValue(fixtures, 0, "Type"),
+						helper.GetFixtureValue(fixtures, 0, "Name"),
+						helper.GetFixtureValue(fixtures, 0, "Type"),
 						sampleUserID,
 						sqlmock.AnyArg(),
 					},
@@ -859,19 +859,19 @@ func TestDeployments(t *testing.T) {
 					)
 
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"})
-				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.getInsertDBColumns(false), [][]driver.Value{
+				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
-						testChildObjectHelper.getFixtureValue(childObjects, 0, "Name"),
+						testChildObjectHelper.GetFixtureValue(childObjects, 0, "Name"),
 						nil,
-						testChildObjectHelper.getReturnDataKey(returnData, 0),
+						testChildObjectHelper.GetReturnDataKey(returnData, 0),
 						nil,
 					},
 					[]driver.Value{
 						sampleOrgID,
-						testChildObjectHelper.getFixtureValue(childObjects, 1, "Name"),
+						testChildObjectHelper.GetFixtureValue(childObjects, 1, "Name"),
 						nil,
-						testChildObjectHelper.getReturnDataKey(returnData, 0),
+						testChildObjectHelper.GetReturnDataKey(returnData, 0),
 						nil,
 					},
 				})
@@ -899,11 +899,11 @@ func TestDeployments(t *testing.T) {
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
-					helper.getUpdateDBColumnsForFixture(fixtures, 0),
+					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
 				}, [][]driver.Value{
 					[]driver.Value{
-						helper.getFixtureValue(fixtures, 0, "Name"),
-						helper.getFixtureValue(fixtures, 0, "Type"),
+						helper.GetFixtureValue(fixtures, 0, "Name"),
+						helper.GetFixtureValue(fixtures, 0, "Type"),
 						sampleUserID,
 						sqlmock.AnyArg(),
 					},
@@ -921,16 +921,16 @@ func TestDeployments(t *testing.T) {
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 				ExpectUpdate(mock, testChildObjectHelper, [][]string{
-					testChildObjectHelper.getUpdateDBColumnsForFixture(childObjects, 0),
-					testChildObjectHelper.getUpdateDBColumnsForFixture(childObjects, 1),
+					testChildObjectHelper.GetUpdateDBColumnsForFixture(childObjects, 0),
+					testChildObjectHelper.GetUpdateDBColumnsForFixture(childObjects, 1),
 				}, [][]driver.Value{
 					[]driver.Value{
-						testChildObjectHelper.getFixtureValue(childObjects, 0, "Name"),
-						testChildObjectHelper.getReturnDataKey(returnData, 0),
+						testChildObjectHelper.GetFixtureValue(childObjects, 0, "Name"),
+						testChildObjectHelper.GetReturnDataKey(returnData, 0),
 					},
 					[]driver.Value{
-						testChildObjectHelper.getFixtureValue(childObjects, 1, "Name"),
-						testChildObjectHelper.getReturnDataKey(returnData, 0),
+						testChildObjectHelper.GetFixtureValue(childObjects, 1, "Name"),
+						testChildObjectHelper.GetReturnDataKey(returnData, 0),
 					},
 				}, childReturnData)
 			},
@@ -947,11 +947,11 @@ func TestDeployments(t *testing.T) {
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
-					helper.getUpdateDBColumnsForFixture(fixtures, 0),
+					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
 				}, [][]driver.Value{
 					[]driver.Value{
-						helper.getFixtureValue(fixtures, 0, "Name"),
-						helper.getFixtureValue(fixtures, 0, "Type"),
+						helper.GetFixtureValue(fixtures, 0, "Name"),
+						helper.GetFixtureValue(fixtures, 0, "Type"),
 						sampleUserID,
 						sqlmock.AnyArg(),
 					},
@@ -984,16 +984,16 @@ func TestDeployments(t *testing.T) {
 
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000002"})
 				ExpectUpdate(mock, testChildObjectHelper, [][]string{
-					testChildObjectHelper.getUpdateDBColumnsForFixture(childObjects, 0),
-					testChildObjectHelper.getUpdateDBColumnsForFixture(childObjects, 1),
+					testChildObjectHelper.GetUpdateDBColumnsForFixture(childObjects, 0),
+					testChildObjectHelper.GetUpdateDBColumnsForFixture(childObjects, 1),
 				}, [][]driver.Value{
 					[]driver.Value{
-						testChildObjectHelper.getFixtureValue(childObjects, 0, "Name"),
-						testChildObjectHelper.getReturnDataKey(returnData, 0),
+						testChildObjectHelper.GetFixtureValue(childObjects, 0, "Name"),
+						testChildObjectHelper.GetReturnDataKey(returnData, 0),
 					},
 					[]driver.Value{
-						testChildObjectHelper.getFixtureValue(childObjects, 1, "Name"),
-						testChildObjectHelper.getReturnDataKey(returnData, 0),
+						testChildObjectHelper.GetFixtureValue(childObjects, 1, "Name"),
+						testChildObjectHelper.GetReturnDataKey(returnData, 0),
 					},
 				}, childReturnData)
 
@@ -1020,18 +1020,18 @@ func TestDeployments(t *testing.T) {
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
-					helper.getUpdateDBColumnsForFixture(fixtures, 0),
-					helper.getUpdateDBColumnsForFixture(fixtures, 1),
+					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
+					helper.GetUpdateDBColumnsForFixture(fixtures, 1),
 				}, [][]driver.Value{
 					[]driver.Value{
-						helper.getFixtureValue(fixtures, 0, "Name"),
-						helper.getFixtureValue(fixtures, 0, "Type"),
+						helper.GetFixtureValue(fixtures, 0, "Name"),
+						helper.GetFixtureValue(fixtures, 0, "Type"),
 						sampleUserID,
 						sqlmock.AnyArg(),
 					},
 					[]driver.Value{
-						helper.getFixtureValue(fixtures, 1, "Name"),
-						helper.getFixtureValue(fixtures, 1, "Type"),
+						helper.GetFixtureValue(fixtures, 1, "Name"),
+						helper.GetFixtureValue(fixtures, 1, "Type"),
 						sampleUserID,
 						sqlmock.AnyArg(),
 					},
@@ -1072,26 +1072,26 @@ func TestDeployments(t *testing.T) {
 
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000004", "00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000006"})
 				ExpectUpdate(mock, testChildObjectHelper, [][]string{
-					testChildObjectHelper.getUpdateDBColumnsForFixture(childObjects, 0),
-					testChildObjectHelper.getUpdateDBColumnsForFixture(childObjects, 1),
-					testChildObjectHelper.getUpdateDBColumnsForFixture(childObjects, 2),
-					testChildObjectHelper.getUpdateDBColumnsForFixture(childObjects, 3),
+					testChildObjectHelper.GetUpdateDBColumnsForFixture(childObjects, 0),
+					testChildObjectHelper.GetUpdateDBColumnsForFixture(childObjects, 1),
+					testChildObjectHelper.GetUpdateDBColumnsForFixture(childObjects, 2),
+					testChildObjectHelper.GetUpdateDBColumnsForFixture(childObjects, 3),
 				}, [][]driver.Value{
 					[]driver.Value{
-						testChildObjectHelper.getFixtureValue(childObjects, 0, "Name"),
-						testChildObjectHelper.getReturnDataKey(returnData, 0),
+						testChildObjectHelper.GetFixtureValue(childObjects, 0, "Name"),
+						testChildObjectHelper.GetReturnDataKey(returnData, 0),
 					},
 					[]driver.Value{
-						testChildObjectHelper.getFixtureValue(childObjects, 1, "Name"),
-						testChildObjectHelper.getReturnDataKey(returnData, 0),
+						testChildObjectHelper.GetFixtureValue(childObjects, 1, "Name"),
+						testChildObjectHelper.GetReturnDataKey(returnData, 0),
 					},
 					[]driver.Value{
-						testChildObjectHelper.getFixtureValue(childObjects, 2, "Name"),
-						testChildObjectHelper.getReturnDataKey(returnData, 1),
+						testChildObjectHelper.GetFixtureValue(childObjects, 2, "Name"),
+						testChildObjectHelper.GetReturnDataKey(returnData, 1),
 					},
 					[]driver.Value{
-						testChildObjectHelper.getFixtureValue(childObjects, 3, "Name"),
-						testChildObjectHelper.getReturnDataKey(returnData, 1),
+						testChildObjectHelper.GetFixtureValue(childObjects, 3, "Name"),
+						testChildObjectHelper.GetReturnDataKey(returnData, 1),
 					},
 				}, childReturnData)
 
@@ -1145,7 +1145,7 @@ func TestDeployments(t *testing.T) {
 					},
 				}, [][]driver.Value{
 					[]driver.Value{
-						testChildObjectWithLookupHelper.getFixtureValue(fixtures, 0, "Name"),
+						testChildObjectWithLookupHelper.GetFixtureValue(fixtures, 0, "Name"),
 						parentUUID,
 					},
 				}, returnData)
@@ -1181,10 +1181,10 @@ func TestDeployments(t *testing.T) {
 					},
 				})
 
-				ExpectInsert(mock, testChildObjectWithLookupHelper, testChildObjectWithLookupHelper.getInsertDBColumns(false), [][]driver.Value{
+				ExpectInsert(mock, testChildObjectWithLookupHelper, testChildObjectWithLookupHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
-						testChildObjectWithLookupHelper.getFixtureValue(childObjects, 0, "Name"),
+						testChildObjectWithLookupHelper.GetFixtureValue(childObjects, 0, "Name"),
 						nil,
 						parentUUID,
 						nil,
@@ -1221,10 +1221,10 @@ func TestDeployments(t *testing.T) {
 						"",
 					},
 				})
-				ExpectInsert(mock, testChildObjectWithLookupHelper, testChildObjectWithLookupHelper.getInsertDBColumns(false), [][]driver.Value{
+				ExpectInsert(mock, testChildObjectWithLookupHelper, testChildObjectWithLookupHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
-						testChildObjectWithLookupHelper.getFixtureValue(childObjects, 0, "Name"),
+						testChildObjectWithLookupHelper.GetFixtureValue(childObjects, 0, "Name"),
 						nil,
 						parentUUID,
 						nil,
@@ -1273,10 +1273,10 @@ func TestDeployments(t *testing.T) {
 						"",
 					},
 				})
-				ExpectInsert(mock, testChildObjectWithLookupHelper, testChildObjectWithLookupHelper.getInsertDBColumns(false), [][]driver.Value{
+				ExpectInsert(mock, testChildObjectWithLookupHelper, testChildObjectWithLookupHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
-						testChildObjectWithLookupHelper.getFixtureValue(childObjects, 0, "Name"),
+						testChildObjectWithLookupHelper.GetFixtureValue(childObjects, 0, "Name"),
 						nil,
 						parentUUID,
 						optionalParentUUID,
@@ -1309,10 +1309,10 @@ func TestDeployments(t *testing.T) {
 				// Expect the foreign key lookup next
 				ExpectLookup(mock, testObjectHelper, []string{"Simple|"}, [][]driver.Value{})
 
-				ExpectInsert(mock, testChildObjectWithLookupHelper, testChildObjectWithLookupHelper.getInsertDBColumns(false), [][]driver.Value{
+				ExpectInsert(mock, testChildObjectWithLookupHelper, testChildObjectWithLookupHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
-						testChildObjectWithLookupHelper.getFixtureValue(childObjects, 0, "Name"),
+						testChildObjectWithLookupHelper.GetFixtureValue(childObjects, 0, "Name"),
 						nil,
 						parentUUID,
 						nil,
