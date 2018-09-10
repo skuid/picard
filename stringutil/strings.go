@@ -1,4 +1,4 @@
-package stringutils
+package stringutil
 
 // StringSliceContainsKey determines if a string is present in a slice of strings
 func StringSliceContainsKey(strings []string, key string) bool {

@@ -19,6 +19,7 @@ import (
 	"github.com/skuid/picard/dbchange"
 	"github.com/skuid/picard/decoding"
 	"github.com/skuid/picard/metadata"
+	"github.com/skuid/picard/reflectutil"
 	validator "gopkg.in/go-playground/validator.v9"
 )
 
@@ -847,15 +848,8 @@ func isFieldDefinedOnStruct(modelMetadata metadata.Metadata, fieldName string, d
 	// Finally, check to see if we have a non-zero value in the struct for this field
 	// If so, it doesn't matter if it's in our defined list, it's defined
 	fieldValue := data.FieldByName(fieldName)
-	if !isZeroValue(fieldValue) {
+	if !reflectutil.IsZeroValue(fieldValue) {
 		return true
-	}
-	return false
-}
-
-func isZeroValue(v reflect.Value) bool {
-	if v.CanInterface() {
-		return reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface())
 	}
 	return false
 }
@@ -1127,7 +1121,7 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 		_, isMultitenancyColumn := picardTags["multitenancy_key"]
 		_, isChild := picardTags["child"]
 
-		isZeroField := isZeroValue(fieldValue)
+		isZeroField := reflectutil.IsZeroValue(fieldValue)
 
 		kind := fieldValue.Kind()
 
