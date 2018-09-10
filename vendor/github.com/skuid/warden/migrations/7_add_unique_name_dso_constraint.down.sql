@@ -1,3 +1,0 @@
-ALTER TABLE public.data_source_object
-	DROP CONSTRAINT data_source_object_name_data_source_id_unique;
-ALTER TABLE public.data_source_object DROP table_name;

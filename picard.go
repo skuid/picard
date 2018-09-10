@@ -19,6 +19,7 @@ import (
 	"github.com/skuid/picard/dbchange"
 	"github.com/skuid/picard/decoding"
 	"github.com/skuid/picard/metadata"
+	"github.com/skuid/picard/reflectutil"
 	validator "gopkg.in/go-playground/validator.v9"
 )
 
@@ -515,6 +516,7 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tableMetadata, foreign
 func getLookupObjectKeys(data interface{}, lookupsToUse []Lookup, foreignKey *ForeignKey) []string {
 	keys := []string{}
 	s := reflect.ValueOf(data)
+	emptyKeyLength := len(separator) * len(lookupsToUse)
 	for i := 0; i < s.Len(); i++ {
 		item := s.Index(i)
 
@@ -525,8 +527,13 @@ func getLookupObjectKeys(data interface{}, lookupsToUse []Lookup, foreignKey *Fo
 		if isZeroField {
 			continue
 		}
+		objectKey := getObjectKeyReflect(item, lookupsToUse)
+		// If none of the lookups have values, don't do the lookup
+		if len(objectKey) == emptyKeyLength-1 {
+			continue
+		}
 		// Determine the where values that we need for this lookup
-		keys = append(keys, getObjectKeyReflect(item, lookupsToUse))
+		keys = append(keys, objectKey)
 	}
 	return keys
 }
@@ -826,7 +833,7 @@ func serializeJSONBColumn(value interface{}) (interface{}, error) {
 	return json.Marshal(value)
 }
 
-func isFieldDefinedOnStruct(modelMetadata metadata.Metadata, fieldName string) bool {
+func isFieldDefinedOnStruct(modelMetadata metadata.Metadata, fieldName string, data reflect.Value) bool {
 	// Check for nil here instead of the length of the slice.
 	// The decode method in picard sets defined fields to an empty slice if it has been run.
 	if modelMetadata.DefinedFields == nil {
@@ -837,6 +844,12 @@ func isFieldDefinedOnStruct(modelMetadata metadata.Metadata, fieldName string) b
 		if definedFieldName == fieldName {
 			return true
 		}
+	}
+	// Finally, check to see if we have a non-zero value in the struct for this field
+	// If so, it doesn't matter if it's in our defined list, it's defined
+	fieldValue := data.FieldByName(fieldName)
+	if !reflectutil.IsZeroValue(fieldValue) {
+		return true
 	}
 	return false
 }
@@ -875,7 +888,7 @@ func (p PersistenceORM) processObject(
 				returnValue = time.Now()
 			}
 		} else {
-			if !isFieldDefinedOnStruct(modelMetadata, field.name) {
+			if !isFieldDefinedOnStruct(modelMetadata, field.name, metadataObject) {
 				continue
 			}
 			returnValue = metadataObject.FieldByName(field.name).Interface()
@@ -939,7 +952,8 @@ func (p PersistenceORM) processObject(
 	serializeJSONBColumns(tableMetadata.getJSONBColumns(), returnObject)
 
 	for _, foreignKey := range foreignKeys {
-		if returnObject[foreignKey.KeyColumn] != "" && foreignKey.KeyMapField == "" {
+		fkValue, keyIsDefined := returnObject[foreignKey.KeyColumn]
+		if keyIsDefined && fkValue != "" && foreignKey.KeyMapField == "" {
 			continue
 		}
 		foreignValue := metadataObject.FieldByName(foreignKey.RelatedFieldName)
@@ -1107,10 +1121,7 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 		_, isMultitenancyColumn := picardTags["multitenancy_key"]
 		_, isChild := picardTags["child"]
 
-		isZeroField := false
-		if fieldValue.CanInterface() {
-			isZeroField = reflect.DeepEqual(fieldValue.Interface(), reflect.Zero(field.Type).Interface())
-		}
+		isZeroField := reflectutil.IsZeroValue(fieldValue)
 
 		kind := fieldValue.Kind()
 
