@@ -139,6 +139,7 @@ func (p PersistenceORM) DeployMultiple(data []interface{}) error {
 
 	for _, dataItem := range data {
 		if err = p.upsert(dataItem, nil); err != nil {
+			tx.Rollback()
 			return err
 		}
 	}
