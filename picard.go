@@ -77,6 +77,7 @@ type ORM interface {
 	CreateModel(model interface{}) error
 	DeleteModel(model interface{}) (int64, error)
 	Deploy(data interface{}) error
+	DeployMultiple(data []interface{}) error
 }
 
 // PersistenceORM provides the necessary configuration to perform an upsert of objects without IDs
