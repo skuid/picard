@@ -20,6 +20,8 @@ type MockORM struct {
 	CreateModelCalledWith             interface{}
 	DeployError                       error
 	DeployCalledWith                  interface{}
+	DeployMultipleError               error
+	DeployMultipleCalledWith          []interface{}
 	DeleteModelRowsAffected           int64
 	DeleteModelError                  error
 	DeleteModelCalledWith             interface{}
@@ -65,6 +67,12 @@ func (morm *MockORM) DeleteModel(data interface{}) (int64, error) {
 func (morm *MockORM) Deploy(data interface{}) error {
 	morm.DeployCalledWith = data
 	return morm.DeployError
+}
+
+// DeployMultiple returns the error stored in MockORM, and records the call value
+func (morm *MockORM) DeployMultiple(data []interface{}) error {
+	morm.DeployMultipleCalledWith = data
+	return morm.DeployMultipleError
 }
 
 // MultiMockORM can be used to string together a series of calls to picard.ORM
@@ -135,4 +143,13 @@ func (multi *MultiMockORM) Deploy(data interface{}) error {
 		return err
 	}
 	return next.Deploy(data)
+}
+
+// DeployMultiple returns the error stored in MockORM, and records the call value
+func (multi *MultiMockORM) DeployMultiple(data []interface{}) error {
+	next, err := multi.next()
+	if err != nil {
+		return err
+	}
+	return next.DeployMultiple(data)
 }
