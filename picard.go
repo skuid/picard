@@ -123,6 +123,13 @@ func getStructValue(v interface{}) (reflect.Value, error) {
 // Deploy is the public method to start a Picard deployment. Send in a table name and a slice of structs
 // and it will attempt a deployment.
 func (p PersistenceORM) Deploy(data interface{}) error {
+	deploys := make([]interface{}, 1)
+	deploys[0] = data
+	return p.DeployMultiple(deploys)
+}
+
+// DeployMultiple allows for doing multiple deployments in the same transaction
+func (p PersistenceORM) DeployMultiple(data []interface{}) error {
 	tx, err := GetConnection().Begin()
 	if err != nil {
 		return err
@@ -130,8 +137,10 @@ func (p PersistenceORM) Deploy(data interface{}) error {
 
 	p.transaction = tx
 
-	if err = p.upsert(data, nil); err != nil {
-		return err
+	for _, dataItem := range data {
+		if err = p.upsert(dataItem, nil); err != nil {
+			return err
+		}
 	}
 
 	return tx.Commit()
