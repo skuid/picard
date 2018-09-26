@@ -2,98 +2,183 @@
 
 
 [[projects]]
+  digest = "1:618c9f6e1879c9d6d50a27c1233900e27c87400c56f9578273c961d8fbbc7b9e"
   name = "github.com/DATA-DOG/go-sqlmock"
   packages = ["."]
+  pruneopts = ""
   revision = "d76b18b42f285b792bf985118980ce9eacea9d10"
   version = "v1.3.0"
 
 [[projects]]
+  digest = "1:015ef9a11d36760d2075aa92839fd545cde0ef2ffe13ddaf849f2270eb292f1c"
   name = "github.com/Masterminds/squirrel"
   packages = ["."]
+  pruneopts = ""
   revision = "a6b93000bd219143c56c16e6cb1c4b91da3f224b"
   version = "v1.0"
 
 [[projects]]
+  digest = "1:0a39ec8bf5629610a4bc7873a92039ee509246da3cef1a0ea60f1ed7e5f9cea5"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
+  pruneopts = ""
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
 
 [[projects]]
+  digest = "1:83eaa43b760e8bd279dada5b42014a526a45b235790bbe7dddecf0f609af4752"
   name = "github.com/go-playground/locales"
-  packages = [".","currency"]
+  packages = [
+    ".",
+    "currency",
+  ]
+  pruneopts = ""
   revision = "e4cbcb5d0652150d40ad0646651076b6bd2be4f6"
   version = "v0.11.2"
 
 [[projects]]
+  digest = "1:3f6d859c5053f210544af6a33d6a41033e35ebf35c1abe5e8eb9dba105fd40ea"
   name = "github.com/go-playground/universal-translator"
   packages = ["."]
+  pruneopts = ""
   revision = "b32fa301c9fe55953584134cb6853a13c87ec0a1"
   version = "v0.16.0"
 
 [[projects]]
   branch = "master"
+  digest = "1:7b1b752700b4889f6184e871b1fe02e6acbd69e21282d95143c9e1c90f71436d"
   name = "github.com/lann/builder"
   packages = ["."]
+  pruneopts = ""
   revision = "f22ce00fd9394014049dad11c244859432bd6820"
 
 [[projects]]
   branch = "master"
+  digest = "1:bfb195bbfe4edff0d8a078dd59d7567aae6f3c0d1a2cdf855fdcdd23c9b3bd8d"
   name = "github.com/lann/ps"
   packages = ["."]
+  pruneopts = ""
   revision = "62de8c46ede02a7675c4c79c84883eb164cb71e3"
 
 [[projects]]
   branch = "master"
+  digest = "1:ada2b83c3f1a382f0bf2d8b56a0e2f39f324a5c4a20eb1b3574697fa2ae67c1a"
   name = "github.com/lib/pq"
-  packages = [".","oid"]
+  packages = [
+    ".",
+    "oid",
+  ]
+  pruneopts = ""
   revision = "83612a56d3dd153a94a629cd64925371c9adad78"
 
 [[projects]]
+  digest = "1:0c0ff2a89c1bb0d01887e1dac043ad7efbf3ec77482ef058ac423d13497e16fd"
   name = "github.com/modern-go/concurrent"
   packages = ["."]
+  pruneopts = ""
   revision = "bacd9c7ef1dd9b15be4a9909b8ac7a4e313eec94"
   version = "1.0.3"
 
 [[projects]]
+  digest = "1:e32bdbdb7c377a07a9a46378290059822efdce5c8d96fe71940d87cb4f918855"
   name = "github.com/modern-go/reflect2"
   packages = ["."]
+  pruneopts = ""
   revision = "4b7aa43c6742a2c18fdef89dd197aaae7dac7ccd"
   version = "1.0.1"
 
 [[projects]]
+  digest = "1:210286d0cb60ffe28f1ca00b664029e8943009f95d06d8f8c336301b28e1aee5"
+  name = "github.com/philhofer/fwd"
+  packages = ["."]
+  pruneopts = ""
+  revision = "bb6d471dc95d4fe11e432687f8b70ff496cf3136"
+  version = "v1.0.0"
+
+[[projects]]
+  digest = "1:5d69af9ecfa4e2c3b0a4f4be234469f96ce2190dc35b848ab90ce4b7e6c88e15"
   name = "github.com/plusplusben/json-iterator-go"
   packages = ["."]
+  pruneopts = ""
   revision = "d0a8e940581317dc89a46750fa3e8b8d52cc7499"
   version = "1.1.6"
 
 [[projects]]
+  digest = "1:256484dbbcd271f9ecebc6795b2df8cad4c458dd0f5fd82a8c2fa0c29f233411"
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
+  pruneopts = ""
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
   version = "v1.0.0"
 
 [[projects]]
+  digest = "1:6b55df4b0517a459af9d3879c99330af4367adcf45f3d0d37ded80a6272ae057"
   name = "github.com/satori/go.uuid"
   packages = ["."]
+  pruneopts = ""
   revision = "879c5887cd475cd7864858769793b2ceb0d44feb"
   version = "v1.1.0"
 
 [[projects]]
+  digest = "1:897c96c441e46acc493440a9f85e42450922ba2b99fa0721dbe5303ee6d7b8c6"
   name = "github.com/stretchr/testify"
   packages = ["assert"]
+  pruneopts = ""
   revision = "b91bfb9ebec76498946beb6af7c0230c7cc7ba6c"
   version = "v1.2.0"
 
 [[projects]]
+  digest = "1:abfbb587b49d26d6bf1159cb40841ab305f897048aae897b08191ae8bfa86e42"
+  name = "github.com/tinylib/msgp"
+  packages = ["msgp"]
+  pruneopts = ""
+  revision = "b2b6a672cf1e5b90748f79b8b81fc8c5cf0571a1"
+  version = "1.0.2"
+
+[[projects]]
+  branch = "master"
+  digest = "1:8a11a523f2229e7d6349c54e3156fad9f742bdedf81732916d143e9381c0afd9"
+  name = "golang.org/x/sys"
+  packages = ["windows"]
+  pruneopts = ""
+  revision = "c2ed4eda69e7f62900806e4cd6e45f0429f859fa"
+
+[[projects]]
+  digest = "1:bbe50005cd424701f27d5fed16e13bea28391aae0ce58a5c54e116ca3e6162a2"
+  name = "gopkg.in/DataDog/dd-trace-go.v1"
+  packages = [
+    "contrib/database/sql",
+    "contrib/database/sql/internal",
+    "ddtrace",
+    "ddtrace/ext",
+    "ddtrace/internal",
+    "ddtrace/tracer",
+  ]
+  pruneopts = ""
+  revision = "bcd20367df871708a36549e7fe36183ee5b4fc55"
+  version = "v1.3.0"
+
+[[projects]]
+  digest = "1:1cf4df84b33250f400a322745ed2e90dd1bad46cdbaa993333ecf57f44dbedcc"
   name = "gopkg.in/go-playground/validator.v9"
   packages = ["."]
+  pruneopts = ""
   revision = "1b8c8e19cd250435025214492d9a08411d760fdd"
   version = "v9.12.0"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c69636c95f2e22c790d4d347693fbe9ea465417c05c0cba45cc56138ab84d306"
+  input-imports = [
+    "github.com/DATA-DOG/go-sqlmock",
+    "github.com/Masterminds/squirrel",
+    "github.com/lib/pq",
+    "github.com/modern-go/reflect2",
+    "github.com/plusplusben/json-iterator-go",
+    "github.com/satori/go.uuid",
+    "github.com/stretchr/testify/assert",
+    "gopkg.in/DataDog/dd-trace-go.v1/contrib/database/sql",
+    "gopkg.in/go-playground/validator.v9",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
