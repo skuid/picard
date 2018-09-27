@@ -32,8 +32,12 @@ func CreateConnection(connstr string) error {
 }
 
 // CreateTracedConnection creates a database connection using the provided arguments
-func CreateTracedConnection(connstr string) error {
-	sqltrace.Register("postgres", &pq.Driver{})
+func CreateTracedConnection(connstr, serviceName string) error {
+	sqltrace.Register(
+		"postgres",
+		&pq.Driver{},
+		sqltrace.WithServiceName(serviceName),
+	)
 	db, err := sqltrace.Open("postgres", connstr)
 	if err != nil {
 		return err
