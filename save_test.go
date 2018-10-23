@@ -174,8 +174,8 @@ func TestSaveModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectQuery(`^INSERT INTO test_tablename \(multitenancy_key_column,test_column_one\) VALUES \(\$1,\$2\) RETURNING "primary_key_column"$`).
-					WithArgs("00000000-0000-0000-0000-000000000005", nil).
+				mock.ExpectQuery(`^INSERT INTO test_tablename \(multitenancy_key_column,test_column_one\) VALUES \(\$1,DEFAULT\) RETURNING "primary_key_column"$`).
+					WithArgs("00000000-0000-0000-0000-000000000005").
 					WillReturnRows(
 						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
 					)

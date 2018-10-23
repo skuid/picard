@@ -245,13 +245,20 @@ func ExpectInsert(mock *sqlmock.Sqlmock, expect ExpectationHelper, columnNames [
 
 	for _, insertValue := range insertValues {
 		valueParams := []string{}
+		nonNullInsertValues := []driver.Value{}
 
-		for range columnNames {
-			valueParams = append(valueParams, `\$`+strconv.Itoa(index))
-			index++
+		for columnIndex := range columnNames {
+			columnValue := insertValue[columnIndex]
+			if columnValue == nil {
+				valueParams = append(valueParams, `DEFAULT`)
+			} else {
+				valueParams = append(valueParams, `\$`+strconv.Itoa(index))
+				nonNullInsertValues = append(nonNullInsertValues, columnValue)
+				index++
+			}
 		}
 
-		expectedArgs = append(expectedArgs, insertValue...)
+		expectedArgs = append(expectedArgs, nonNullInsertValues...)
 		valueStrings = append(valueStrings, strings.Join(valueParams, ","))
 
 		returnData = append(returnData, []driver.Value{

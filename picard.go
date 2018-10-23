@@ -1110,7 +1110,12 @@ func getLookupQueryResults(rows *sql.Rows, tableName string, lookups []Lookup, t
 func getColumnValues(columnNames []string, data map[string]interface{}) []interface{} {
 	columnValues := []interface{}{}
 	for _, columnName := range columnNames {
-		columnValues = append(columnValues, data[columnName])
+		columnValue, hasValue := data[columnName]
+		if hasValue {
+			columnValues = append(columnValues, columnValue)
+		} else {
+			columnValues = append(columnValues, squirrel.Expr("DEFAULT"))
+		}
 	}
 	return columnValues
 }
