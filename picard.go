@@ -24,7 +24,6 @@ import (
 )
 
 const separator = "|"
-const batchSize = 100
 
 // Association structure
 type Association struct {
@@ -86,6 +85,7 @@ type PersistenceORM struct {
 	multitenancyValue string
 	performedBy       string
 	transaction       *sql.Tx
+	batchSize         int
 }
 
 // New Creates a new Picard Object and handle defaults
@@ -93,6 +93,7 @@ func New(multitenancyValue string, performerID string) ORM {
 	return PersistenceORM{
 		multitenancyValue: multitenancyValue,
 		performedBy:       performerID,
+		batchSize:         100,
 	}
 }
 
@@ -156,8 +157,8 @@ func (p PersistenceORM) upsert(data interface{}, deleteFilters interface{}) erro
 	dataValue := reflect.ValueOf(data)
 	dataCount := dataValue.Len()
 	if dataCount > 0 {
-		for i := 0; i < dataCount; i += batchSize {
-			end := i + batchSize
+		for i := 0; i < dataCount; i += p.batchSize {
+			end := i + p.batchSize
 			if end > dataCount {
 				end = dataCount
 			}

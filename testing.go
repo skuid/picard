@@ -318,7 +318,7 @@ func ExpectUpdate(mock *sqlmock.Sqlmock, expect ExpectationHelper, updateColumnN
 }
 
 // RunImportTest Runs a Test Object Import Test
-func RunImportTest(testObjects interface{}, testFunction func(*sqlmock.Sqlmock, interface{})) error {
+func RunImportTest(testObjects interface{}, testFunction func(*sqlmock.Sqlmock, interface{}), batchSize int) error {
 	// Open new mock database
 	db, mock, err := sqlmock.New()
 	if err != nil {
@@ -334,7 +334,10 @@ func RunImportTest(testObjects interface{}, testFunction func(*sqlmock.Sqlmock, 
 	mock.ExpectBegin()
 	testFunction(&mock, testObjects)
 	mock.ExpectCommit()
+
+	p := New(orgID, userID).(PersistenceORM)
+	p.batchSize = batchSize
 	// Deploy the list of data sources
-	return New(orgID, userID).Deploy(testObjects)
+	return p.Deploy(testObjects)
 
 }
