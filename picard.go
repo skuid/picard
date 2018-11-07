@@ -24,7 +24,6 @@ import (
 )
 
 const separator = "|"
-const batchSize = 100
 
 // Association structure
 type Association struct {
@@ -86,6 +85,7 @@ type PersistenceORM struct {
 	multitenancyValue string
 	performedBy       string
 	transaction       *sql.Tx
+	batchSize         int
 }
 
 // New Creates a new Picard Object and handle defaults
@@ -93,6 +93,7 @@ func New(multitenancyValue string, performerID string) ORM {
 	return PersistenceORM{
 		multitenancyValue: multitenancyValue,
 		performedBy:       performerID,
+		batchSize:         100,
 	}
 }
 
@@ -156,8 +157,8 @@ func (p PersistenceORM) upsert(data interface{}, deleteFilters interface{}) erro
 	dataValue := reflect.ValueOf(data)
 	dataCount := dataValue.Len()
 	if dataCount > 0 {
-		for i := 0; i < dataCount; i += batchSize {
-			end := i + batchSize
+		for i := 0; i < dataCount; i += p.batchSize {
+			end := i + p.batchSize
 			if end > dataCount {
 				end = dataCount
 			}
@@ -467,8 +468,10 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tableMetadata, foreign
 	tableName := tableMetadata.tableName
 	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
 	primaryKeyFieldName := tableMetadata.getPrimaryKeyFieldName()
-	foreignKeys := tableMetadata.foreignKeys
 	lookups := tableMetadata.lookups
+
+	// Create a new slice of all the foreign keys for this type
+	foreignKeysToCheck := tableMetadata.foreignKeys[:]
 
 	hasValidPK := false
 	// Determine which lookups are necessary based on whether keys exist in the data
@@ -502,14 +505,21 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tableMetadata, foreign
 			}, lookupsToUse...)
 		}
 
-		for index := range foreignKeys {
-			foreignKey := &foreignKeys[index]
-			fkValue := item.FieldByName(foreignKey.FieldName)
-			if fkValue.IsValid() && fkValue.String() != "" && foreignKey.NeedsLookup {
-				foreignKey.NeedsLookup = false
+		// Iterate over foreign keys to check in reverse so we can remove items without consequence
+		for i := len(foreignKeysToCheck) - 1; i >= 0; i-- {
+			foreignKeyToCheck := foreignKeysToCheck[i]
+			fkValue := item.FieldByName(foreignKeyToCheck.FieldName)
+			if fkValue.IsValid() && fkValue.String() != "" && foreignKeyToCheck.NeedsLookup {
+				// Remove this foreign key from the list of foreign keys to check
+				if i == 0 {
+					foreignKeysToCheck = foreignKeysToCheck[:0]
+				} else {
+					foreignKeysToCheck = append(foreignKeysToCheck[:i], foreignKeysToCheck[i-1:]...)
+				}
+
 				lookupsToUse = append(lookupsToUse, Lookup{
-					MatchDBColumn:       foreignKey.KeyColumn,
-					MatchObjectProperty: foreignKey.FieldName,
+					MatchDBColumn:       foreignKeyToCheck.KeyColumn,
+					MatchObjectProperty: foreignKeyToCheck.FieldName,
 				})
 			}
 		}
@@ -519,7 +529,7 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tableMetadata, foreign
 		lookupsToUse = append(lookups, lookupsToUse...)
 	}
 
-	lookupsToUse = append(lookupsToUse, getLookupsFromForeignKeys(foreignKeys, "", "", tableAliasCache)...)
+	lookupsToUse = append(lookupsToUse, getLookupsFromForeignKeys(foreignKeysToCheck, "", "", tableAliasCache)...)
 
 	return lookupsToUse
 }

@@ -216,6 +216,7 @@ func TestDeployments(t *testing.T) {
 		TestName            string
 		FixtureNames        []string
 		FixtureType         interface{}
+		BatchSize           int
 		ExpectationFunction func(*sqlmock.Sqlmock, interface{})
 		WantErr             string
 	}{
@@ -223,6 +224,7 @@ func TestDeployments(t *testing.T) {
 			"Single Import with Primary Key with Nothing Existing",
 			[]string{"SimpleWithPrimaryKey"},
 			TestObject{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
 				helper := testObjectWithPKHelper
 				returnData := GetReturnDataForLookup(helper, nil)
@@ -251,6 +253,7 @@ func TestDeployments(t *testing.T) {
 			"Single Import with Primary Key That Already Exists",
 			[]string{"SimpleWithPrimaryKey"},
 			TestObject{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
 				helper := testObjectWithPKHelper
 				returnData := GetReturnDataForLookup(helper, fixtures)
@@ -274,6 +277,7 @@ func TestDeployments(t *testing.T) {
 			"Single Import with Nothing Existing",
 			[]string{"Simple"},
 			TestObject{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
 				helper := testObjectHelper
 				returnData := GetReturnDataForLookup(helper, nil)
@@ -301,6 +305,7 @@ func TestDeployments(t *testing.T) {
 			"Single Import with That Already Exists",
 			[]string{"Simple"},
 			TestObject{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
 				helper := testObjectHelper
 				returnData := GetReturnDataForLookup(helper, fixtures)
@@ -325,6 +330,7 @@ func TestDeployments(t *testing.T) {
 			"Single Import Missing Required Field",
 			[]string{"Empty"},
 			TestObject{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {},
 			"Key: 'TestObject.Name' Error:Field validation for 'Name' failed on the 'required' tag",
 		},
@@ -332,6 +338,7 @@ func TestDeployments(t *testing.T) {
 			"Single Import with Null Matches Existing value with a Null lookup",
 			[]string{"Simple"},
 			TestObject{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
 				helper := testObjectHelper
 				returnData := [][]driver.Value{
@@ -362,6 +369,7 @@ func TestDeployments(t *testing.T) {
 			"Multiple Import with Nothing Existing",
 			[]string{"Simple", "Simple2"},
 			TestObject{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
 				helper := testObjectHelper
 				returnData := GetReturnDataForLookup(helper, nil)
@@ -402,6 +410,7 @@ func TestDeployments(t *testing.T) {
 			"Multiple Import with Both Already Exist",
 			[]string{"Simple", "Simple2"},
 			TestObject{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
 				helper := testObjectHelper
 				returnData := GetReturnDataForLookup(helper, fixtures)
@@ -433,6 +442,7 @@ func TestDeployments(t *testing.T) {
 			"Multiple Import with One Already Exists",
 			[]string{"Simple", "Simple2"},
 			TestObject{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				helper := testObjectHelper
 				fixtures := fixturesAbstract.([]TestObject)
@@ -475,6 +485,7 @@ func TestDeployments(t *testing.T) {
 			"Single Import with GrandChildren All Inserts",
 			[]string{"SimpleWithGrandChildren"},
 			ParentTestObject{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				fixtures := fixturesAbstract.([]ParentTestObject)
 				insertRows := ExpectInsert(mock, parentObjectHelper, parentObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
@@ -539,6 +550,7 @@ func TestDeployments(t *testing.T) {
 			"Single Import with Children Insert New Parent",
 			[]string{"SimpleWithChildren"},
 			TestObject{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				fixtures := fixturesAbstract.([]TestObject)
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
@@ -591,9 +603,74 @@ func TestDeployments(t *testing.T) {
 			"",
 		},
 		{
+			"Single Import with Children Insert New Parent Small Batch Size",
+			[]string{"SimpleWithChildren"},
+			TestObject{},
+			1,
+			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+				fixtures := fixturesAbstract.([]TestObject)
+				returnData := GetReturnDataForLookup(testObjectHelper, nil)
+				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
+				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
+				insertRows := ExpectInsert(mock, testObjectHelper, testObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
+					[]driver.Value{
+						sampleOrgID,
+						testObjectHelper.GetFixtureValue(fixtures, 0, "Name"),
+						nil,
+						testObjectHelper.GetFixtureValue(fixtures, 0, "Type"),
+						nil,
+						nil,
+						nil,
+						sampleUserID,
+						sampleUserID,
+						sqlmock.AnyArg(),
+						sqlmock.AnyArg(),
+					},
+				})
+
+				childObjects := []ChildTestObject{}
+				for index, fixture := range fixtures {
+					for _, childObject := range fixture.Children {
+						childObject.ParentID = insertRows[index][0].(string)
+						childObjects = append(childObjects, childObject)
+					}
+				}
+
+				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
+				childLookupKeysBatch1 := GetLookupKeys(testChildObjectHelper, []ChildTestObject{
+					childObjects[0],
+				})
+				ExpectLookup(mock, testChildObjectHelper, childLookupKeysBatch1, childReturnData)
+				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
+					[]driver.Value{
+						sampleOrgID,
+						testChildObjectHelper.GetFixtureValue(childObjects, 0, "Name"),
+						nil,
+						testChildObjectHelper.GetFixtureValue(childObjects, 0, "ParentID"),
+						nil,
+					},
+				})
+				childLookupKeysBatch2 := GetLookupKeys(testChildObjectHelper, []ChildTestObject{
+					childObjects[1],
+				})
+				ExpectLookup(mock, testChildObjectHelper, childLookupKeysBatch2, childReturnData)
+				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
+					[]driver.Value{
+						sampleOrgID,
+						testChildObjectHelper.GetFixtureValue(childObjects, 1, "Name"),
+						nil,
+						testChildObjectHelper.GetFixtureValue(childObjects, 1, "ParentID"),
+						nil,
+					},
+				})
+			},
+			"",
+		},
+		{
 			"Single Import with Children Insert New Parent And Orphans",
 			[]string{"SimpleWithChildren"},
 			TestObjectWithOrphans{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				fixtures := fixturesAbstract.([]TestObjectWithOrphans)
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
@@ -649,6 +726,7 @@ func TestDeployments(t *testing.T) {
 			"Single Import with ChildrenMap Insert New Parent",
 			[]string{"SimpleWithChildrenMap"},
 			TestObject{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				fixtures := fixturesAbstract.([]TestObject)
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
@@ -699,6 +777,7 @@ func TestDeployments(t *testing.T) {
 			"Single Import with Children Existing Parent",
 			[]string{"SimpleWithChildren"},
 			TestObject{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				helper := testObjectHelper
 				fixtures := fixturesAbstract.([]TestObject)
@@ -750,6 +829,7 @@ func TestDeployments(t *testing.T) {
 			"Single Import with Children Existing Parent With Orphans",
 			[]string{"SimpleWithChildren"},
 			TestObjectWithOrphans{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				helper := testObjectHelper
 				fixtures := fixturesAbstract.([]TestObjectWithOrphans)
@@ -816,6 +896,7 @@ func TestDeployments(t *testing.T) {
 			"Single Import with Children Existing Parent With Orphans And Empty Children Map",
 			[]string{"SimpleWithChildrenAndChildrenMap"},
 			TestObjectWithOrphans{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				helper := testObjectHelper
 				fixtures := fixturesAbstract.([]TestObjectWithOrphans)
@@ -892,6 +973,7 @@ func TestDeployments(t *testing.T) {
 			"Single Import with Children Existing Parent and Existing Child",
 			[]string{"SimpleWithChildren"},
 			TestObject{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				helper := testObjectHelper
 				fixtures := fixturesAbstract.([]TestObject)
@@ -940,6 +1022,7 @@ func TestDeployments(t *testing.T) {
 			"Single Import with Children Existing Parent and Existing Child With Orphans",
 			[]string{"SimpleWithChildrenAndChildrenMap"},
 			TestObjectWithOrphans{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				helper := testObjectHelper
 				fixtures := fixturesAbstract.([]TestObjectWithOrphans)
@@ -1013,6 +1096,7 @@ func TestDeployments(t *testing.T) {
 			"Multiple Import with Children Existing Parent and Existing Child With Orphans",
 			[]string{"SimpleWithChildrenAndChildrenMap", "SimpleWithChildren2"},
 			TestObjectWithOrphans{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				helper := testObjectHelper
 				fixtures := fixturesAbstract.([]TestObjectWithOrphans)
@@ -1114,6 +1198,7 @@ func TestDeployments(t *testing.T) {
 			"Import Existing Child with Reference to Parent Name",
 			[]string{"ChildWithParentLookup"},
 			ChildTestObject{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				childUUID := uuid.NewV4().String()
 				parentUUID := uuid.NewV4().String()
@@ -1156,6 +1241,7 @@ func TestDeployments(t *testing.T) {
 			"Import New Child with Reference to Parent Name",
 			[]string{"ChildWithParentLookup"},
 			ChildTestObject{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				parentUUID := uuid.NewV4().String()
 				fixtures := fixturesAbstract.([]ChildTestObject)
@@ -1197,6 +1283,7 @@ func TestDeployments(t *testing.T) {
 			"Import New Child with Reference to Parent Name Using Key Map",
 			[]string{"ChildWithParentLookupAndKeyMap"},
 			ChildTestObjectWithKeyMap{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				parentUUID := uuid.NewV4().String()
 				fixtures := fixturesAbstract.([]ChildTestObjectWithKeyMap)
@@ -1238,6 +1325,7 @@ func TestDeployments(t *testing.T) {
 			"Import New Child with Reference to Parent Name And Optional Parent",
 			[]string{"ChildWithParentLookupAndOptionalLookup"},
 			ChildTestObject{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				parentUUID := uuid.NewV4().String()
 				optionalParentUUID := uuid.NewV4().String()
@@ -1290,6 +1378,7 @@ func TestDeployments(t *testing.T) {
 			"Import New Child with Bad Reference to Parent Name",
 			[]string{"ChildWithParentLookup"},
 			ChildTestObject{},
+			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				parentUUID := uuid.NewV4().String()
 				fixtures := fixturesAbstract.([]ChildTestObject)
@@ -1323,6 +1412,7 @@ func TestDeployments(t *testing.T) {
 		},
 	}
 
+	// Run first with the default batch size
 	for _, c := range cases {
 		t.Run(c.TestName, func(t *testing.T) {
 			fixtures, err := loadTestObjects(c.FixtureNames, c.FixtureType)
@@ -1330,7 +1420,7 @@ func TestDeployments(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			err = RunImportTest(fixtures, c.ExpectationFunction)
+			err = RunImportTest(fixtures, c.ExpectationFunction, c.BatchSize)
 
 			if c.WantErr == "" {
 				assert.NoError(t, err)
@@ -1340,7 +1430,6 @@ func TestDeployments(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestGenerateWhereClausesFromModel(t *testing.T) {
@@ -1608,10 +1697,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 	}
 
 	// Create the Picard instance
-	p := PersistenceORM{
-		multitenancyValue: testMultitenancyValue,
-		performedBy:       testPerformedByValue,
-	}
+	p := New(testMultitenancyValue, testPerformedByValue).(PersistenceORM)
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
