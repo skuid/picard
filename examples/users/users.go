@@ -5,6 +5,7 @@ import (
 
 	"github.com/skuid/picard"
 	"github.com/skuid/picard/metadata"
+	"github.com/skuid/picard/tags"
 )
 
 // User example struct
@@ -68,10 +69,10 @@ func doLookup(p picard.ORM) ([]interface{}, error) {
 	filter := User{
 		Name: "JohnDoe",
 	}
-	results, err := p.FilterModelAssociations(filter, []picard.Association{
+	results, err := p.FilterModelAssociations(filter, []tags.Association{
 		{
 			Name: "post",
-			Associations: []picard.Association{
+			Associations: []tags.Association{
 				{
 					Name: "tag",
 				},

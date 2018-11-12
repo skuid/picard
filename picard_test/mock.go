@@ -3,7 +3,7 @@ package picard_test
 import (
 	"errors"
 
-	"github.com/skuid/picard"
+	"github.com/skuid/picard/tags"
 )
 
 // MockORM can be used to test client functionality that calls picard.ORM behavior.
@@ -37,7 +37,7 @@ func (morm *MockORM) FilterModel(filterModel interface{}) ([]interface{}, error)
 }
 
 // FilterModelAssociations simply returns an error or return objects when set on the MockORM
-func (morm *MockORM) FilterModelAssociations(filterModel interface{}, associations []picard.Association) ([]interface{}, error) {
+func (morm *MockORM) FilterModelAssociations(filterModel interface{}, associations []tags.Association) ([]interface{}, error) {
 	morm.FilterModelAssociationsCalledWith = filterModel
 	if morm.FilterModelAssociationsError != nil {
 		return nil, morm.FilterModelAssociationsError
@@ -101,7 +101,7 @@ func (multi *MultiMockORM) FilterModel(filterModel interface{}) ([]interface{}, 
 }
 
 // FilterModelAssociations simply returns an error or return objects when set on the MockORM
-func (multi *MultiMockORM) FilterModelAssociations(filterModel interface{}, associations []picard.Association) ([]interface{}, error) {
+func (multi *MultiMockORM) FilterModelAssociations(filterModel interface{}, associations []tags.Association) ([]interface{}, error) {
 	next, err := multi.next()
 	if err != nil {
 		return nil, err

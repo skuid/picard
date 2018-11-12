@@ -9,6 +9,7 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/Masterminds/squirrel"
 	"github.com/skuid/picard/metadata"
+	"github.com/skuid/picard/tags"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -128,7 +129,7 @@ func TestFilterModelAssociations(t *testing.T) {
 	testCases := []struct {
 		description          string
 		filterModel          interface{}
-		associations         []Association
+		associations         []tags.Association
 		wantReturnInterfaces []interface{}
 		expectationFunction  func(sqlmock.Sqlmock)
 		wantErr              error
@@ -185,7 +186,7 @@ func TestFilterModelAssociations(t *testing.T) {
 			vParentModel{
 				Name: "pops",
 			},
-			[]Association{
+			[]tags.Association{
 				{
 					Name: "GrandParent",
 				},
@@ -222,10 +223,10 @@ func TestFilterModelAssociations(t *testing.T) {
 			vParentModel{
 				Name: "pops",
 			},
-			[]Association{
+			[]tags.Association{
 				{
 					Name: "Children",
-					Associations: []Association{
+					Associations: []tags.Association{
 						{
 							Name: "Toys",
 						},
@@ -319,7 +320,7 @@ func TestFilterModelAssociations(t *testing.T) {
 			vParentModel{
 				Name: "pops",
 			},
-			[]Association{
+			[]tags.Association{
 				{
 					Name: "ChildrenMap",
 				},
@@ -372,10 +373,10 @@ func TestFilterModelAssociations(t *testing.T) {
 		{
 			"happy path for filtering multiple parent nested results w/ eager loading associations",
 			vParentModel{},
-			[]Association{
+			[]tags.Association{
 				{
 					Name: "Children",
-					Associations: []Association{
+					Associations: []tags.Association{
 						{
 							Name: "Toys",
 						},
@@ -986,7 +987,7 @@ func TestHydrateModel(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			resultValue := hydrateModel(tc.filterModelType, tableMetadataFromType(tc.filterModelType), tc.hydrationValues)
+			resultValue := hydrateModel(tc.filterModelType, tags.TableMetadataFromType(tc.filterModelType), tc.hydrationValues)
 			assert.True(t, reflect.DeepEqual(tc.wantValue, resultValue.Elem().Interface()))
 		})
 	}

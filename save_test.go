@@ -10,6 +10,7 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/skuid/picard/dbchange"
 	"github.com/skuid/picard/metadata"
+	"github.com/skuid/picard/tags"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -867,7 +868,7 @@ func TestSetPrimaryKeyFromInsertResult(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			tableMetadata := tableMetadataFromType(tc.giveValue.Type())
+			tableMetadata := tags.TableMetadataFromType(tc.giveValue.Type())
 			setPrimaryKeyFromInsertResult(tc.giveValue, tc.giveDBChange, tableMetadata)
 			assert.Equal(t, tc.giveValue.Interface(), tc.wantValue.Interface())
 		})

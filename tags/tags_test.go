@@ -1,4 +1,4 @@
-package picard
+package tags
 
 import (
 	"reflect"
@@ -23,16 +23,16 @@ func TestTableMetadataFromType(t *testing.T) {
 	testCases := []struct {
 		description       string
 		giveType          reflect.Type
-		wantTableMetadata *tableMetadata
+		wantTableMetadata *TableMetadata
 	}{
 		{
 			"should populate with correct values",
 			reflect.TypeOf(TagsTestStruct{}),
-			&tableMetadata{
+			&TableMetadata{
 				tableName:            "test_tablename",
 				primaryKeyField:      "TestPrimaryKeyField",
 				multitenancyKeyField: "TestMultitenancyField",
-				fields: map[string]fieldMetadata{
+				fields: map[string]FieldMetadata{
 					"TestPrimaryKeyField": {
 						name:              "TestPrimaryKeyField",
 						isPrimaryKey:      true,
@@ -105,7 +105,7 @@ func TestTableMetadataFromType(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			tags := tableMetadataFromType(tc.giveType)
+			tags := TableMetadataFromType(tc.giveType)
 			assert.Equal(t, tags, tc.wantTableMetadata)
 		})
 	}
@@ -126,8 +126,8 @@ func TestTableMetadataColumnNames(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			tableMetadata := tableMetadataFromType(tc.giveType)
-			assert.Equal(t, tableMetadata.getColumnNames(), tc.wantColumns)
+			tableMetadata := TableMetadataFromType(tc.giveType)
+			assert.Equal(t, tableMetadata.GetColumnNames(), tc.wantColumns)
 		})
 	}
 }
@@ -170,7 +170,7 @@ func TestGetStructTagsMap(t *testing.T) {
 			field := reflect.StructField{
 				Tag: reflect.StructTag(tc.tag),
 			}
-			resultMap := getStructTagsMap(field, tc.tagType)
+			resultMap := GetStructTagsMap(field, tc.tagType)
 			assert.Equal(t, resultMap, tc.wantMap)
 		})
 	}

@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/skuid/picard/tags"
 )
 
 // DeleteModel will delete models that match the provided struct, ignoring zero values.
@@ -14,9 +15,9 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 		return 0, err
 	}
 
-	tableMetadata := tableMetadataFromType(modelValue.Type())
-	tableName := tableMetadata.getTableName()
-	multitenancyKeyColumnName := tableMetadata.getMultitenancyKeyColumnName()
+	tableMetadata := tags.TableMetadataFromType(modelValue.Type())
+	tableName := tableMetadata.GetTableName()
+	multitenancyKeyColumnName := tableMetadata.GetMultitenancyKeyColumnName()
 
 	whereClauses, joinClauses, err := porm.generateWhereClausesFromModel(modelValue, nil, tableMetadata)
 	if err != nil {
@@ -34,13 +35,13 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 
 		for _, fetchResult := range fetchResults {
 			resultValue := reflect.ValueOf(fetchResult)
-			resultID := resultValue.FieldByName(tableMetadata.getPrimaryKeyFieldName())
+			resultID := resultValue.FieldByName(tableMetadata.GetPrimaryKeyFieldName())
 			deleteKeys = append(deleteKeys, resultID.String())
 		}
 
 		whereClauses = []squirrel.Sqlizer{
 			squirrel.Eq{
-				tableMetadata.getPrimaryKeyColumnName(): deleteKeys,
+				tableMetadata.GetPrimaryKeyColumnName(): deleteKeys,
 			},
 		}
 
