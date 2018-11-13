@@ -109,27 +109,73 @@ func (p PersistenceORM) DeployMultiple(data []interface{}) error {
 }
 
 func (p PersistenceORM) upsert(data interface{}, deleteFilters interface{}) error {
+
 	tableMetadata, err := tags.GetTableMetadata(data)
 	if err != nil {
 		return err
 	}
 	dataValue := reflect.ValueOf(data)
 	dataCount := dataValue.Len()
+	var changeSets []*dbchange.ChangeSet
 	if dataCount > 0 {
 		for i := 0; i < dataCount; i += p.batchSize {
 			end := i + p.batchSize
 			if end > dataCount {
 				end = dataCount
 			}
-			err := p.upsertBatch(dataValue.Slice(i, end).Interface(), deleteFilters, tableMetadata)
+			changeSet, err := p.generateChanges(dataValue.Slice(i, end).Interface(), tableMetadata)
+			if err != nil {
+				return err
+			}
+			changeSets = append(changeSets, changeSet)
+			err = p.upsertBatch(changeSet, tableMetadata)
 			if err != nil {
 				return err
 			}
 		}
 	} else {
-		// We need to do an empty batch for certain types of deployments like delete existing
-		err := p.upsertBatch(data, deleteFilters, tableMetadata)
+		changeSet, err := p.generateChanges(data, tableMetadata)
 		if err != nil {
+			return err
+		}
+		changeSets = append(changeSets, changeSet)
+	}
+
+	if deleteFilters != nil {
+		deletes := []dbchange.Change{}
+		deleteResults, err := p.FilterModels(deleteFilters, p.transaction)
+		if err != nil {
+			return err
+		}
+		var lookupsToUse []tags.Lookup
+
+		updateKeyMap := map[string]bool{}
+		for _, changeSet := range changeSets {
+
+			if lookupsToUse == nil {
+				lookupsToUse = changeSet.LookupsUsed
+			}
+
+			for _, update := range changeSet.Updates {
+				updateKeyMap[update.Key] = true
+			}
+		}
+
+		for _, result := range deleteResults {
+			resultValue := reflect.ValueOf(result)
+			compoundObjectKey := getObjectKeyReflect(resultValue, lookupsToUse)
+			if _, ok := updateKeyMap[compoundObjectKey]; !ok {
+				deletes = append(deletes, dbchange.Change{
+					Changes: map[string]interface{}{
+						tableMetadata.GetPrimaryKeyColumnName(): getObjectProperty(resultValue, tableMetadata.GetPrimaryKeyFieldName()),
+					},
+					Type: dbchange.Delete,
+				})
+			}
+		}
+
+		// Execute Delete Queries
+		if err := p.performDeletes(deletes, tableMetadata); err != nil {
 			return err
 		}
 	}
@@ -138,12 +184,7 @@ func (p PersistenceORM) upsert(data interface{}, deleteFilters interface{}) erro
 
 // Upsert takes data in the form of a slice of structs and performs a series of database
 // operations that will sync the database with the state of that deployment payload
-func (p PersistenceORM) upsertBatch(data interface{}, deleteFilters interface{}, tableMetadata *tags.TableMetadata) error {
-
-	changeSet, err := p.generateChanges(data, deleteFilters, tableMetadata)
-	if err != nil {
-		return err
-	}
+func (p PersistenceORM) upsertBatch(changeSet *dbchange.ChangeSet, tableMetadata *tags.TableMetadata) error {
 
 	// Execute Delete Queries
 	if err := p.performDeletes(changeSet.Deletes, tableMetadata); err != nil {
@@ -163,7 +204,7 @@ func (p PersistenceORM) upsertBatch(data interface{}, deleteFilters interface{},
 	combinedOperations := append(changeSet.Updates, changeSet.Inserts...)
 
 	// Perform Child Upserts
-	err = p.performChildUpserts(combinedOperations, tableMetadata)
+	err := p.performChildUpserts(combinedOperations, tableMetadata)
 
 	if err != nil {
 		return err
@@ -191,6 +232,7 @@ func (p PersistenceORM) performDeletes(deletes []dbchange.Change, tableMetadata 
 		if multitenancyKeyColumnName != "" {
 			deleteQuery = deleteQuery.Where(squirrel.Eq{multitenancyKeyColumnName: p.multitenancyValue})
 		}
+
 		_, err := deleteQuery.RunWith(p.transaction).Exec()
 		if err != nil {
 			return err
@@ -667,7 +709,6 @@ func (p PersistenceORM) performChildUpserts(changeObjects []dbchange.Change, tab
 // performed on the database.
 func (p PersistenceORM) generateChanges(
 	data interface{},
-	deleteFilters interface{},
 	tableMetadata *tags.TableMetadata,
 ) (
 	*dbchange.ChangeSet,
@@ -753,36 +794,12 @@ func (p PersistenceORM) generateChanges(
 		}
 	}
 
-	if deleteFilters != nil {
-		deleteResults, err := p.FilterModels(deleteFilters, p.transaction)
-		if err != nil {
-			return nil, err
-		}
-
-		updateKeyMap := map[string]bool{}
-		for _, update := range updates {
-			updateKeyMap[update.Key] = true
-		}
-
-		for _, result := range deleteResults {
-			resultValue := reflect.ValueOf(result)
-			compoundObjectKey := getObjectKeyReflect(resultValue, lookups)
-			if _, ok := updateKeyMap[compoundObjectKey]; !ok {
-				deletes = append(deletes, dbchange.Change{
-					Changes: map[string]interface{}{
-						tableMetadata.GetPrimaryKeyColumnName(): getObjectProperty(resultValue, tableMetadata.GetPrimaryKeyFieldName()),
-					},
-					Type: dbchange.Delete,
-				})
-			}
-		}
-	}
-
 	return &dbchange.ChangeSet{
 		Inserts:               inserts,
 		Updates:               updates,
 		Deletes:               deletes,
 		InsertsHavePrimaryKey: insertsHavePrimaryKey,
+		LookupsUsed:           lookups,
 	}, nil
 }
 
