@@ -11,6 +11,7 @@ import (
 	"github.com/lib/pq"
 	"github.com/skuid/picard/decoding"
 	"github.com/skuid/picard/metadata"
+	"github.com/skuid/picard/tags"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	uuid "github.com/satori/go.uuid"
@@ -42,7 +43,7 @@ func LoadFixturesFromFiles(names []string, path string, loadType reflect.Type, j
 // ExpectationHelper struct that contains expectations about a particular object
 type ExpectationHelper struct {
 	FixtureType      interface{}
-	TableMetadata    *tableMetadata
+	TableMetadata    *tags.TableMetadata
 	LookupFrom       string
 	LookupSelect     string
 	LookupWhere      string
@@ -52,9 +53,9 @@ type ExpectationHelper struct {
 	DataFields       []string
 }
 
-func (eh ExpectationHelper) getTableMetadata() *tableMetadata {
+func (eh ExpectationHelper) getTableMetadata() *tags.TableMetadata {
 	if eh.TableMetadata == nil {
-		tableMetadata := tableMetadataFromType(reflect.TypeOf(eh.FixtureType))
+		tableMetadata := tags.TableMetadataFromType(reflect.TypeOf(eh.FixtureType))
 		eh.TableMetadata = tableMetadata
 	}
 	return eh.TableMetadata
@@ -62,21 +63,21 @@ func (eh ExpectationHelper) getTableMetadata() *tableMetadata {
 
 func (eh ExpectationHelper) getPrimaryKeyColumnName() string {
 	tableMetadata := eh.getTableMetadata()
-	return tableMetadata.getPrimaryKeyColumnName()
+	return tableMetadata.GetPrimaryKeyColumnName()
 }
 
 // GetInsertDBColumns returns the columns that should inserted into
 func (eh ExpectationHelper) GetInsertDBColumns(includePrimaryKey bool) []string {
 	tableMetadata := eh.getTableMetadata()
 	if includePrimaryKey {
-		return tableMetadata.getColumnNames()
+		return tableMetadata.GetColumnNames()
 	}
-	return tableMetadata.getColumnNamesWithoutPrimaryKey()
+	return tableMetadata.GetColumnNamesWithoutPrimaryKey()
 }
 
 func (eh ExpectationHelper) getUpdateDBColumns() []string {
 	tableMetadata := eh.getTableMetadata()
-	return tableMetadata.getColumnNamesForUpdate()
+	return tableMetadata.GetColumnNamesForUpdate()
 }
 
 //GetUpdateDBColumnsForFixture returnst the fields that should be updated for a particular fixture
@@ -86,11 +87,11 @@ func (eh ExpectationHelper) GetUpdateDBColumnsForFixture(fixtures interface{}, i
 	fixture := reflect.ValueOf(fixtures).Index(index)
 	modelMetadata := metadata.GetMetadataFromPicardStruct(fixture)
 
-	for _, dataField := range tableMetadata.getFields() {
-		definedOnStruct := isFieldDefinedOnStruct(modelMetadata, dataField.name, fixture)
-		isUpdateAudit := dataField.audit == "updated_by" || dataField.audit == "updated_at"
-		if (definedOnStruct && !dataField.isPrimaryKey) || isUpdateAudit {
-			definedColumns = append(definedColumns, dataField.columnName)
+	for _, dataField := range tableMetadata.GetFields() {
+		definedOnStruct := isFieldDefinedOnStruct(modelMetadata, dataField.GetName(), fixture)
+		isUpdateAudit := dataField.GetAudit() == "updated_by" || dataField.GetAudit() == "updated_at"
+		if (definedOnStruct && !dataField.IsPrimaryKey()) || isUpdateAudit {
+			definedColumns = append(definedColumns, dataField.GetColumnName())
 		}
 	}
 	return definedColumns
@@ -99,10 +100,10 @@ func (eh ExpectationHelper) GetUpdateDBColumnsForFixture(fixtures interface{}, i
 // GetFixtureValue returns the value of a particular field on a fixture
 func (eh ExpectationHelper) GetFixtureValue(fixtures interface{}, index int, fieldName string) driver.Value {
 	tableMetadata := eh.getTableMetadata()
-	fieldMetadata := tableMetadata.getField(fieldName)
+	fieldMetadata := tableMetadata.GetField(fieldName)
 	fixture := reflect.ValueOf(fixtures).Index(index)
 	field := fixture.FieldByName(fieldName)
-	if fieldMetadata.isJSONB {
+	if fieldMetadata.IsJSONB() {
 		unserializedValue := field.Interface()
 		serializedValue, err := serializeJSONBColumn(unserializedValue)
 		if err != nil {
@@ -120,7 +121,7 @@ func (eh ExpectationHelper) GetReturnDataKey(returnData [][]driver.Value, index 
 
 func (eh ExpectationHelper) getTableName() string {
 	tableMetadata := eh.getTableMetadata()
-	return tableMetadata.tableName
+	return tableMetadata.GetTableName()
 }
 
 var sampleOrgID = "6ba7b810-9dbd-11d1-80b4-00c04fd430c8"

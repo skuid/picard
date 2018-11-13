@@ -1,6 +1,8 @@
 package dbchange
 
-import "reflect"
+import (
+	"reflect"
+)
 
 // Type is an enum for the type of change being made. Insert, Update or Delete
 type Type int

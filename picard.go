@@ -20,58 +20,16 @@ import (
 	"github.com/skuid/picard/decoding"
 	"github.com/skuid/picard/metadata"
 	"github.com/skuid/picard/reflectutil"
+	"github.com/skuid/picard/tags"
 	validator "gopkg.in/go-playground/validator.v9"
 )
 
 const separator = "|"
 
-// Association structure
-type Association struct {
-	Name         string
-	Associations []Association
-}
-
-// Lookup structure
-type Lookup struct {
-	TableName           string
-	MatchDBColumn       string
-	MatchObjectProperty string
-	JoinKey             string
-	Value               interface{}
-	SubQuery            []Lookup
-	SubQueryForeignKey  string
-	SubQueryMetadata    *tableMetadata
-}
-
-// Child structure
-type Child struct {
-	FieldName        string
-	FieldType        reflect.Type
-	FieldKind        reflect.Kind
-	ForeignKey       string
-	KeyMapping       string
-	ValueMappings    map[string]string
-	GroupingCriteria map[string]string
-	DeleteOrphans    bool
-}
-
-// ForeignKey structure
-type ForeignKey struct {
-	TableMetadata    *tableMetadata
-	FieldName        string
-	KeyColumn        string
-	RelatedFieldName string
-	Required         bool
-	NeedsLookup      bool
-	LookupResults    map[string]interface{}
-	LookupsUsed      []Lookup
-	KeyMapField      string
-}
-
 // ORM interface describes the behavior API of any picard ORM
 type ORM interface {
 	FilterModel(interface{}) ([]interface{}, error)
-	FilterModelAssociations(interface{}, []Association) ([]interface{}, error)
+	FilterModelAssociations(interface{}, []tags.Association) ([]interface{}, error)
 	SaveModel(model interface{}) error
 	CreateModel(model interface{}) error
 	DeleteModel(model interface{}) (int64, error)
@@ -110,6 +68,7 @@ func Decode(body io.Reader, destination interface{}) error {
 	return nil
 }
 
+// GetDecoder returns the decoder specified in the config
 func GetDecoder(config *decoding.Config) jsoniter.API {
 	return decoding.GetDecoder(config)
 }
@@ -150,7 +109,7 @@ func (p PersistenceORM) DeployMultiple(data []interface{}) error {
 }
 
 func (p PersistenceORM) upsert(data interface{}, deleteFilters interface{}) error {
-	tableMetadata, err := getTableMetadata(data)
+	tableMetadata, err := tags.GetTableMetadata(data)
 	if err != nil {
 		return err
 	}
@@ -179,7 +138,7 @@ func (p PersistenceORM) upsert(data interface{}, deleteFilters interface{}) erro
 
 // Upsert takes data in the form of a slice of structs and performs a series of database
 // operations that will sync the database with the state of that deployment payload
-func (p PersistenceORM) upsertBatch(data interface{}, deleteFilters interface{}, tableMetadata *tableMetadata) error {
+func (p PersistenceORM) upsertBatch(data interface{}, deleteFilters interface{}, tableMetadata *tags.TableMetadata) error {
 
 	changeSet, err := p.generateChanges(data, deleteFilters, tableMetadata)
 	if err != nil {
@@ -213,11 +172,11 @@ func (p PersistenceORM) upsertBatch(data interface{}, deleteFilters interface{},
 	return nil
 }
 
-func (p PersistenceORM) performDeletes(deletes []dbchange.Change, tableMetadata *tableMetadata) error {
+func (p PersistenceORM) performDeletes(deletes []dbchange.Change, tableMetadata *tags.TableMetadata) error {
 	if len(deletes) > 0 {
-		tableName := tableMetadata.tableName
-		primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
-		multitenancyKeyColumnName := tableMetadata.getMultitenancyKeyColumnName()
+		tableName := tableMetadata.GetTableName()
+		primaryKeyColumnName := tableMetadata.GetPrimaryKeyColumnName()
+		multitenancyKeyColumnName := tableMetadata.GetMultitenancyKeyColumnName()
 
 		psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 		keys := []string{}
@@ -240,15 +199,15 @@ func (p PersistenceORM) performDeletes(deletes []dbchange.Change, tableMetadata 
 	return nil
 }
 
-func (p PersistenceORM) performUpdates(updates []dbchange.Change, tableMetadata *tableMetadata) error {
+func (p PersistenceORM) performUpdates(updates []dbchange.Change, tableMetadata *tags.TableMetadata) error {
 	if len(updates) > 0 {
 
-		tableName := tableMetadata.tableName
+		tableName := tableMetadata.GetTableName()
 
-		columnNames := tableMetadata.getColumnNamesWithoutPrimaryKey()
+		columnNames := tableMetadata.GetColumnNamesWithoutPrimaryKey()
 
-		primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
-		multitenancyKeyColumnName := tableMetadata.getMultitenancyKeyColumnName()
+		primaryKeyColumnName := tableMetadata.GetPrimaryKeyColumnName()
+		multitenancyKeyColumnName := tableMetadata.GetMultitenancyKeyColumnName()
 
 		psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
@@ -278,21 +237,21 @@ func (p PersistenceORM) performUpdates(updates []dbchange.Change, tableMetadata 
 	return nil
 }
 
-func (p PersistenceORM) performInserts(inserts []dbchange.Change, insertsHavePrimaryKey bool, tableMetadata *tableMetadata) error {
+func (p PersistenceORM) performInserts(inserts []dbchange.Change, insertsHavePrimaryKey bool, tableMetadata *tags.TableMetadata) error {
 	if len(inserts) > 0 {
 
 		psql := squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
-		tableName := tableMetadata.tableName
+		tableName := tableMetadata.GetTableName()
 
-		primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
+		primaryKeyColumnName := tableMetadata.GetPrimaryKeyColumnName()
 
 		var columnNames []string
 
 		if insertsHavePrimaryKey {
-			columnNames = tableMetadata.getColumnNames()
+			columnNames = tableMetadata.GetColumnNames()
 		} else {
-			columnNames = tableMetadata.getColumnNamesWithoutPrimaryKey()
+			columnNames = tableMetadata.GetColumnNamesWithoutPrimaryKey()
 		}
 
 		insertQuery := psql.Insert(tableName)
@@ -323,10 +282,10 @@ func (p PersistenceORM) performInserts(inserts []dbchange.Change, insertsHavePri
 	return nil
 }
 
-func (p PersistenceORM) getExistingObjectByID(tableMetadata *tableMetadata, IDValue interface{}) (map[string]interface{}, error) {
-	tableName := tableMetadata.tableName
-	IDColumn := tableMetadata.getPrimaryKeyColumnName()
-	multitenancyColumn := tableMetadata.getMultitenancyKeyColumnName()
+func (p PersistenceORM) getExistingObjectByID(tableMetadata *tags.TableMetadata, IDValue interface{}) (map[string]interface{}, error) {
+	tableName := tableMetadata.GetTableName()
+	IDColumn := tableMetadata.GetPrimaryKeyColumnName()
+	multitenancyColumn := tableMetadata.GetMultitenancyKeyColumnName()
 	rows, err := squirrel.Select(fmt.Sprintf("%v.%v", tableName, IDColumn)).PlaceholderFormat(squirrel.Dollar).
 		From(tableName).
 		Where(squirrel.Eq{fmt.Sprintf("%v.%v", tableName, IDColumn): IDValue}).
@@ -349,16 +308,16 @@ func (p PersistenceORM) getExistingObjectByID(tableMetadata *tableMetadata, IDVa
 
 func (p PersistenceORM) checkForExisting(
 	data interface{},
-	tableMetadata *tableMetadata,
-	foreignKey *ForeignKey,
+	tableMetadata *tags.TableMetadata,
+	foreignKey *tags.ForeignKey,
 ) (
 	map[string]interface{},
-	[]Lookup,
+	[]tags.Lookup,
 	error,
 ) {
-	tableName := tableMetadata.tableName
-	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
-	multitenancyKeyColumnName := tableMetadata.getMultitenancyKeyColumnName()
+	tableName := tableMetadata.GetTableName()
+	primaryKeyColumnName := tableMetadata.GetPrimaryKeyColumnName()
+	multitenancyKeyColumnName := tableMetadata.GetMultitenancyKeyColumnName()
 	tableAliasCache := map[string]string{}
 	lookupsToUse := getLookupsForDeploy(data, tableMetadata, foreignKey, tableAliasCache)
 	lookupObjectKeys := getLookupObjectKeys(data, lookupsToUse, foreignKey)
@@ -408,23 +367,23 @@ func (p PersistenceORM) checkForExisting(
 	return results, lookupsToUse, nil
 }
 
-func getLookupsFromForeignKeys(foreignKeys []ForeignKey, baseJoinKey string, baseObjectProperty string, tableAliasCache map[string]string) []Lookup {
-	lookupsToUse := []Lookup{}
+func getLookupsFromForeignKeys(foreignKeys []tags.ForeignKey, baseJoinKey string, baseObjectProperty string, tableAliasCache map[string]string) []tags.Lookup {
+	lookupsToUse := []tags.Lookup{}
 
 	for _, foreignKey := range foreignKeys {
 		if foreignKey.NeedsLookup {
 			tableMetadata := foreignKey.TableMetadata
 			joinKey := getJoinKey(baseJoinKey, foreignKey.KeyColumn)
-			for _, lookup := range tableMetadata.lookups {
-				lookupsToUse = append(lookupsToUse, Lookup{
-					TableName:           tableMetadata.tableName,
+			for _, lookup := range tableMetadata.GetLookups() {
+				lookupsToUse = append(lookupsToUse, tags.Lookup{
+					TableName:           tableMetadata.GetTableName(),
 					MatchDBColumn:       lookup.MatchDBColumn,
 					MatchObjectProperty: getMatchObjectProperty(baseObjectProperty, foreignKey.RelatedFieldName, lookup.MatchObjectProperty),
 					JoinKey:             joinKey,
 				})
 			}
-			newBaseJoinKey := getTableAlias(tableMetadata.tableName, joinKey, tableAliasCache)
-			lookupsToUse = append(lookupsToUse, getLookupsFromForeignKeys(tableMetadata.foreignKeys, newBaseJoinKey, getNewBaseObjectProperty(baseObjectProperty, foreignKey.RelatedFieldName), tableAliasCache)...)
+			newBaseJoinKey := getTableAlias(tableMetadata.GetTableName(), joinKey, tableAliasCache)
+			lookupsToUse = append(lookupsToUse, getLookupsFromForeignKeys(tableMetadata.GetForeignKeys(), newBaseJoinKey, getNewBaseObjectProperty(baseObjectProperty, foreignKey.RelatedFieldName), tableAliasCache)...)
 		}
 	}
 	return lookupsToUse
@@ -463,15 +422,15 @@ func getMatchObjectProperty(baseObjectProperty string, relatedFieldName string, 
 	return getNewBaseObjectProperty(baseObjectProperty, relatedFieldName) + "." + matchObjectProperty
 }
 
-func getLookupsForDeploy(data interface{}, tableMetadata *tableMetadata, foreignKey *ForeignKey, tableAliasCache map[string]string) []Lookup {
-	lookupsToUse := []Lookup{}
-	tableName := tableMetadata.tableName
-	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
-	primaryKeyFieldName := tableMetadata.getPrimaryKeyFieldName()
-	lookups := tableMetadata.lookups
+func getLookupsForDeploy(data interface{}, tableMetadata *tags.TableMetadata, foreignKey *tags.ForeignKey, tableAliasCache map[string]string) []tags.Lookup {
+	lookupsToUse := []tags.Lookup{}
+	tableName := tableMetadata.GetTableName()
+	primaryKeyColumnName := tableMetadata.GetPrimaryKeyColumnName()
+	primaryKeyFieldName := tableMetadata.GetPrimaryKeyFieldName()
+	lookups := tableMetadata.GetLookups()
 
 	// Create a new slice of all the foreign keys for this type
-	foreignKeysToCheck := tableMetadata.foreignKeys[:]
+	foreignKeysToCheck := tableMetadata.GetForeignKeys()[:]
 
 	hasValidPK := false
 	// Determine which lookups are necessary based on whether keys exist in the data
@@ -496,7 +455,7 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tableMetadata, foreign
 		pkValue := item.FieldByName(primaryKeyFieldName)
 		if pkValue.IsValid() && pkValue.String() != "" && !hasValidPK {
 			hasValidPK = true
-			lookupsToUse = append([]Lookup{
+			lookupsToUse = append([]tags.Lookup{
 				{
 					TableName:           tableName,
 					MatchDBColumn:       primaryKeyColumnName,
@@ -517,7 +476,7 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tableMetadata, foreign
 					foreignKeysToCheck = append(foreignKeysToCheck[:i], foreignKeysToCheck[i-1:]...)
 				}
 
-				lookupsToUse = append(lookupsToUse, Lookup{
+				lookupsToUse = append(lookupsToUse, tags.Lookup{
 					MatchDBColumn:       foreignKeyToCheck.KeyColumn,
 					MatchObjectProperty: foreignKeyToCheck.FieldName,
 				})
@@ -534,7 +493,7 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tableMetadata, foreign
 	return lookupsToUse
 }
 
-func getLookupObjectKeys(data interface{}, lookupsToUse []Lookup, foreignKey *ForeignKey) []string {
+func getLookupObjectKeys(data interface{}, lookupsToUse []tags.Lookup, foreignKey *tags.ForeignKey) []string {
 	keys := []string{}
 	s := reflect.ValueOf(data)
 	emptyKeyLength := len(separator) * len(lookupsToUse)
@@ -559,9 +518,9 @@ func getLookupObjectKeys(data interface{}, lookupsToUse []Lookup, foreignKey *Fo
 	return keys
 }
 
-func getQueryParts(tableMetadata *tableMetadata, lookupsToUse []Lookup, tableAliasCache map[string]string) ([]string, []string, []squirrel.Sqlizer) {
-	tableName := tableMetadata.getTableName()
-	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
+func getQueryParts(tableMetadata *tags.TableMetadata, lookupsToUse []tags.Lookup, tableAliasCache map[string]string) ([]string, []string, []squirrel.Sqlizer) {
+	tableName := tableMetadata.GetTableName()
+	primaryKeyColumnName := tableMetadata.GetPrimaryKeyColumnName()
 	joinMap := map[string]bool{}
 	columns := []string{}
 	joins := []string{}
@@ -584,8 +543,8 @@ func getQueryParts(tableMetadata *tableMetadata, lookupsToUse []Lookup, tableAli
 		columns = append(columns, fmt.Sprintf("%[3]v.%[2]v as %[3]v_%[2]v", tableToUse, lookup.MatchDBColumn, tableAlias))
 		if lookup.SubQuery != nil {
 			_, joinParts, whereParts := getQueryParts(lookup.SubQueryMetadata, lookup.SubQuery, tableAliasCache)
-			subQueryFKField := lookup.SubQueryMetadata.getField(lookup.SubQueryForeignKey)
-			subquery := createQueryFromParts(lookup.SubQueryMetadata.getTableName(), []string{subQueryFKField.columnName}, joinParts, whereParts)
+			subQueryFKField := lookup.SubQueryMetadata.GetField(lookup.SubQueryForeignKey)
+			subquery := createQueryFromParts(lookup.SubQueryMetadata.GetTableName(), []string{subQueryFKField.GetColumnName()}, joinParts, whereParts)
 			// Use the question mark placeholder format so that no replacements are made.
 			sql, args, _ := subquery.ToSql()
 			whereFields = append(whereFields, squirrel.Expr(lookup.MatchDBColumn+" IN ("+sql+")", args...))
@@ -618,11 +577,11 @@ func createQueryFromParts(tableName string, columnNames []string, joinClauses []
 	return query
 }
 
-func (p PersistenceORM) performChildUpserts(changeObjects []dbchange.Change, tableMetadata *tableMetadata) error {
+func (p PersistenceORM) performChildUpserts(changeObjects []dbchange.Change, tableMetadata *tags.TableMetadata) error {
 
-	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
+	primaryKeyColumnName := tableMetadata.GetPrimaryKeyColumnName()
 
-	for _, child := range tableMetadata.children {
+	for _, child := range tableMetadata.GetChildren() {
 
 		var data reflect.Value
 		var deleteFiltersValue reflect.Value
@@ -709,14 +668,14 @@ func (p PersistenceORM) performChildUpserts(changeObjects []dbchange.Change, tab
 func (p PersistenceORM) generateChanges(
 	data interface{},
 	deleteFilters interface{},
-	tableMetadata *tableMetadata,
+	tableMetadata *tags.TableMetadata,
 ) (
 	*dbchange.ChangeSet,
 	error,
 ) {
-	foreignKeys := tableMetadata.foreignKeys
+	foreignKeys := tableMetadata.GetForeignKeys()
 	insertsHavePrimaryKey := false
-	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
+	primaryKeyColumnName := tableMetadata.GetPrimaryKeyColumnName()
 	lookupResults, lookups, err := p.checkForExisting(data, tableMetadata, nil)
 	if err != nil {
 		return nil, err
@@ -811,7 +770,7 @@ func (p PersistenceORM) generateChanges(
 			if _, ok := updateKeyMap[compoundObjectKey]; !ok {
 				deletes = append(deletes, dbchange.Change{
 					Changes: map[string]interface{}{
-						tableMetadata.getPrimaryKeyColumnName(): getObjectProperty(resultValue, tableMetadata.getPrimaryKeyFieldName()),
+						tableMetadata.GetPrimaryKeyColumnName(): getObjectProperty(resultValue, tableMetadata.GetPrimaryKeyFieldName()),
 					},
 					Type: dbchange.Delete,
 				})
@@ -878,8 +837,8 @@ func isFieldDefinedOnStruct(modelMetadata metadata.Metadata, fieldName string, d
 func (p PersistenceORM) processObject(
 	metadataObject reflect.Value,
 	databaseObject map[string]interface{},
-	foreignKeys []ForeignKey,
-	tableMetadata *tableMetadata,
+	foreignKeys []tags.ForeignKey,
+	tableMetadata *tags.TableMetadata,
 ) (dbchange.Change, error) {
 	returnObject := map[string]interface{}{}
 
@@ -888,15 +847,15 @@ func (p PersistenceORM) processObject(
 	// Get Defined Fields if they exist
 	modelMetadata := metadata.GetMetadataFromPicardStruct(metadataObject)
 
-	for _, field := range tableMetadata.getFields() {
+	for _, field := range tableMetadata.GetFields() {
 		var returnValue interface{}
 
 		// Don't ever update the primary key or the multitenancy key or "create triggered" audit fields
-		if isUpdate && !field.includeInUpdate() {
+		if isUpdate && !field.IncludeInUpdate() {
 			continue
 		}
 
-		auditType := field.audit
+		auditType := field.GetAudit()
 
 		if auditType != "" {
 			if auditType == "created_by" {
@@ -909,21 +868,21 @@ func (p PersistenceORM) processObject(
 				returnValue = time.Now()
 			}
 		} else {
-			if !isFieldDefinedOnStruct(modelMetadata, field.name, metadataObject) {
+			if !isFieldDefinedOnStruct(modelMetadata, field.GetName(), metadataObject) {
 				continue
 			}
-			returnValue = metadataObject.FieldByName(field.name).Interface()
+			returnValue = metadataObject.FieldByName(field.GetName()).Interface()
 		}
 
-		if !isUpdate && field.isPrimaryKey && (returnValue == nil || returnValue == "") {
+		if !isUpdate && field.IsPrimaryKey() && (returnValue == nil || returnValue == "") {
 			continue
 		}
 
-		returnObject[field.columnName] = returnValue
+		returnObject[field.GetColumnName()] = returnValue
 	}
 
-	primaryKeyColumnName := tableMetadata.getPrimaryKeyColumnName()
-	multitenancyKeyColumnName := tableMetadata.getMultitenancyKeyColumnName()
+	primaryKeyColumnName := tableMetadata.GetPrimaryKeyColumnName()
+	multitenancyKeyColumnName := tableMetadata.GetMultitenancyKeyColumnName()
 
 	if isUpdate {
 		returnObject[primaryKeyColumnName] = databaseObject[primaryKeyColumnName]
@@ -933,7 +892,7 @@ func (p PersistenceORM) processObject(
 
 	// Process encrypted columns
 
-	encryptedColumns := tableMetadata.getEncryptedColumns()
+	encryptedColumns := tableMetadata.GetEncryptedColumns()
 	for _, column := range encryptedColumns {
 		value := returnObject[column]
 
@@ -970,7 +929,7 @@ func (p PersistenceORM) processObject(
 	}
 
 	// Process JSONB columns that need to be serialized prior to storage
-	serializeJSONBColumns(tableMetadata.getJSONBColumns(), returnObject)
+	serializeJSONBColumns(tableMetadata.GetJSONBColumns(), returnObject)
 
 	for _, foreignKey := range foreignKeys {
 		fkValue, keyIsDefined := returnObject[foreignKey.KeyColumn]
@@ -983,7 +942,7 @@ func (p PersistenceORM) processObject(
 
 		if foundLookupData {
 			lookupDataInterface := lookupData.(map[string]interface{})
-			lookupKeyColumnName := foreignKey.TableMetadata.getPrimaryKeyColumnName()
+			lookupKeyColumnName := foreignKey.TableMetadata.GetPrimaryKeyColumnName()
 			returnObject[foreignKey.KeyColumn] = lookupDataInterface[lookupKeyColumnName]
 		} else {
 			// If it's optional we can just keep going, if it's required, throw an error
@@ -1005,7 +964,7 @@ func (p PersistenceORM) processObject(
 	}, nil
 }
 
-func getObjectKey(objects map[string]interface{}, tableName string, lookups []Lookup, tableAliasCache map[string]string) string {
+func getObjectKey(objects map[string]interface{}, tableName string, lookups []tags.Lookup, tableAliasCache map[string]string) string {
 	keyValue := []string{}
 	for _, lookup := range lookups {
 		tableToUse := tableName
@@ -1031,7 +990,7 @@ func getObjectKey(objects map[string]interface{}, tableName string, lookups []Lo
 	return strings.Join(keyValue, separator)
 }
 
-func getObjectKeyReflect(value reflect.Value, lookups []Lookup) string {
+func getObjectKeyReflect(value reflect.Value, lookups []tags.Lookup) string {
 	keyValue := []string{}
 	for _, lookup := range lookups {
 		keyValue = append(keyValue, getObjectProperty(value, lookup.MatchObjectProperty))
@@ -1101,7 +1060,7 @@ func getQueryResults(rows *sql.Rows) ([]map[string]interface{}, error) {
 	return results, nil
 }
 
-func getLookupQueryResults(rows *sql.Rows, tableName string, lookups []Lookup, tableAliasCache map[string]string) (map[string]interface{}, error) {
+func getLookupQueryResults(rows *sql.Rows, tableName string, lookups []tags.Lookup, tableAliasCache map[string]string) (map[string]interface{}, error) {
 
 	results, err := getQueryResults(rows)
 	if err != nil {
@@ -1130,11 +1089,11 @@ func getColumnValues(columnNames []string, data map[string]interface{}) []interf
 	return columnValues
 }
 
-func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFields []string, parentTableMetadata *tableMetadata, baseJoinKey string, joinKey string, tableAliasCache map[string]string) ([]Lookup, error) {
+func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFields []string, parentTableMetadata *tags.TableMetadata, baseJoinKey string, joinKey string, tableAliasCache map[string]string) ([]tags.Lookup, error) {
 	filterModelType := filterModelValue.Type()
-	tableName := parentTableMetadata.getTableName()
-	primaryKeyColumnName := parentTableMetadata.getPrimaryKeyColumnName()
-	lookups := []Lookup{}
+	tableName := parentTableMetadata.GetTableName()
+	primaryKeyColumnName := parentTableMetadata.GetPrimaryKeyColumnName()
+	lookups := []tags.Lookup{}
 
 	fullJoinKey := getJoinKey(baseJoinKey, joinKey)
 
@@ -1142,7 +1101,7 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 		field := filterModelType.Field(i)
 		fieldValue := filterModelValue.FieldByName(field.Name)
 
-		picardTags := getStructTagsMap(field, "picard")
+		picardTags := tags.GetStructTagsMap(field, "picard")
 		column, hasColumn := picardTags["column"]
 		_, isMultitenancyColumn := picardTags["multitenancy_key"]
 		_, isChild := picardTags["child"]
@@ -1160,7 +1119,7 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 
 		switch {
 		case hasColumn && isMultitenancyColumn:
-			lookups = append(lookups, Lookup{
+			lookups = append(lookups, tags.Lookup{
 				MatchDBColumn:       column,
 				MatchObjectProperty: field.Name,
 				TableName:           tableName,
@@ -1173,7 +1132,7 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 				return nil, errors.New("cannot perform queries with where clauses on encrypted fields")
 			}
 
-			lookups = append(lookups, Lookup{
+			lookups = append(lookups, tags.Lookup{
 				MatchDBColumn:       column,
 				MatchObjectProperty: field.Name,
 				TableName:           tableName,
@@ -1182,7 +1141,7 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 			})
 
 		case isZeroColumn:
-			lookups = append(lookups, Lookup{
+			lookups = append(lookups, tags.Lookup{
 				MatchDBColumn:       column,
 				MatchObjectProperty: field.Name,
 				TableName:           tableName,
@@ -1191,7 +1150,7 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 			})
 		case kind == reflect.Struct && !isZeroField:
 			foreignKeyValue := ""
-			for _, foreignKey := range parentTableMetadata.foreignKeys {
+			for _, foreignKey := range parentTableMetadata.GetForeignKeys() {
 				if foreignKey.RelatedFieldName == field.Name {
 					foreignKeyValue = foreignKey.KeyColumn
 					break
@@ -1201,7 +1160,7 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 			if foreignKeyValue == "" {
 				return nil, errors.New("No Foreign Key Value Found in Struct Tags")
 			}
-			relatedPicardTags := tableMetadataFromType(fieldValue.Type())
+			relatedPicardTags := tags.TableMetadataFromType(fieldValue.Type())
 			tableAlias := getTableAlias(tableName, fullJoinKey, tableAliasCache)
 			if tableAlias == tableName {
 				tableAlias = ""
@@ -1216,12 +1175,12 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 
 			for i := 0; i < fieldValue.Len(); i++ {
 				item := fieldValue.Index(i)
-				relatedPicardTags := tableMetadataFromType(item.Type())
+				relatedPicardTags := tags.TableMetadataFromType(item.Type())
 				subQueryLookups, err := p.getFilterLookups(item, []string{}, relatedPicardTags, "", "", tableAliasCache)
 				if err != nil {
 					return nil, err
 				}
-				lookups = append(lookups, Lookup{
+				lookups = append(lookups, tags.Lookup{
 					MatchDBColumn:      primaryKeyColumnName,
 					TableName:          tableName,
 					SubQuery:           subQueryLookups,
@@ -1234,7 +1193,7 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 	return lookups, nil
 }
 
-func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.Value, zeroFields []string, tableMetadata *tableMetadata) ([]squirrel.Sqlizer, []string, error) {
+func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.Value, zeroFields []string, tableMetadata *tags.TableMetadata) ([]squirrel.Sqlizer, []string, error) {
 
 	tableAliasCache := map[string]string{}
 

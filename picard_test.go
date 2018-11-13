@@ -11,6 +11,7 @@ import (
 	_ "github.com/lib/pq"
 	uuid "github.com/satori/go.uuid"
 	"github.com/skuid/picard/metadata"
+	"github.com/skuid/picard/tags"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -1702,7 +1703,7 @@ func TestGenerateWhereClausesFromModel(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			filterModelType := tc.filterModelValue.Type()
-			tableMetadata := tableMetadataFromType(filterModelType)
+			tableMetadata := tags.TableMetadataFromType(filterModelType)
 			whereClauses, joinClauses, err := p.generateWhereClausesFromModel(tc.filterModelValue, tc.zeroFields, tableMetadata)
 
 			if tc.wantErr != "" {

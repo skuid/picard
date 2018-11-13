@@ -8,9 +8,10 @@ import (
 	"reflect"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/skuid/picard/tags"
 )
 
-func (p PersistenceORM) getFilterModelResults(filterModelValue reflect.Value, filterMetadata *tableMetadata) ([]interface{}, error) {
+func (p PersistenceORM) getFilterModelResults(filterModelValue reflect.Value, filterMetadata *tags.TableMetadata) ([]interface{}, error) {
 	var zeroFields []string
 	whereClauses, joinClauses, err := p.generateWhereClausesFromModel(filterModelValue, zeroFields, filterMetadata)
 	if err != nil {
@@ -32,7 +33,7 @@ func (p PersistenceORM) FilterModel(filterModel interface{}) ([]interface{}, err
 // FilterModels returns models that match the provided struct, multiple models can be provided
 func (p PersistenceORM) FilterModels(filterModels interface{}, transaction *sql.Tx) ([]interface{}, error) {
 	s := reflect.ValueOf(filterModels)
-	filterMetadata := tableMetadataFromType(s.Type().Elem())
+	filterMetadata := tags.TableMetadataFromType(s.Type().Elem())
 	ors := squirrel.Or{}
 
 	for i := 0; i < s.Len(); i++ {
@@ -68,7 +69,7 @@ func (p PersistenceORM) FilterModels(filterModels interface{}, transaction *sql.
 
 // FilterModelAssociations returns models that match the provide struct and also
 // return the requested associated models
-func (p PersistenceORM) FilterModelAssociations(filterModel interface{}, associations []Association) ([]interface{}, error) {
+func (p PersistenceORM) FilterModelAssociations(filterModel interface{}, associations []tags.Association) ([]interface{}, error) {
 	// root model results
 	filterModelValue, err := getStructValue(filterModel)
 	if err != nil {
@@ -76,7 +77,7 @@ func (p PersistenceORM) FilterModelAssociations(filterModel interface{}, associa
 	}
 
 	filterModelType := filterModelValue.Type()
-	filterMetadata := tableMetadataFromType(filterModelType)
+	filterMetadata := tags.TableMetadataFromType(filterModelType)
 
 	// First do the filter with out any of the associations
 	results, err := p.getFilterModelResults(filterModelValue, filterMetadata)
@@ -97,14 +98,14 @@ func (p PersistenceORM) FilterModelAssociations(filterModel interface{}, associa
 	return concreteResults, nil
 }
 
-func (p PersistenceORM) processAssociations(associations []Association, filterModelValue reflect.Value, filterMetadata *tableMetadata, results []interface{}) error {
+func (p PersistenceORM) processAssociations(associations []tags.Association, filterModelValue reflect.Value, filterMetadata *tags.TableMetadata, results []interface{}) error {
 	for _, association := range associations {
-		child := filterMetadata.getChildField(association.Name)
-		foreignKey := filterMetadata.getForeignKeyFieldFromRelation(association.Name)
+		child := filterMetadata.GetChildField(association.Name)
+		foreignKey := filterMetadata.GetForeignKeyFieldFromRelation(association.Name)
 		if child != nil {
 			childType := child.FieldType.Elem()
-			childMetadata := tableMetadataFromType(childType)
-			foreignKey := childMetadata.getForeignKeyField(child.ForeignKey)
+			childMetadata := tags.TableMetadataFromType(childType)
+			foreignKey := childMetadata.GetForeignKeyField(child.ForeignKey)
 			newFilter := reflect.New(childType)
 			if foreignKey != nil {
 				relatedField := newFilter.Elem().FieldByName(foreignKey.RelatedFieldName)
@@ -118,7 +119,7 @@ func (p PersistenceORM) processAssociations(associations []Association, filterMo
 		} else if foreignKey != nil {
 			relationField := filterModelValue.FieldByName(foreignKey.RelatedFieldName)
 			relationType := relationField.Type()
-			parentRelationField := foreignKey.TableMetadata.getChildFieldFromForeignKey(foreignKey.FieldName, reflect.SliceOf(filterModelValue.Type()))
+			parentRelationField := foreignKey.TableMetadata.GetChildFieldFromForeignKey(foreignKey.FieldName, reflect.SliceOf(filterModelValue.Type()))
 			newFilter := reflect.New(relationType)
 			relatedField := newFilter.Elem().FieldByName(parentRelationField.FieldName)
 			relatedField.Set(reflect.Append(relatedField, filterModelValue))
@@ -141,9 +142,9 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 		db = transaction
 	}
 
-	tableMetadata := tableMetadataFromType(filterModelType)
-	columnNames := tableMetadata.getColumnNames()
-	tableName := tableMetadata.tableName
+	tableMetadata := tags.TableMetadataFromType(filterModelType)
+	columnNames := tableMetadata.GetColumnNames()
+	tableName := tableMetadata.GetTableName()
 
 	query := createQueryFromParts(tableName, columnNames, joinClauses, whereClauses)
 
@@ -163,7 +164,7 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 
 		// Decrypt any encrypted columns
 
-		encryptedColumns := tableMetadata.getEncryptedColumns()
+		encryptedColumns := tableMetadata.GetEncryptedColumns()
 		for _, column := range encryptedColumns {
 			value := result[column]
 
@@ -196,7 +197,7 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 	return returnModels, nil
 }
 
-func populateChildResults(results []interface{}, childResults []interface{}, child *Child, filterMetadata *tableMetadata) {
+func populateChildResults(results []interface{}, childResults []interface{}, child *tags.Child, filterMetadata *tags.TableMetadata) {
 	var parentGroupingCriteria []string
 	var childGroupingCriteria []string
 	if child.GroupingCriteria != nil {
@@ -237,7 +238,7 @@ func populateChildResults(results []interface{}, childResults []interface{}, chi
 				}
 			} else {
 				// Just use the primary key as a default grouping criteria match
-				parentMatchValues = append(parentMatchValues, parentValue.Elem().FieldByName(filterMetadata.getPrimaryKeyFieldName()))
+				parentMatchValues = append(parentMatchValues, parentValue.Elem().FieldByName(filterMetadata.GetPrimaryKeyFieldName()))
 			}
 			if parentMatchesChild(childMatchValues, parentMatchValues) {
 				parentChildRelField := parentValue.Elem().FieldByName(child.FieldName)
@@ -271,13 +272,13 @@ func parentMatchesChild(childMatchValues []reflect.Value, parentMatchValues []re
 	return true
 }
 
-func populateForeignKeyResults(mainResults []interface{}, foreignResults []interface{}, foreignKey *ForeignKey) {
+func populateForeignKeyResults(mainResults []interface{}, foreignResults []interface{}, foreignKey *tags.ForeignKey) {
 	for _, mainResult := range mainResults {
 		mainValue := reflect.ValueOf(mainResult)
 		foreignKeyValue := mainValue.Elem().FieldByName(foreignKey.FieldName)
 		for _, foreignResult := range foreignResults {
 			foreignValue := reflect.ValueOf(foreignResult)
-			primaryKeyValue := foreignValue.FieldByName(foreignKey.TableMetadata.getPrimaryKeyFieldName())
+			primaryKeyValue := foreignValue.FieldByName(foreignKey.TableMetadata.GetPrimaryKeyFieldName())
 			if foreignKeyValue.Interface() == primaryKeyValue.Interface() {
 				relField := mainValue.Elem().FieldByName(foreignKey.RelatedFieldName)
 				relField.Set(foreignValue)
@@ -287,28 +288,28 @@ func populateForeignKeyResults(mainResults []interface{}, foreignResults []inter
 	}
 }
 
-func hydrateModel(modelType reflect.Type, tableMetadata *tableMetadata, values map[string]interface{}) reflect.Value {
+func hydrateModel(modelType reflect.Type, tableMetadata *tags.TableMetadata, values map[string]interface{}) reflect.Value {
 	model := reflect.Indirect(reflect.New(modelType))
-	for _, field := range tableMetadata.fields {
-		value, hasValue := values[field.columnName]
+	for _, field := range tableMetadata.GetFields() {
+		value, hasValue := values[field.GetColumnName()]
 		reflectedValue := reflect.ValueOf(value)
 
 		if hasValue && reflectedValue.IsValid() {
-			if field.isJSONB {
+			if field.IsJSONB() {
 				valueString, isString := value.(string)
 				if !isString {
 					valueString = string(value.([]byte))
 				}
-				destinationValue := reflect.New(field.fieldType).Interface()
+				destinationValue := reflect.New(field.GetFieldType()).Interface()
 				json.Unmarshal([]byte(valueString), destinationValue)
 				value = reflect.Indirect(reflect.ValueOf(destinationValue)).Interface()
 			}
 
-			if reflectedValue.Type().ConvertibleTo(field.fieldType) {
-				reflectedValue = reflectedValue.Convert(field.fieldType)
+			if reflectedValue.Type().ConvertibleTo(field.GetFieldType()) {
+				reflectedValue = reflectedValue.Convert(field.GetFieldType())
 				value = reflectedValue.Interface()
 			}
-			model.FieldByName(field.name).Set(reflect.ValueOf(value))
+			model.FieldByName(field.GetName()).Set(reflect.ValueOf(value))
 		}
 	}
 	return model.Addr()

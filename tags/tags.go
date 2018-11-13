@@ -1,4 +1,4 @@
-package picard
+package tags
 
 import (
 	"errors"
@@ -10,7 +10,51 @@ import (
 
 const picardTagKey = "picard"
 
-type fieldMetadata struct {
+// Association structure
+type Association struct {
+	Name         string
+	Associations []Association
+}
+
+// Lookup structure
+type Lookup struct {
+	TableName           string
+	MatchDBColumn       string
+	MatchObjectProperty string
+	JoinKey             string
+	Value               interface{}
+	SubQuery            []Lookup
+	SubQueryForeignKey  string
+	SubQueryMetadata    *TableMetadata
+}
+
+// Child structure
+type Child struct {
+	FieldName        string
+	FieldType        reflect.Type
+	FieldKind        reflect.Kind
+	ForeignKey       string
+	KeyMapping       string
+	ValueMappings    map[string]string
+	GroupingCriteria map[string]string
+	DeleteOrphans    bool
+}
+
+// ForeignKey structure
+type ForeignKey struct {
+	TableMetadata    *TableMetadata
+	FieldName        string
+	KeyColumn        string
+	RelatedFieldName string
+	Required         bool
+	NeedsLookup      bool
+	LookupResults    map[string]interface{}
+	LookupsUsed      []Lookup
+	KeyMapField      string
+}
+
+// FieldMetadata structure
+type FieldMetadata struct {
 	name              string
 	isPrimaryKey      bool
 	isMultitenancyKey bool
@@ -21,36 +65,86 @@ type fieldMetadata struct {
 	fieldType         reflect.Type
 }
 
-func (fm fieldMetadata) includeInUpdate() bool {
+// IncludeInUpdate function
+func (fm FieldMetadata) IncludeInUpdate() bool {
 	return !fm.isPrimaryKey && !fm.isMultitenancyKey && fm.audit != "created_at" && fm.audit != "created_by"
 }
 
-type tableMetadata struct {
+// GetAudit function
+func (fm FieldMetadata) GetAudit() string {
+	return fm.audit
+}
+
+// IsJSONB function
+func (fm FieldMetadata) IsJSONB() bool {
+	return fm.isJSONB
+}
+
+// IsPrimaryKey function
+func (fm FieldMetadata) IsPrimaryKey() bool {
+	return fm.isPrimaryKey
+}
+
+// GetName function
+func (fm FieldMetadata) GetName() string {
+	return fm.name
+}
+
+// GetColumnName function
+func (fm FieldMetadata) GetColumnName() string {
+	return fm.columnName
+}
+
+// GetFieldType function
+func (fm FieldMetadata) GetFieldType() reflect.Type {
+	return fm.fieldType
+}
+
+// TableMetadata structure
+type TableMetadata struct {
 	tableName            string
 	primaryKeyField      string
 	multitenancyKeyField string
-	fields               map[string]fieldMetadata
+	fields               map[string]FieldMetadata
 	fieldOrder           []string
 	lookups              []Lookup
 	foreignKeys          []ForeignKey
 	children             []Child
 }
 
-func (tm tableMetadata) getTableName() string {
+// GetChildren function
+func (tm TableMetadata) GetChildren() []Child {
+	return tm.children
+}
+
+// GetLookups function
+func (tm TableMetadata) GetLookups() []Lookup {
+	return tm.lookups
+}
+
+// GetForeignKeys function
+func (tm TableMetadata) GetForeignKeys() []ForeignKey {
+	return tm.foreignKeys
+}
+
+// GetTableName gets the name of the table
+func (tm TableMetadata) GetTableName() string {
 	return tm.tableName
 }
 
-func (tm tableMetadata) getColumnNames() []string {
+// GetColumnNames gets the column names
+func (tm TableMetadata) GetColumnNames() []string {
 	columnNames := []string{}
-	for _, field := range tm.getFields() {
+	for _, field := range tm.GetFields() {
 		columnNames = append(columnNames, field.columnName)
 	}
 	return columnNames
 }
 
-func (tm tableMetadata) getColumnNamesWithoutPrimaryKey() []string {
+// GetColumnNamesWithoutPrimaryKey gets the columm names, but excludes the primary key
+func (tm TableMetadata) GetColumnNamesWithoutPrimaryKey() []string {
 	columnNames := []string{}
-	for _, field := range tm.getFields() {
+	for _, field := range tm.GetFields() {
 		if !field.isPrimaryKey {
 			columnNames = append(columnNames, field.columnName)
 		}
@@ -58,10 +152,11 @@ func (tm tableMetadata) getColumnNamesWithoutPrimaryKey() []string {
 	return columnNames
 }
 
-func (tm tableMetadata) getColumnNamesForUpdate() []string {
+// GetColumnNamesForUpdate gets the columm names, but excludes certain fields
+func (tm TableMetadata) GetColumnNamesForUpdate() []string {
 	columnNames := []string{}
-	for _, field := range tm.getFields() {
-		if !field.includeInUpdate() {
+	for _, field := range tm.GetFields() {
+		if !field.IncludeInUpdate() {
 			continue
 		}
 		columnNames = append(columnNames, field.columnName)
@@ -69,7 +164,8 @@ func (tm tableMetadata) getColumnNamesForUpdate() []string {
 	return columnNames
 }
 
-func (tm tableMetadata) getChildField(childName string) *Child {
+// GetChildField function
+func (tm TableMetadata) GetChildField(childName string) *Child {
 	for _, child := range tm.children {
 		if child.FieldName == childName {
 			return &child
@@ -78,7 +174,8 @@ func (tm tableMetadata) getChildField(childName string) *Child {
 	return nil
 }
 
-func (tm tableMetadata) getChildFieldFromForeignKey(foreignKeyName string, foreignKeyType reflect.Type) *Child {
+// GetChildFieldFromForeignKey function
+func (tm TableMetadata) GetChildFieldFromForeignKey(foreignKeyName string, foreignKeyType reflect.Type) *Child {
 	for _, child := range tm.children {
 		if child.ForeignKey == foreignKeyName && child.FieldType == foreignKeyType {
 			return &child
@@ -87,7 +184,8 @@ func (tm tableMetadata) getChildFieldFromForeignKey(foreignKeyName string, forei
 	return nil
 }
 
-func (tm tableMetadata) getForeignKeyField(foreignKeyName string) *ForeignKey {
+// GetForeignKeyField function
+func (tm TableMetadata) GetForeignKeyField(foreignKeyName string) *ForeignKey {
 	for _, foreignKey := range tm.foreignKeys {
 		if foreignKey.FieldName == foreignKeyName {
 			return &foreignKey
@@ -96,7 +194,8 @@ func (tm tableMetadata) getForeignKeyField(foreignKeyName string) *ForeignKey {
 	return nil
 }
 
-func (tm tableMetadata) getForeignKeyFieldFromRelation(relationName string) *ForeignKey {
+// GetForeignKeyFieldFromRelation function
+func (tm TableMetadata) GetForeignKeyFieldFromRelation(relationName string) *ForeignKey {
 	for _, foreignKey := range tm.foreignKeys {
 		if foreignKey.RelatedFieldName == relationName {
 			return &foreignKey
@@ -105,9 +204,10 @@ func (tm tableMetadata) getForeignKeyFieldFromRelation(relationName string) *For
 	return nil
 }
 
-func (tm tableMetadata) getEncryptedColumns() []string {
+// GetEncryptedColumns function
+func (tm TableMetadata) GetEncryptedColumns() []string {
 	columnNames := []string{}
-	for _, field := range tm.getFields() {
+	for _, field := range tm.GetFields() {
 		if field.isEncrypted {
 			columnNames = append(columnNames, field.columnName)
 		}
@@ -115,9 +215,10 @@ func (tm tableMetadata) getEncryptedColumns() []string {
 	return columnNames
 }
 
-func (tm tableMetadata) getJSONBColumns() []string {
+// GetJSONBColumns function
+func (tm TableMetadata) GetJSONBColumns() []string {
 	columnNames := []string{}
-	for _, field := range tm.getFields() {
+	for _, field := range tm.GetFields() {
 		if field.isJSONB {
 			columnNames = append(columnNames, field.columnName)
 		}
@@ -125,7 +226,8 @@ func (tm tableMetadata) getJSONBColumns() []string {
 	return columnNames
 }
 
-func (tm tableMetadata) getPrimaryKeyMetadata() *fieldMetadata {
+// GetPrimaryKeyMetadata function
+func (tm TableMetadata) GetPrimaryKeyMetadata() *FieldMetadata {
 	metadata, ok := tm.fields[tm.primaryKeyField]
 	if ok {
 		return &metadata
@@ -133,7 +235,8 @@ func (tm tableMetadata) getPrimaryKeyMetadata() *fieldMetadata {
 	return nil
 }
 
-func (tm tableMetadata) getMultitenancyKeyMetadata() *fieldMetadata {
+// GetMultitenancyKeyMetadata function
+func (tm TableMetadata) GetMultitenancyKeyMetadata() *FieldMetadata {
 	metadata, ok := tm.fields[tm.multitenancyKeyField]
 	if ok {
 		return &metadata
@@ -141,52 +244,56 @@ func (tm tableMetadata) getMultitenancyKeyMetadata() *fieldMetadata {
 	return nil
 }
 
-func (tm tableMetadata) getPrimaryKeyColumnName() string {
-	metadata := tm.getPrimaryKeyMetadata()
+// GetPrimaryKeyColumnName function
+func (tm TableMetadata) GetPrimaryKeyColumnName() string {
+	metadata := tm.GetPrimaryKeyMetadata()
 	if metadata != nil {
 		return metadata.columnName
 	}
 	return ""
 }
 
-func (tm tableMetadata) getPrimaryKeyFieldName() string {
-	metadata := tm.getPrimaryKeyMetadata()
+// GetPrimaryKeyFieldName function
+func (tm TableMetadata) GetPrimaryKeyFieldName() string {
+	metadata := tm.GetPrimaryKeyMetadata()
 	if metadata != nil {
 		return metadata.name
 	}
 	return ""
 }
 
-func (tm tableMetadata) getMultitenancyKeyColumnName() string {
-	metadata := tm.getMultitenancyKeyMetadata()
+// GetMultitenancyKeyColumnName function
+func (tm TableMetadata) GetMultitenancyKeyColumnName() string {
+	metadata := tm.GetMultitenancyKeyMetadata()
 	if metadata != nil {
 		return metadata.columnName
 	}
 	return ""
 }
 
-// Returns the fields in the order they appear in the struct
-func (tm tableMetadata) getFields() []fieldMetadata {
-	fields := []fieldMetadata{}
+// GetFields returns the fields in the order they appear in the struct
+func (tm TableMetadata) GetFields() []FieldMetadata {
+	fields := []FieldMetadata{}
 	for _, key := range tm.fieldOrder {
 		fields = append(fields, tm.fields[key])
 	}
 	return fields
 }
 
-// Returns the fields in the order they appear in the struct
-func (tm tableMetadata) getField(fieldName string) fieldMetadata {
+// GetField returns the fields in the order they appear in the struct
+func (tm TableMetadata) GetField(fieldName string) FieldMetadata {
 	return tm.fields[fieldName]
 }
 
-func getTableMetadata(data interface{}) (*tableMetadata, error) {
+// GetTableMetadata function
+func GetTableMetadata(data interface{}) (*TableMetadata, error) {
 	// Verify that we've been passed valid input
 	t := reflect.TypeOf(data)
 	if t.Kind() != reflect.Slice {
 		return nil, errors.New("Can only upsert slices")
 	}
 
-	tableMetadata := tableMetadataFromType(t.Elem())
+	tableMetadata := TableMetadataFromType(t.Elem())
 
 	if tableMetadata.tableName == "" {
 		return nil, errors.New("No table name specified in struct metadata")
@@ -194,10 +301,11 @@ func getTableMetadata(data interface{}) (*tableMetadata, error) {
 	return tableMetadata, nil
 }
 
-func tableMetadataFromType(t reflect.Type) *tableMetadata {
+// TableMetadataFromType gets table metadata from a reflect type
+func TableMetadataFromType(t reflect.Type) *TableMetadata {
 	var metadata metadata.Metadata
-	tableMetadata := tableMetadata{
-		fields: map[string]fieldMetadata{},
+	tableMetadata := TableMetadata{
+		fields: map[string]FieldMetadata{},
 	}
 	children := []Child{}
 	lookups := []Lookup{}
@@ -207,7 +315,7 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 		field := t.Field(i)
 		kind := field.Type.Kind()
 
-		tagsMap := getStructTagsMap(field, picardTagKey)
+		tagsMap := GetStructTagsMap(field, picardTagKey)
 		_, hasTableName := tagsMap["tablename"]
 		_, isPrimaryKey := tagsMap["primary_key"]
 		_, isMultitenancyKey := tagsMap["multitenancy_key"]
@@ -228,7 +336,7 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 
 		if hasColumnName {
 
-			tableMetadata.fields[field.Name] = fieldMetadata{
+			tableMetadata.fields[field.Name] = FieldMetadata{
 				name:              field.Name,
 				isEncrypted:       isEncrypted,
 				isJSONB:           isJSONB,
@@ -305,7 +413,7 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 			relatedField, hasRelatedField := t.FieldByName(tagsMap["related"])
 
 			if hasRelatedField {
-				tableMetadata := tableMetadataFromType(relatedField.Type)
+				tableMetadata := TableMetadataFromType(relatedField.Type)
 				foreignKeys = append(foreignKeys, ForeignKey{
 					TableMetadata:    tableMetadata,
 					FieldName:        field.Name,
@@ -326,7 +434,8 @@ func tableMetadataFromType(t reflect.Type) *tableMetadata {
 	return &tableMetadata
 }
 
-func getStructTagsMap(field reflect.StructField, tagType string) map[string]string {
+// GetStructTagsMap function
+func GetStructTagsMap(field reflect.StructField, tagType string) map[string]string {
 	tagValue := field.Tag.Get(tagType)
 	if tagValue == "" {
 		return nil
