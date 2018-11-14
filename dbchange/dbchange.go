@@ -2,6 +2,8 @@ package dbchange
 
 import (
 	"reflect"
+
+	"github.com/skuid/picard/tags"
 )
 
 // Type is an enum for the type of change being made. Insert, Update or Delete
@@ -30,4 +32,5 @@ type ChangeSet struct {
 	Updates               []Change
 	Deletes               []Change
 	InsertsHavePrimaryKey bool
+	LookupsUsed           []tags.Lookup
 }
