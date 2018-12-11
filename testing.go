@@ -249,7 +249,10 @@ func ExpectInsert(mock *sqlmock.Sqlmock, expect ExpectationHelper, columnNames [
 		nonNullInsertValues := []driver.Value{}
 
 		for columnIndex := range columnNames {
-			columnValue := insertValue[columnIndex]
+			var columnValue interface{}
+			if columnIndex >= 0 && columnIndex < len(insertValue) {
+				columnValue = insertValue[columnIndex]
+			}
 			if columnValue == nil {
 				valueParams = append(valueParams, `DEFAULT`)
 			} else {
