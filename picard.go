@@ -235,7 +235,8 @@ func (p PersistenceORM) performDeletes(deletes []dbchange.Change, tableMetadata 
 
 		_, err := deleteQuery.RunWith(p.transaction).Exec()
 		if err != nil {
-			return err
+			q, _, _ := deleteQuery.ToSql()
+			return NewQueryError(err, q)
 		}
 	}
 	return nil
@@ -272,7 +273,8 @@ func (p PersistenceORM) performUpdates(updates []dbchange.Change, tableMetadata 
 			_, err := updateQuery.RunWith(p.transaction).Exec()
 
 			if err != nil {
-				return err
+				q, _, _ := updateQuery.ToSql()
+				return NewQueryError(err, q)
 			}
 		}
 	}
@@ -308,7 +310,8 @@ func (p PersistenceORM) performInserts(inserts []dbchange.Change, insertsHavePri
 
 		rows, err := insertQuery.RunWith(p.transaction).Query()
 		if err != nil {
-			return err
+			q, _, _ := insertQuery.ToSql()
+			return NewQueryError(err, q)
 		}
 
 		insertResults, err := getQueryResults(rows)
@@ -964,7 +967,11 @@ func (p PersistenceORM) processObject(
 		} else {
 			// If it's optional we can just keep going, if it's required, throw an error
 			if foreignKey.Required {
-				return dbchange.Change{}, errors.New("Missing Required Foreign Key Lookup")
+				return dbchange.Change{}, NewForeignKeyError(
+					"Missing Required Foreign Key Lookup",
+					tableMetadata.GetTableName(),
+					foreignKey.KeyColumn,
+				)
 			}
 		}
 	}
