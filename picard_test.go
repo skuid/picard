@@ -1600,7 +1600,7 @@ func TestDeployments(t *testing.T) {
 	}
 
 	// Run first with the default batch size
-	for _, c := range cases[len(cases)-1:] {
+	for _, c := range cases {
 		t.Run(c.TestName, func(t *testing.T) {
 			fixtures, err := loadTestObjects(c.FixtureNames, c.FixtureType)
 			if err != nil {
