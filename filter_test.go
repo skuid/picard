@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/MakeNowJust/heredoc"
 	"github.com/Masterminds/squirrel"
 	"github.com/skuid/picard/metadata"
 	"github.com/skuid/picard/tags"
@@ -70,6 +71,8 @@ type modelPK struct {
 	PrimaryKeyField string `picard:"primary_key,column=primary_key_column"`
 }
 
+// These all explore relationships where a child table has an FK to the parent
+// as a 1:M relationship
 type vGrandParentModel struct {
 	Metadata       metadata.Metadata `picard:"tablename=grandparentmodel"`
 	ID             string            `json:"id" picard:"primary_key,column=id"`
@@ -491,6 +494,232 @@ func TestFilterModelAssociations(t *testing.T) {
 			}
 
 			assert.Equal(t, tc.wantErr, err)
+		})
+	}
+}
+
+// Let's explore relationships that run the other way, where the parent has an
+// FK to a child.
+type vObject struct {
+	Metadata       metadata.Metadata `picard:"tablename=object"`
+	ID             string            `json:"id" picard:"primary_key,column=id"`
+	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
+	Name           string            `json:"name" picard:"lookup,column=name"`
+	Fields         []vField          `json:"fields" picard:"child,foreign_key=ObjectID"`
+}
+
+type vField struct {
+	Metadata       metadata.Metadata `picard:"tablename=field"`
+	ID             string            `json:"id" picard:"primary_key,column=id"`
+	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
+	Name           string            `json:"name" picard:"lookup,column=name"`
+	ObjectID       string            `picard:"foreign_key,lookup,required,related=Object,column=object_id"`
+	Object         vObject           `json:"object" validate:"-"`
+	Reference      vReference        `json:"reference" picard:"reference,column=reference_id"`
+}
+
+type vReference struct {
+	Metadata       metadata.Metadata `picard:"tablename=reference"`
+	ID             string            `json:"id" picard:"primary_key,column=id"`
+	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
+	Field          vRefField         `picard:"field" picard:"reference,column=reference_field_id"`
+}
+
+type vRefField struct {
+	Metadata       metadata.Metadata `picard:"tablename=field"`
+	ID             string            `json:"id" picard:"primary_key,column=id"`
+	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
+	Name           string            `json:"name" picard:"lookup,column=name"`
+	Object         vRefObject        `json:"object" picard:"reference,column=object_id"`
+}
+
+type vRefObject struct {
+	Metadata       metadata.Metadata `picard:"tablename=field"`
+	ID             string            `json:"id" picard:"primary_key,column=id"`
+	Name           string            `json:"name" picard:"lookup,column=name"`
+	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
+}
+
+func fmtSQL(sql string) string {
+	return strings.Replace(heredoc.Doc(sql), "\n", " ", -1)
+}
+
+func TestFilterModelReferenceAssociations(t *testing.T) {
+	orgID := "00000000-0000-0000-0000-000000000001"
+	testCases := []struct {
+		description  string
+		filterModel  interface{}
+		associations []tags.Association
+		sqlmocks     func(sqlmock.Sqlmock)
+		expected     []interface{}
+	}{
+		{
+			"Loading objects with childTables and references",
+			vObject{
+				Name: "first_object",
+			},
+			[]tags.Association{
+				{
+					Name: "Fields",
+					Associations: []tags.Association{
+						{
+							Name: "Reference",
+							Associations: []tags.Association{
+								{
+									Name: "Field",
+									Associations: []tags.Association{
+										{
+											Name: "Object",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(fmtSQL(`
+						^SELECT t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name"
+						FROM object AS t0
+						WHERE
+							t0.organization_id = $1 AND
+							t0.name = $2"
+				`)).
+					WithArgs(
+						orgID,
+						"first_object",
+					).
+					WillReturnRows(
+						sqlmock.NewRows([]string{"t0.name", "t0.id"}).
+							AddRow("first_object", "00000000-0000-0000-0000-000000000002"),
+					)
+
+				// All of the reference chains should load in one query since
+				// we're just following 1:1 references down
+				mock.ExpectQuery(fmtSQL(`
+					^SELECT t0.id as "t0.id",
+						t0.organization_id as "t0.organization_id",
+						t0.name as "t0.name",
+						t0.reference_id as "t0.reference_id",
+						t1.id as "t1.id",
+						t1.reference_field_id as "t1.reference_field_id",
+						t2.id as "t2.id",
+						t2.name as "t2.name",
+						t2.object_id as "t2.object_id",
+						t3.id as "t3.id",
+						t3.name as "t3.name"
+					FROM field as t0
+					JOIN
+						reference as t1 on t0.reference_id = t1.id AND t0.organization_id = t1.organization_id
+					JOIN
+						field as t2 on t1.reference_field_id = t2.id AND t1.organization_id = t2.organization_id
+					JOIN
+						object as t3 on t2.object_id = t3.id AND t2.organization_id = t3.organization_id
+					WHERE
+						t0.organization_id = $1 AND
+						t0.object_id = $2
+				`)).
+					WithArgs(orgID, orgID, "pops").
+					WillReturnRows(
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.name",
+							"t0.reference_id",
+							"t1.id",
+							"t1.reference_field_id",
+							"t2.id",
+							"t2.name",
+							"t2.object_id",
+							"t3.id",
+							"t3.name",
+						}).
+							AddRow( // Add a row with no references
+								"00000000-0000-0000-0000-000000000003", // t0.id
+								"field-1", // t0.name
+								"",        // t0.reference_id
+								"",        // t1.id
+								"",        // t1.reference_field_id
+								"",        // t2.id
+								"",        // t2.name
+								"",        // t2.object_id
+								"",        // t3.id
+								"",        // t3.name
+							).
+							AddRow( // And another row with references
+								"00000000-0000-0000-0000-000000000004", // t0.id
+								"field-2", // t0.name
+								"00000000-0000-0000-0000-000000000005", // t0.reference_id
+								"00000000-0000-0000-0000-000000000005", // t1.id
+								"00000000-0000-0000-0000-000000000006", // t1.reference_field_id
+								"00000000-0000-0000-0000-000000000006", // t2.id
+								"referenced-field-1",                   // t2.name
+								"00000000-0000-0000-0000-000000000007", // t2.object_id
+								"00000000-0000-0000-0000-000000000007", // t3.id
+								"referenced-object-1",                  // t3.name
+							),
+					)
+			},
+			[]interface{}{
+				vObject{
+					ID:   "00000000-0000-0000-0000-000000000002",
+					Name: "first_object",
+					Fields: []vField{
+						{
+							ID:       "00000000-0000-0000-0000-000000000003",
+							Name:     "field-1",
+							ObjectID: "00000000-0000-0000-0000-000000000002",
+						},
+						{
+							ID:       "00000000-0000-0000-0000-000000000004",
+							Name:     "field-2",
+							ObjectID: "00000000-0000-0000-0000-000000000002",
+							Reference: vReference{
+								ID: "00000000-0000-0000-0000-000000000005",
+								Field: vRefField{
+									ID:   "00000000-0000-0000-0000-000000000006",
+									Name: "referenced-field-1",
+									Object: vRefObject{
+										ID:   "00000000-0000-0000-0000-000000000007",
+										Name: "referenced-object-1",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			assert := assert.New(t)
+
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatal(err)
+			}
+			conn = db
+
+			tc.sqlmocks(mock)
+
+			// Create the Picard instance
+			p := PersistenceORM{
+				multitenancyValue: orgID,
+			}
+
+			actual, err := p.FilterModelAssociations(tc.filterModel, tc.associations)
+
+			assert.NoError(err)
+			assert.Equal(tc.expected, actual)
+
+			// sqlmock expectations
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("there were unmet sqlmock expectations: %s", err)
+			}
+
 		})
 	}
 }

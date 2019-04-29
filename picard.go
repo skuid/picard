@@ -570,13 +570,14 @@ func getQueryParts(tableMetadata *tags.TableMetadata, lookupsToUse []tags.Lookup
 	columns := []string{}
 	joins := []string{}
 	whereFields := []squirrel.Sqlizer{}
+	tableAlias := "t0"
 
 	for _, lookup := range lookupsToUse {
 		tableToUse := tableName
 		if lookup.TableName != "" {
 			tableToUse = lookup.TableName
 		}
-		tableAlias := tableToUse
+		// tableAlias := tableToUse
 		if lookup.JoinKey != "" && lookup.TableName != "" && tableToUse != tableName {
 			tableAlias = getTableAlias(tableToUse, lookup.JoinKey, tableAliasCache)
 			_, alreadyAddedJoin := joinMap[tableAlias]
@@ -1217,16 +1218,19 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 	return lookups, nil
 }
 
-func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.Value, zeroFields []string, tableMetadata *tags.TableMetadata) ([]squirrel.Sqlizer, []string, error) {
+func (p PersistenceORM) generateWhereClausesFromModel(
+	filterModelValue reflect.Value,
+	zeroFields []string,
+	tableMetadata *tags.TableMetadata,
+) ([]string, []squirrel.Sqlizer, []string, error) {
 
 	tableAliasCache := map[string]string{}
 
 	lookups, err := p.getFilterLookups(filterModelValue, zeroFields, tableMetadata, "", "", tableAliasCache)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	_, joins, whereFields := getQueryParts(tableMetadata, lookups, tableAliasCache)
+	columns, joins, whereFields := getQueryParts(tableMetadata, lookups, tableAliasCache)
 
-	return whereFields, joins, nil
-
+	return columns, whereFields, joins, nil
 }

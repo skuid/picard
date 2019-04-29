@@ -13,7 +13,7 @@ import (
 
 func (p PersistenceORM) getFilterModelResults(filterModelValue reflect.Value, filterMetadata *tags.TableMetadata) ([]interface{}, error) {
 	var zeroFields []string
-	whereClauses, joinClauses, err := p.generateWhereClausesFromModel(filterModelValue, zeroFields, filterMetadata)
+	columns, whereClauses, joinClauses, err := p.generateWhereClausesFromModel(filterModelValue, zeroFields, filterMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +38,7 @@ func (p PersistenceORM) FilterModels(filterModels interface{}, transaction *sql.
 
 	for i := 0; i < s.Len(); i++ {
 		filterModelValue := s.Index(i)
-		whereClauses, joinClauses, err := p.generateWhereClausesFromModel(filterModelValue, nil, filterMetadata)
+		_, whereClauses, joinClauses, err := p.generateWhereClausesFromModel(filterModelValue, nil, filterMetadata)
 		if err != nil {
 			return nil, err
 		}

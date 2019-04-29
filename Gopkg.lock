@@ -10,6 +10,14 @@
   version = "v1.3.0"
 
 [[projects]]
+  branch = "master"
+  digest = "1:4e7bd066921c6d76d99791d04738949705ceb23d7a052fac4e28739d3e4ab272"
+  name = "github.com/MakeNowJust/heredoc"
+  packages = ["."]
+  pruneopts = ""
+  revision = "e9091a26100e9cfb2b6a8f470085bfa541931a91"
+
+[[projects]]
   digest = "1:015ef9a11d36760d2075aa92839fd545cde0ef2ffe13ddaf849f2270eb292f1c"
   name = "github.com/Masterminds/squirrel"
   packages = ["."]
@@ -171,6 +179,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/DATA-DOG/go-sqlmock",
+    "github.com/MakeNowJust/heredoc",
     "github.com/Masterminds/squirrel",
     "github.com/lib/pq",
     "github.com/modern-go/reflect2",
