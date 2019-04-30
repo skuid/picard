@@ -1,18 +1,10 @@
 package query
 
 import (
-	"strings"
 	"testing"
 
-	"github.com/MakeNowJust/heredoc"
 	"github.com/stretchr/testify/assert"
 )
-
-func fmtSQL(sql string) string {
-	str := strings.Replace(heredoc.Doc(sql), "\n", " ", -1)
-	str = strings.Replace(str, "\t", "", -1)
-	return strings.Trim(str, " ")
-}
 
 func TestNewQuery(t *testing.T) {
 	t.Run("should create a new table object with the proper alias", func(t *testing.T) {

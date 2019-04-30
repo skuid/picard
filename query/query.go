@@ -11,6 +11,12 @@ import (
 	sql "github.com/Masterminds/squirrel"
 )
 
+const (
+	aliasedField string = "%[1]v.%[2]v"
+	aliasedCol   string = "%[1]v.%[2]v AS \"%[1]v.%[2]v\""
+	aliasedJoin  string = "%[2]v AS %[1]v ON %[3]v = %[4]v"
+)
+
 /*
 Table represents a select, and is the root of the structure. Start here to build
 a query by calling
@@ -68,7 +74,7 @@ AddWhere adds one where clause, WHERE {field} = {val}
 */
 func (t *Table) AddWhere(field string, val interface{}) {
 	t.Wheres = append(t.Wheres, Where{
-		Field: fmt.Sprintf("%s.%s", t.Alias, field),
+		Field: fmt.Sprintf(aliasedField, t.Alias, field),
 		Val:   val,
 	})
 }
@@ -93,8 +99,8 @@ func (t *Table) AppendJoin(tbl, joinField, parentField, jType string, cols []str
 			Name:    tbl,
 			columns: cols,
 		},
-		ParentField: fmt.Sprintf("%[1]v.%[2]v", parentAlias, parentField),
-		JoinField:   fmt.Sprintf("%[1]v.%[2]v", alias, joinField),
+		ParentField: fmt.Sprintf(aliasedField, parentAlias, parentField),
+		JoinField:   fmt.Sprintf(aliasedField, alias, joinField),
 		Type:        jType,
 	}
 
@@ -110,7 +116,7 @@ func (t *Table) Columns() []string {
 	cols := make([]string, 0, len(t.columns))
 
 	for _, col := range t.columns {
-		cols = append(cols, fmt.Sprintf("%[1]v.%[2]v AS \"%[1]v.%[2]v\"", t.Alias, col))
+		cols = append(cols, fmt.Sprintf(aliasedCol, t.Alias, col))
 	}
 
 	return cols
@@ -125,12 +131,44 @@ func (j *Join) Columns() []string {
 
 func (j *Join) String() string {
 	return fmt.Sprintf(
-		"%[2]v AS %[1]v ON %[3]v = %[4]v",
+		aliasedJoin,
 		j.Table.Alias,
 		j.Table.Name,
 		j.JoinField,
 		j.ParentField,
 	)
+}
+
+/*
+FieldDescriptor holds the table/field info for an aliased field
+*/
+type FieldDescriptor struct {
+	Table string
+	Field string
+}
+
+/*
+FieldAliases returns a map of all columns on a table
+*/
+func (t *Table) FieldAliases() map[string]FieldDescriptor {
+	aliasMap := make(map[string]FieldDescriptor)
+	for _, col := range t.columns {
+		aliasMap[fmt.Sprintf(aliasedField, t.Alias, col)] = FieldDescriptor{
+			Table: t.Name,
+			Field: col,
+		}
+	}
+
+	for _, join := range t.Joins {
+		for _, col := range join.Table.columns {
+			aliasMap[fmt.Sprintf(aliasedField, t.Alias, col)] = FieldDescriptor{
+				Table: t.Name,
+				Field: col,
+			}
+		}
+	}
+
+	return aliasMap
 }
 
 /*

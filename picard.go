@@ -16,6 +16,7 @@ import (
 	"github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
 	jsoniter "github.com/plusplusben/json-iterator-go"
+	"github.com/skuid/picard/crypto"
 	"github.com/skuid/picard/dbchange"
 	"github.com/skuid/picard/decoding"
 	"github.com/skuid/picard/metadata"
@@ -937,7 +938,7 @@ func (p PersistenceORM) processObject(
 		}
 
 		// Do encryption over bytes
-		encryptedValue, err := EncryptBytes(valueAsBytes)
+		encryptedValue, err := crypto.EncryptBytes(valueAsBytes)
 		if err != nil {
 			return dbchange.Change{}, err
 		}
@@ -1222,15 +1223,15 @@ func (p PersistenceORM) generateWhereClausesFromModel(
 	filterModelValue reflect.Value,
 	zeroFields []string,
 	tableMetadata *tags.TableMetadata,
-) ([]string, []squirrel.Sqlizer, []string, error) {
+) ([]squirrel.Sqlizer, []string, error) {
 
 	tableAliasCache := map[string]string{}
 
 	lookups, err := p.getFilterLookups(filterModelValue, zeroFields, tableMetadata, "", "", tableAliasCache)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
-	columns, joins, whereFields := getQueryParts(tableMetadata, lookups, tableAliasCache)
+	_, joins, whereFields := getQueryParts(tableMetadata, lookups, tableAliasCache)
 
-	return columns, whereFields, joins, nil
+	return whereFields, joins, nil
 }

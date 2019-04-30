@@ -8,12 +8,14 @@ import (
 	"reflect"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/skuid/picard/crypto"
+	"github.com/skuid/picard/stringutil"
 	"github.com/skuid/picard/tags"
 )
 
 func (p PersistenceORM) getFilterModelResults(filterModelValue reflect.Value, filterMetadata *tags.TableMetadata) ([]interface{}, error) {
 	var zeroFields []string
-	columns, whereClauses, joinClauses, err := p.generateWhereClausesFromModel(filterModelValue, zeroFields, filterMetadata)
+	whereClauses, joinClauses, err := p.generateWhereClausesFromModel(filterModelValue, zeroFields, filterMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +40,7 @@ func (p PersistenceORM) FilterModels(filterModels interface{}, transaction *sql.
 
 	for i := 0; i < s.Len(); i++ {
 		filterModelValue := s.Index(i)
-		_, whereClauses, joinClauses, err := p.generateWhereClausesFromModel(filterModelValue, nil, filterMetadata)
+		whereClauses, joinClauses, err := p.generateWhereClausesFromModel(filterModelValue, nil, filterMetadata)
 		if err != nil {
 			return nil, err
 		}
@@ -71,7 +73,7 @@ func (p PersistenceORM) FilterModels(filterModels interface{}, transaction *sql.
 // return the requested associated models
 func (p PersistenceORM) FilterModelAssociations(filterModel interface{}, associations []tags.Association) ([]interface{}, error) {
 	// root model results
-	filterModelValue, err := getStructValue(filterModel)
+	filterModelValue, err := stringutil.GetStructValue(filterModel)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +184,7 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 				return nil, errors.New("base64 decoding of value failed")
 			}
 
-			decryptedValue, err := DecryptBytes(valueAsBytes)
+			decryptedValue, err := crypto.DecryptBytes(valueAsBytes)
 			if err != nil {
 				return nil, err
 			}
@@ -216,7 +218,7 @@ func populateChildResults(results []interface{}, childResults []interface{}, chi
 		// Child Match Value
 		if childGroupingCriteria != nil {
 			for _, childMatchKey := range childGroupingCriteria {
-				matchValue := getValueFromLookupString(childValue, childMatchKey)
+				matchValue := stringutil.GetValueFromLookupString(childValue, childMatchKey)
 				childMatchValues = append(childMatchValues, matchValue)
 			}
 		} else {
@@ -233,7 +235,7 @@ func populateChildResults(results []interface{}, childResults []interface{}, chi
 			// Parent Match Value
 			if parentGroupingCriteria != nil {
 				for _, parentMatchKey := range parentGroupingCriteria {
-					matchValue := getValueFromLookupString(parentValue.Elem(), parentMatchKey)
+					matchValue := stringutil.GetValueFromLookupString(parentValue.Elem(), parentMatchKey)
 					parentMatchValues = append(parentMatchValues, matchValue)
 				}
 			} else {
@@ -248,7 +250,7 @@ func populateChildResults(results []interface{}, childResults []interface{}, chi
 					if parentChildRelField.IsNil() {
 						parentChildRelField.Set(reflect.MakeMap(child.FieldType))
 					}
-					keyMappingValue := getValueFromLookupString(childValue, child.KeyMapping)
+					keyMappingValue := stringutil.GetValueFromLookupString(childValue, child.KeyMapping)
 					parentChildRelField.SetMapIndex(keyMappingValue, childValue)
 				}
 				break

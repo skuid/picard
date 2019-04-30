@@ -9,6 +9,7 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/MakeNowJust/heredoc"
 	"github.com/Masterminds/squirrel"
+	"github.com/skuid/picard/crypto"
 	"github.com/skuid/picard/metadata"
 	"github.com/skuid/picard/tags"
 	"github.com/stretchr/testify/assert"
@@ -976,7 +977,7 @@ func TestDoFilterSelectWithEncrypted(t *testing.T) {
 				t.Fatal(err)
 			}
 			conn = db
-			encryptionKey = []byte("the-key-has-to-be-32-bytes-long!")
+			crypto.SetEncryptionKey([]byte("the-key-has-to-be-32-bytes-long!"))
 
 			tc.expectationFunction(mock)
 

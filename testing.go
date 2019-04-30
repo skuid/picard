@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/lib/pq"
+	"github.com/skuid/picard/crypto"
 	"github.com/skuid/picard/decoding"
 	"github.com/skuid/picard/metadata"
 	"github.com/skuid/picard/tags"
@@ -329,7 +330,7 @@ func RunImportTest(testObjects interface{}, testFunction func(*sqlmock.Sqlmock, 
 		return err
 	}
 
-	SetEncryptionKey([]byte("the-key-has-to-be-32-bytes-long!"))
+	crypto.SetEncryptionKey([]byte("the-key-has-to-be-32-bytes-long!"))
 	SetConnection(db)
 
 	orgID := sampleOrgID

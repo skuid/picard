@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/skuid/picard/crypto"
 	"github.com/skuid/picard/dbchange"
 	"github.com/skuid/picard/metadata"
 	"github.com/skuid/picard/tags"
@@ -626,7 +627,7 @@ func TestEncryptedSaveModel(t *testing.T) {
 				t.Fatal(err)
 			}
 			conn = db
-			encryptionKey = []byte("the-key-has-to-be-32-bytes-long!")
+			crypto.SetEncryptionKey([]byte("the-key-has-to-be-32-bytes-long!"))
 
 			tc.expectationFunction(mock)
 

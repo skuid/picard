@@ -4,13 +4,14 @@ import (
 	"reflect"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/skuid/picard/stringutil"
 	"github.com/skuid/picard/tags"
 )
 
 // DeleteModel will delete models that match the provided struct, ignoring zero values.
 // Returns the number of rows affected or an error.
 func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
-	modelValue, err := getStructValue(model)
+	modelValue, err := stringutil.GetStructValue(model)
 	if err != nil {
 		return 0, err
 	}
