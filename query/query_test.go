@@ -221,7 +221,7 @@ func TestQueryJoins(t *testing.T) {
 					tbl:         "table_c",
 					joinField:   "table_b_id",
 					parentField: "id",
-					jType:       "left",
+					jType:       "right",
 				},
 			},
 			[]whereTest{
@@ -236,7 +236,7 @@ func TestQueryJoins(t *testing.T) {
 					t0.col_three AS "t0.col_three"
 				FROM foo AS t0
 				LEFT JOIN table_b AS t1 ON t1.my_id = t0.col_two
-				LEFT JOIN table_c AS t2 ON t2.table_b_id = t1.id
+				RIGHT JOIN table_c AS t2 ON t2.table_b_id = t1.id
 				WHERE t0.col_four = $1
 			`),
 			[]interface{}{
@@ -314,9 +314,10 @@ func TestQueryJoins(t *testing.T) {
 			tbl.AddColumns(tc.cols)
 
 			for _, join := range tc.joins {
-				tbl := tbl.AppendJoin(join.tbl, join.joinField, join.parentField, join.jType, join.cols)
+				joinTbl := tbl.AppendJoin(join.tbl, join.joinField, join.parentField, join.jType)
+				joinTbl.AddColumns(join.cols)
 				for _, where := range join.wheres {
-					tbl.AddWhere(where.field, where.val)
+					joinTbl.AddWhere(where.field, where.val)
 				}
 			}
 
@@ -335,6 +336,114 @@ func TestQueryJoins(t *testing.T) {
 			}
 
 			assert.Equal(tc.expectedArgs, actualArgs, "Should have the same arguments to the query")
+		})
+	}
+}
+
+type fieldAliasFixture struct {
+	table string
+	cols  []string
+	joins []fieldAliasFixture
+}
+
+func TestFieldAliases(t *testing.T) {
+
+	testCases := []struct {
+		desc     string
+		fixture  fieldAliasFixture
+		expected map[string]FieldDescriptor
+	}{
+		{
+			"should return an empty map if there are no columns",
+			fieldAliasFixture{
+				table: "table_a",
+			},
+			map[string]FieldDescriptor{},
+		},
+		{
+			"should generate the field aliases for a single table with no joins",
+			fieldAliasFixture{
+				table: "table_a",
+				cols: []string{
+					"col_a",
+					"col_b",
+				},
+			},
+			map[string]FieldDescriptor{
+				"t0.col_a": FieldDescriptor{
+					Table: "table_a",
+					Field: "col_a",
+				},
+				"t0.col_b": FieldDescriptor{
+					Table: "table_a",
+					Field: "col_b",
+				},
+			},
+		},
+		{
+			"should generate the field aliases for a single table with joins",
+			fieldAliasFixture{
+				table: "table_a",
+				cols: []string{
+					"col_a",
+					"col_b",
+				},
+				joins: []fieldAliasFixture{
+					{
+						table: "table_b",
+						cols: []string{
+							"col_c",
+							"col_d",
+						},
+					},
+					{
+						table: "table_c",
+						cols: []string{
+							"col_e",
+						},
+					},
+				},
+			},
+			map[string]FieldDescriptor{
+				"t0.col_a": FieldDescriptor{
+					Table: "table_a",
+					Field: "col_a",
+				},
+				"t0.col_b": FieldDescriptor{
+					Table: "table_a",
+					Field: "col_b",
+				},
+				"t1.col_c": FieldDescriptor{
+					Table: "table_b",
+					Field: "col_c",
+				},
+				"t1.col_d": FieldDescriptor{
+					Table: "table_b",
+					Field: "col_d",
+				},
+				"t2.col_e": FieldDescriptor{
+					Table: "table_c",
+					Field: "col_e",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			assert := assert.New(t)
+
+			tbl := New(tc.fixture.table)
+			tbl.AddColumns(tc.fixture.cols)
+
+			for _, join := range tc.fixture.joins {
+				joinTbl := tbl.AppendJoin(join.table, "foo", "bar", "")
+				joinTbl.AddColumns(join.cols)
+			}
+
+			actual := tbl.FieldAliases()
+
+			assert.Equal(tc.expected, actual, "Expected the resulting SQL to match expected")
 		})
 	}
 }
