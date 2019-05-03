@@ -2,7 +2,6 @@ package query
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 
 	"github.com/skuid/picard/reflectutil"
@@ -23,12 +22,7 @@ func Build(multitenancyVal, model interface{}, associations []tags.Association) 
 
 	typ := val.Type()
 
-	assocs := make(map[string]bool)
-	for _, assoc := range associations {
-		assocs[assoc.Name] = true
-	}
-
-	tbl, err := buildQuery(multitenancyVal, typ, &val, assocs)
+	tbl, err := buildQuery(multitenancyVal, typ, &val, associations, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -36,32 +30,66 @@ func Build(multitenancyVal, model interface{}, associations []tags.Association) 
 	return tbl, nil
 }
 
-func reflectTableName(typ reflect.Type) string {
+/*
+reflectTableInfo will return the table name and primary key name from the type
+*/
+func reflectTableInfo(typ reflect.Type) (string, string) {
 	var tblName string
+	var primaryKey string
 
 	for i := 0; i < typ.NumField(); i++ {
 		field := typ.Field(i)
 		typName := field.Type.Name()
+		ptags := tags.GetStructTagsMap(field, "picard")
 		if typName == "Metadata" {
-			ptags := tags.GetStructTagsMap(field, "picard")
-			return ptags["tablename"]
+			tblName = ptags["tablename"]
+		}
+		if _, isPK := ptags["primary_key"]; isPK {
+			primaryKey = ptags["column"]
 		}
 	}
 
-	return tblName
+	return tblName, primaryKey
 }
 
+/*
+getAssociation will look through the list of associations and will return one
+if it matches the name
+*/
+func getAssociation(associations []tags.Association, name string) (tags.Association, bool) {
+	var found tags.Association
+	for _, association := range associations {
+		if association.Name == name {
+			return association, true
+		}
+	}
+	return found, false
+}
+
+/*
+buildQuery is called recursively to create a Table object, which can be used
+to generate the SQL. It takes
+- multitenancyVal: this will be used as a WHERE on every table queried, including joins.
+- modelType: This is the reflected type of the struct used for this table's load. It
+			is used to figure out which columns to select, joins to add, and wheres.
+- modelVal: This is an instance of the struct, holding any lookup values
+- assocations: List of associations to load. For references, this will add the
+			join to the table at the correct level.
+- counter: because record keeping and aliasing is hard, we have to keep track
+			of which join we're currently looking at during the recursions.
+*/
 func buildQuery(
 	multitenancyVal interface{},
 	modelType reflect.Type,
 	modelVal *reflect.Value,
-	assocs map[string]bool,
+	associations []tags.Association,
+	counter int,
 ) (*Table, error) {
 	// Inspect current reflected value, and add select/where clauses
 
-	tableName := reflectTableName(modelType)
+	tableName, pkName := reflectTableInfo(modelType)
 
-	tbl := New(tableName)
+	tbl := NewIndexed(tableName, counter)
 
 	cols := make([]string, 0, modelType.NumField())
 
@@ -93,27 +121,22 @@ func buildQuery(
 		case isPK:
 			cols = append(cols, column)
 		case isReference:
-			// did you ask for me? If so, let's load a join!
-			cols = append(cols, column)
 			refTypName := field.Name
 
-			if assocs[refTypName] {
-				fmt.Println("in a reference, what's going on here?")
+			if association, ok := getAssociation(associations, refTypName); ok {
+				cols = append(cols, column)
 				// Get type, load it as a model so we can build it out
 				refTyp := field.Type
 
-				refTbl, err := buildQuery(multitenancyVal, refTyp, nil, nil)
+				refTbl, err := buildQuery(multitenancyVal, refTyp, nil, association.Associations, counter+1)
 				if err != nil {
 					return nil, err
 				}
 
 				joinField := ptags["column"]
 
-				joinTbl := tbl.AppendJoin(refTbl.Name, "id", joinField, "left")
-				joinTbl.AddColumns(refTbl.columns)
-				for _, where := range refTbl.Wheres {
-					joinTbl.AddWhere(where.Field, where.Val)
-				}
+				// TODO: parent field should pull PK from referenced table
+				tbl.AppendJoinTable(refTbl, pkName, joinField, "left")
 
 			}
 
@@ -124,6 +147,8 @@ func buildQuery(
 			}
 			cols = append(cols, column)
 			tbl.AddWhere(column, val.Interface())
+		default:
+			cols = append(cols, column)
 		}
 	}
 

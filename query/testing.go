@@ -97,7 +97,7 @@ type referenceTo struct {
 	Metadata       metadata.Metadata `picard:"tablename=reference_to"`
 	ID             string            `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
-	Field          refField          `picard:"field" picard:"reference,column=reference_field_id"`
+	RefField       refField          `json:"field" picard:"reference,column=reference_field_id"`
 }
 
 type refField struct {
@@ -105,12 +105,12 @@ type refField struct {
 	ID             string            `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
 	Name           string            `json:"name" picard:"lookup,column=name"`
-	Object         refObject         `json:"object" picard:"reference,column=object_id"`
+	RefObject      refObject         `json:"object" picard:"reference,column=reference_object_id"`
 }
 
 type refObject struct {
-	Metadata       metadata.Metadata `picard:"tablename=field"`
+	Metadata       metadata.Metadata `picard:"tablename=object"`
 	ID             string            `json:"id" picard:"primary_key,column=id"`
-	Name           string            `json:"name" picard:"lookup,column=name"`
 	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
+	Name           string            `json:"name" picard:"lookup,column=name"`
 }

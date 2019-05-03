@@ -23,6 +23,7 @@ a query by calling
 	tbl := New("my_table")
 */
 type Table struct {
+	root    *Table
 	Counter int
 	Alias   string
 	Name    string
@@ -37,6 +38,7 @@ and the joined table and type of join
 */
 type Join struct {
 	Type        string
+	Parent      *Table
 	ParentField string
 	JoinField   string
 	Table       *Table
@@ -54,9 +56,16 @@ type Where struct {
 New returns a new table. This is a good starting point
 */
 func New(name string) *Table {
+	return NewIndexed(name, 0)
+}
+
+/*
+NewIndexed returns a new table. This is a good starting point
+*/
+func NewIndexed(name string, index int) *Table {
 	return &Table{
-		Counter: 1,
-		Alias:   "t0",
+		Counter: index + 1,
+		Alias:   fmt.Sprintf("t%d", index),
 		Name:    name,
 		columns: make([]string, 0),
 	}
@@ -84,22 +93,54 @@ AppendJoin adds a join with the proper aliasing, including any columns requested
 from that table
 */
 func (t *Table) AppendJoin(tbl, joinField, parentField, jType string) *Table {
-	alias := fmt.Sprintf("t%d", t.Counter)
-	t.Counter++
-
-	parentAlias := t.Alias
-
-	if len(t.Joins) > 0 {
-		parentAlias = t.Joins[len(t.Joins)-1].Table.Alias
+	var root *Table
+	if t.root != nil {
+		root = t.root
+	} else {
+		root = t
 	}
+
+	alias := fmt.Sprintf("t%d", root.Counter)
+	root.Counter++
 
 	join := Join{
 		Table: &Table{
+			root:  root,
 			Alias: alias,
 			Name:  tbl,
 		},
-		ParentField: fmt.Sprintf(aliasedField, parentAlias, parentField),
-		JoinField:   fmt.Sprintf(aliasedField, alias, joinField),
+		Parent:      t,
+		ParentField: parentField,
+		JoinField:   joinField,
+		Type:        jType,
+	}
+
+	t.Joins = append(t.Joins, join)
+
+	return join.Table
+}
+
+/*
+AppendJoinTable adds a join with the proper aliasing, including any columns requested
+from that table
+*/
+func (t *Table) AppendJoinTable(tbl *Table, joinField, parentField, jType string) *Table {
+	var root *Table
+	if t.root != nil {
+		root = t.root
+	} else {
+		root = t
+	}
+
+	// alias := fmt.Sprintf("t%d", root.Counter)
+	// tbl.Alias = alias
+	root.Counter++
+
+	join := Join{
+		Table:       tbl,
+		Parent:      t,
+		ParentField: parentField,
+		JoinField:   joinField,
 		Type:        jType,
 	}
 
@@ -128,13 +169,13 @@ func (j *Join) Columns() []string {
 	return j.Table.Columns()
 }
 
-func (j *Join) String() string {
+func (j *Join) Build(parentAlias string) string {
 	return fmt.Sprintf(
 		aliasedJoin,
 		j.Table.Alias,
 		j.Table.Name,
-		j.JoinField,
-		j.ParentField,
+		fmt.Sprintf(aliasedField, j.Table.Alias, j.JoinField),
+		fmt.Sprintf(aliasedField, parentAlias, j.ParentField),
 	)
 }
 
@@ -191,23 +232,34 @@ func (t *Table) BuildSQL() sql.SelectBuilder {
 	}
 
 	for _, join := range t.Joins {
-
-		bld = bld.Columns(join.Columns()...)
-
-		switch strings.ToLower(join.Type) {
-		case "right":
-			bld = bld.RightJoin(join.String())
-		case "left":
-			bld = bld.LeftJoin(join.String())
-		default:
-			bld = bld.Join(join.String())
-
-		}
-
-		for _, where := range join.Table.Wheres {
-			bld = bld.Where(sql.Eq{fmt.Sprintf(aliasedField, join.Table.Alias, where.Field): where.Val})
-		}
+		bld = sqlizeJoin(bld, join)
 	}
 
 	return bld
+}
+
+func sqlizeJoin(bld sql.SelectBuilder, join Join) sql.SelectBuilder {
+
+	bld = bld.Columns(join.Columns()...)
+
+	switch strings.ToLower(join.Type) {
+	case "right":
+		bld = bld.RightJoin(join.Build(join.Parent.Alias))
+	case "left":
+		bld = bld.LeftJoin(join.Build(join.Parent.Alias))
+	default:
+		bld = bld.Join(join.Build(join.Parent.Alias))
+
+	}
+
+	for _, where := range join.Table.Wheres {
+		bld = bld.Where(sql.Eq{fmt.Sprintf(aliasedField, join.Table.Alias, where.Field): where.Val})
+	}
+
+	for _, join := range join.Table.Joins {
+		bld = sqlizeJoin(bld, join)
+	}
+
+	return bld
+
 }

@@ -164,6 +164,7 @@ type joinTest struct {
 	jType       string
 	cols        []string
 	wheres      []whereTest
+	joins       []joinTest
 }
 
 func TestQueryJoins(t *testing.T) {
@@ -236,7 +237,7 @@ func TestQueryJoins(t *testing.T) {
 					t0.col_three AS "t0.col_three"
 				FROM foo AS t0
 				LEFT JOIN table_b AS t1 ON t1.my_id = t0.col_two
-				RIGHT JOIN table_c AS t2 ON t2.table_b_id = t1.id
+				RIGHT JOIN table_c AS t2 ON t2.table_b_id = t0.id
 				WHERE t0.col_four = $1
 			`),
 			[]interface{}{
@@ -295,7 +296,83 @@ func TestQueryJoins(t *testing.T) {
 					t2.c_col_two AS "t2.c_col_two"
 				FROM foo AS t0
 				LEFT JOIN table_b AS t1 ON t1.my_id = t0.col_two
-				LEFT JOIN table_c AS t2 ON t2.table_b_id = t1.id
+				LEFT JOIN table_c AS t2 ON t2.table_b_id = t0.id
+				WHERE t0.col_four = $1 AND
+					t1.b_col_three = $2
+			`),
+			[]interface{}{
+				"something col 4",
+				333333,
+			},
+		},
+		{
+			"should create the proper SQL for a simple table select with columns and deep joins",
+			[]string{
+
+				"col_one",
+				"col_two",
+				"col_three",
+			},
+			[]joinTest{
+				{
+					tbl:         "table_b",
+					joinField:   "my_id",
+					parentField: "col_two",
+					jType:       "left",
+					cols: []string{
+						"b_col_one",
+						"b_col_two",
+					},
+					wheres: []whereTest{
+						{
+							field: "b_col_three",
+							val:   333333,
+						},
+					},
+					joins: []joinTest{
+						{
+							tbl:         "table_d",
+							joinField:   "tbl_d_id",
+							parentField: "tbl_b_id",
+							jType:       "left",
+							cols: []string{
+								"d_col_one",
+								"d_col_two",
+							},
+						},
+					},
+				},
+				{
+					tbl:         "table_c",
+					joinField:   "table_b_id",
+					parentField: "id",
+					jType:       "left",
+					cols: []string{
+						"c_col_one",
+						"c_col_two",
+					},
+				},
+			},
+			[]whereTest{
+				{
+					field: "col_four",
+					val:   "something col 4",
+				},
+			},
+			fmtSQL(`
+				SELECT t0.col_one AS "t0.col_one",
+					t0.col_two AS "t0.col_two",
+					t0.col_three AS "t0.col_three",
+					t1.b_col_one AS "t1.b_col_one",
+					t1.b_col_two AS "t1.b_col_two",
+					t2.d_col_one AS "t2.d_col_one",
+					t2.d_col_two AS "t2.d_col_two",
+					t3.c_col_one AS "t3.c_col_one",
+					t3.c_col_two AS "t3.c_col_two"
+				FROM foo AS t0
+				LEFT JOIN table_b AS t1 ON t1.my_id = t0.col_two
+				LEFT JOIN table_d AS t2 ON t2.tbl_d_id = t1.tbl_b_id
+				LEFT JOIN table_c AS t3 ON t3.table_b_id = t0.id
 				WHERE t0.col_four = $1 AND
 					t1.b_col_three = $2
 			`),
@@ -313,12 +390,8 @@ func TestQueryJoins(t *testing.T) {
 			tbl := New("foo")
 			tbl.AddColumns(tc.cols)
 
-			for _, join := range tc.joins {
-				joinTbl := tbl.AppendJoin(join.tbl, join.joinField, join.parentField, join.jType)
-				joinTbl.AddColumns(join.cols)
-				for _, where := range join.wheres {
-					joinTbl.AddWhere(where.field, where.val)
-				}
+			for _, jt := range tc.joins {
+				appendTestJoin(tbl, jt)
 			}
 
 			for _, where := range tc.wheres {
@@ -338,6 +411,19 @@ func TestQueryJoins(t *testing.T) {
 			assert.Equal(tc.expectedArgs, actualArgs, "Should have the same arguments to the query")
 		})
 	}
+}
+
+func appendTestJoin(tbl *Table, jt joinTest) {
+	joinTbl := tbl.AppendJoin(jt.tbl, jt.joinField, jt.parentField, jt.jType)
+	joinTbl.AddColumns(jt.cols)
+	for _, where := range jt.wheres {
+		joinTbl.AddWhere(where.field, where.val)
+	}
+
+	for _, subJt := range jt.joins {
+		appendTestJoin(joinTbl, subJt)
+	}
+
 }
 
 type fieldAliasFixture struct {
