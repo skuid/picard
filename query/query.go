@@ -183,6 +183,7 @@ func (j *Join) Build(parentAlias string) string {
 FieldDescriptor holds the table/field info for an aliased field
 */
 type FieldDescriptor struct {
+	Alias string
 	Table string
 	Field string
 }

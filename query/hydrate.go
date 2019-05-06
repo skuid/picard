@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"github.com/skuid/picard/stringutil"
@@ -13,34 +14,81 @@ import (
 Hydrate takes the rows and pops them into the correct struct, in the correct
 order. This is usually called after you've built and executed the query model.
 */
-func Hydrate(model interface{}, aliasMap map[string]FieldDescriptor, rows *sql.Rows) ([]interface{}, error) {
-	modelVal, err := stringutil.GetStructValue(model)
+func Hydrate(filterModel interface{}, aliasMap map[string]FieldDescriptor, rows *sql.Rows) (interface{}, error) {
+	modelVal, err := stringutil.GetStructValue(filterModel)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get the models type and picard tags
-	modelType := modelVal.Type()
-	meta := tags.TableMetadataFromType(modelType)
+	typ := modelVal.Type()
+	meta := tags.TableMetadataFromType(typ)
 
-	// Map the rows into a map that looks like this:
-	// map[tableName][fieldName] = fieldValue
-	// This is so that we can remap each table's fields
-	// into the proper struct
-	mapped, err := mapRows2Cols(aliasMap, rows)
+	mapped, err := mapRows2Cols(meta, aliasMap, rows)
 	if err != nil {
 		return nil, err
 	}
+	return hydrate(typ, mapped, 0)
+}
 
-	// Go through each table's fields and build them into a struct
-	// representing that table's results
-	// TODO: Merge child tables properly
-	models := make([]interface{}, 0, len(mapped))
-	for _ /*name*/, fields := range mapped {
-		models = append(models, hydrateModel(modelType, meta, fields))
+func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter int) (interface{}, error) {
+	meta := tags.TableMetadataFromType(typ)
+
+	model := reflect.Indirect(reflect.New(typ))
+
+	// TODO: Fragile b/c the aliasing is based on the order we run across references.
+	// This is a bit of coupling, where we could probably look up the alias somewhere
+	// from the query.Table object
+	alias := fmt.Sprintf("t%d", counter)
+
+	mappedFields := mapped[fmt.Sprintf(aliasedField, alias, meta.GetTableName())]
+
+	for _, field := range meta.GetFields() {
+		fieldVal := mappedFields[field.GetColumnName()]
+		if field.IsReference() {
+
+			refTyp := field.GetFieldType()
+			// Recursively hydrate this reference field
+			refValHydrated, err := hydrate(refTyp, mapped, counter+1)
+			if err != nil {
+				return nil, err
+			}
+
+			modelRefVal, err := stringutil.GetStructValue(refValHydrated)
+			if err != nil {
+				return nil, err
+			}
+
+			model.FieldByName(field.GetName()).Set(modelRefVal)
+		} else {
+			setFieldValue(&model, field, fieldVal)
+		}
 	}
 
-	return models, nil
+	hydratedModel := reflect.ValueOf(model.Addr().Interface()).Elem().Interface()
+	return hydratedModel, nil
+}
+
+func setFieldValue(model *reflect.Value, field tags.FieldMetadata, value interface{}) {
+	reflectedValue := reflect.ValueOf(value)
+
+	if reflectedValue.IsValid() {
+		if field.IsJSONB() {
+			valueString, isString := value.(string)
+			if !isString {
+				valueString = string(value.([]byte))
+			}
+			destinationValue := reflect.New(field.GetFieldType()).Interface()
+			json.Unmarshal([]byte(valueString), destinationValue)
+			value = reflect.Indirect(reflect.ValueOf(destinationValue)).Interface()
+		}
+
+		if reflectedValue.Type().ConvertibleTo(field.GetFieldType()) {
+			reflectedValue = reflectedValue.Convert(field.GetFieldType())
+			value = reflectedValue.Interface()
+			model.FieldByName(field.GetName()).Set(reflect.ValueOf(value))
+		}
+	}
 }
 
 /*
@@ -60,17 +108,17 @@ and it returns:
 
 This function would return something like:
 
-	"customer" : {
+	"t0.customer" : {
 		"id": 1234,
 		"name": "Bob"
 	},
-	"address": {
+	"t1.address": {
 		"city": "Chattanooga"
 	}
 
 
 */
-func mapRows2Cols(aliasMap map[string]FieldDescriptor, rows *sql.Rows) (map[string]map[string]interface{}, error) {
+func mapRows2Cols(meta *tags.TableMetadata, aliasMap map[string]FieldDescriptor, rows *sql.Rows) (map[string]map[string]interface{}, error) {
 	results := make(map[string]map[string]interface{})
 
 	cols, err := rows.Columns()
@@ -95,54 +143,22 @@ func mapRows2Cols(aliasMap map[string]FieldDescriptor, rows *sql.Rows) (map[stri
 		// storing it in the map with the name of the column as the key.
 		for i, colName := range cols {
 			tmap := aliasMap[colName]
+			aliasedTbl := fmt.Sprintf(aliasedField, tmap.Alias, tmap.Table)
 
-			if results[tmap.Table] == nil {
-				results[tmap.Table] = make(map[string]interface{})
+			if results[aliasedTbl] == nil {
+				results[aliasedTbl] = make(map[string]interface{})
 			}
 
 			val := columns[i]
 			reflectValue := reflect.ValueOf(val)
-			if reflectValue.IsValid() && reflectValue.Type() == reflect.TypeOf([]byte(nil)) && reflectValue.Len() == 36 {
-				results[tmap.Table][tmap.Field] = string(val.([]uint8))
+			reflectTyp := reflectValue.Type()
+			if reflectValue.IsValid() && reflectTyp == reflect.TypeOf([]byte(nil)) && reflectValue.Len() == 36 {
+				results[aliasedTbl][tmap.Field] = string(val.([]uint8))
 			} else {
-				results[tmap.Table][tmap.Field] = val
+				results[aliasedTbl][tmap.Field] = val
 			}
 		}
 	}
 
 	return results, nil
-}
-
-/*
-hydrateModel takes the values for one record and turns it into a struct based
-on the picard tags
-
-It can use one row for one table and build that one struct
-*/
-func hydrateModel(modelType reflect.Type, meta *tags.TableMetadata, values map[string]interface{}) interface{} {
-
-	model := reflect.Indirect(reflect.New(modelType))
-	for _, field := range meta.GetFields() {
-		value, hasValue := values[field.GetColumnName()]
-		reflectedValue := reflect.ValueOf(value)
-
-		if hasValue && reflectedValue.IsValid() {
-			if field.IsJSONB() {
-				valueString, isString := value.(string)
-				if !isString {
-					valueString = string(value.([]byte))
-				}
-				destinationValue := reflect.New(field.GetFieldType()).Interface()
-				json.Unmarshal([]byte(valueString), destinationValue)
-				value = reflect.Indirect(reflect.ValueOf(destinationValue)).Interface()
-			}
-
-			if reflectedValue.Type().ConvertibleTo(field.GetFieldType()) {
-				reflectedValue = reflectedValue.Convert(field.GetFieldType())
-				value = reflectedValue.Interface()
-			}
-			model.FieldByName(field.GetName()).Set(reflect.ValueOf(value))
-		}
-	}
-	return reflect.ValueOf(model.Addr().Interface()).Elem().Interface()
 }

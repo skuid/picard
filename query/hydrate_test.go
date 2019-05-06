@@ -18,45 +18,178 @@ func TestHydrate(t *testing.T) {
 		expected interface{}
 	}{
 		{
-			"should return a single table with a few columns",
-			parentModel{
+			"should hydrate a single table with a few columns",
+			field{
 				Name: "pops",
 			},
 			map[string]FieldDescriptor{
 				"t0.id": FieldDescriptor{
-					Table: "parentmodel",
+					Alias: "t0",
+					Table: "field",
 					Field: "id",
 				},
 				"t0.organization_id": FieldDescriptor{
-					Table: "parentmodel",
+					Alias: "t0",
+					Table: "field",
 					Field: "organization_id",
 				},
 				"t0.name": FieldDescriptor{
-					Table: "parentmodel",
+					Alias: "t0",
+					Table: "field",
 					Field: "name",
-				},
-				"t0.parent_id": FieldDescriptor{
-					Table: "parentmodel",
-					Field: "parent_id",
 				},
 			},
 			sqlmock.NewRows([]string{
 				"t0.id",
 				"t0.organization_id",
 				"t0.name",
-				"t0.parent_id",
 			}).
 				AddRow(
 					"00000000-0000-0000-0000-000000000002",
 					orgID,
 					"pops",
-					"00000000-0000-0000-0000-000000000003",
 				),
-			parentModel{
+			field{
 				ID:             "00000000-0000-0000-0000-000000000002",
 				OrganizationID: orgID,
 				Name:           "pops",
-				ParentID:       "00000000-0000-0000-0000-000000000003",
+			},
+		},
+		{
+			"should hydrate a set of joined tables",
+			field{
+				Name: "a_field",
+			},
+			map[string]FieldDescriptor{
+				"t0.id": FieldDescriptor{
+					Alias: "t0",
+					Table: "field",
+					Field: "id",
+				},
+				"t0.organization_id": FieldDescriptor{
+					Alias: "t0",
+					Table: "field",
+					Field: "organization_id",
+				},
+				"t0.name": FieldDescriptor{
+					Alias: "t0",
+					Table: "field",
+					Field: "name",
+				},
+				"t0.object_id": FieldDescriptor{
+					Alias: "t0",
+					Table: "field",
+					Field: "object_id",
+				},
+				"t0.reference_id": FieldDescriptor{
+					Alias: "t0",
+					Table: "field",
+					Field: "reference_id",
+				},
+				"t1.id": FieldDescriptor{
+					Alias: "t1",
+					Table: "reference_to",
+					Field: "id",
+				},
+				"t1.organization_id": FieldDescriptor{
+					Alias: "t1",
+					Table: "reference_to",
+					Field: "organization_id",
+				},
+				"t1.reference_field_id": FieldDescriptor{
+					Alias: "t1",
+					Table: "reference_to",
+					Field: "reference_field_id",
+				},
+				"t2.id": FieldDescriptor{
+					Alias: "t2",
+					Table: "field",
+					Field: "id",
+				},
+				"t2.organization_id": FieldDescriptor{
+					Alias: "t2",
+					Table: "field",
+					Field: "organization_id",
+				},
+				"t2.name": FieldDescriptor{
+					Alias: "t2",
+					Table: "field",
+					Field: "name",
+				},
+				"t2.reference_object_id": FieldDescriptor{
+					Alias: "t2",
+					Table: "field",
+					Field: "reference_object_id",
+				},
+				"t3.id": FieldDescriptor{
+					Alias: "t3",
+					Table: "object",
+					Field: "id",
+				},
+				"t3.organization_id": FieldDescriptor{
+					Alias: "t3",
+					Table: "object",
+					Field: "organization_id",
+				},
+				"t3.name": FieldDescriptor{
+					Alias: "t3",
+					Table: "object",
+					Field: "name",
+				},
+			},
+			sqlmock.NewRows([]string{
+				"t0.id",
+				"t0.organization_id",
+				"t0.name",
+				"t0.object_id",
+				"t0.reference_id",
+				"t1.id",
+				"t1.organization_id",
+				"t1.reference_field_id",
+				"t2.id",
+				"t2.organization_id",
+				"t2.name",
+				"t2.reference_object_id",
+				"t3.id",
+				"t3.organization_id",
+				"t3.name",
+			}).
+				AddRow(
+					"00000000-0000-0000-0000-000000000002", // t0.id
+					orgID,     // t0.organization_id
+					"a_field", // t0.name
+					"00000000-0000-0000-0000-000000000003", // t0.object_id
+					"00000000-0000-0000-0000-000000000004", // t0.reference_id
+					"00000000-0000-0000-0000-000000000004", // t1.id
+					orgID, // t1.organization_id
+					"00000000-0000-0000-0000-000000000005", // t1.reference_field_id
+					"00000000-0000-0000-0000-000000000005", // t2.id
+					orgID,                                  // t2.organization_id
+					"a_referenced_field",                   // t2.name
+					"00000000-0000-0000-0000-000000000006", // t2.reference_object_id
+					"00000000-0000-0000-0000-000000000006", // t3.id
+					orgID, // t3.organization_id
+					"a_referenced_object", // t3.name
+				),
+			field{
+				ID:             "00000000-0000-0000-0000-000000000002",
+				OrganizationID: orgID,
+				Name:           "a_field",
+				ObjectID:       "00000000-0000-0000-0000-000000000003",
+				ReferenceTo: referenceTo{
+					ID:             "00000000-0000-0000-0000-000000000004",
+					OrganizationID: orgID,
+					RefField: refField{
+						ID:             "00000000-0000-0000-0000-000000000005",
+						OrganizationID: orgID,
+						Name:           "a_referenced_field",
+						RefObject: refObject{
+							ID:             "00000000-0000-0000-0000-000000000006",
+							OrganizationID: orgID,
+							Name:           "a_referenced_object",
+						},
+					},
+				},
 			},
 		},
 	}
@@ -86,7 +219,7 @@ func TestHydrate(t *testing.T) {
 
 			// Testing our Hydrate function
 			actual, err := Hydrate(tc.model, tc.aliasMap, rows)
-			assert.Equal(tc.expected, actual[0].(parentModel))
+			assert.Equal(tc.expected, actual.(field))
 		})
 	}
 }

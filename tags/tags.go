@@ -60,6 +60,7 @@ type FieldMetadata struct {
 	isMultitenancyKey bool
 	isJSONB           bool
 	isEncrypted       bool
+	isReference       bool
 	columnName        string
 	audit             string
 	fieldType         reflect.Type
@@ -83,6 +84,11 @@ func (fm FieldMetadata) IsJSONB() bool {
 // IsPrimaryKey function
 func (fm FieldMetadata) IsPrimaryKey() bool {
 	return fm.isPrimaryKey
+}
+
+// IsReference function
+func (fm FieldMetadata) IsReference() bool {
+	return fm.isReference
 }
 
 // GetName function
@@ -324,6 +330,7 @@ func TableMetadataFromType(t reflect.Type) *TableMetadata {
 		_, isChild := tagsMap["child"]
 		_, isRequired := tagsMap["required"]
 		_, isForeignKey := tagsMap["foreign_key"]
+		_, isReference := tagsMap["reference"]
 		_, isEncrypted := tagsMap["encrypted"]
 		_, isJSONB := tagsMap["jsonb"]
 		auditType, _ := tagsMap["audit"]
@@ -342,6 +349,7 @@ func TableMetadataFromType(t reflect.Type) *TableMetadata {
 				isJSONB:           isJSONB,
 				isMultitenancyKey: isMultitenancyKey,
 				isPrimaryKey:      isPrimaryKey,
+				isReference:       isReference,
 				columnName:        columnName,
 				audit:             auditType,
 				fieldType:         field.Type,
