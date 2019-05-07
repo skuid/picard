@@ -457,10 +457,12 @@ func TestFieldAliases(t *testing.T) {
 			},
 			map[string]FieldDescriptor{
 				"t0.col_a": FieldDescriptor{
+					Alias: "t0",
 					Table: "table_a",
 					Field: "col_a",
 				},
 				"t0.col_b": FieldDescriptor{
+					Alias: "t0",
 					Table: "table_a",
 					Field: "col_b",
 				},
@@ -492,22 +494,27 @@ func TestFieldAliases(t *testing.T) {
 			},
 			map[string]FieldDescriptor{
 				"t0.col_a": FieldDescriptor{
+					Alias: "t0",
 					Table: "table_a",
 					Field: "col_a",
 				},
 				"t0.col_b": FieldDescriptor{
+					Alias: "t0",
 					Table: "table_a",
 					Field: "col_b",
 				},
 				"t1.col_c": FieldDescriptor{
+					Alias: "t1",
 					Table: "table_b",
 					Field: "col_c",
 				},
 				"t1.col_d": FieldDescriptor{
+					Alias: "t1",
 					Table: "table_b",
 					Field: "col_d",
 				},
 				"t2.col_e": FieldDescriptor{
+					Alias: "t2",
 					Table: "table_c",
 					Field: "col_e",
 				},

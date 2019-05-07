@@ -14,7 +14,7 @@ import (
 Hydrate takes the rows and pops them into the correct struct, in the correct
 order. This is usually called after you've built and executed the query model.
 */
-func Hydrate(filterModel interface{}, aliasMap map[string]FieldDescriptor, rows *sql.Rows) (interface{}, error) {
+func Hydrate(filterModel interface{}, aliasMap map[string]FieldDescriptor, rows *sql.Rows) ([]interface{}, error) {
 	modelVal, err := stringutil.GetStructValue(filterModel)
 	if err != nil {
 		return nil, err
@@ -24,11 +24,21 @@ func Hydrate(filterModel interface{}, aliasMap map[string]FieldDescriptor, rows 
 	typ := modelVal.Type()
 	meta := tags.TableMetadataFromType(typ)
 
-	mapped, err := mapRows2Cols(meta, aliasMap, rows)
+	mappedCols, err := mapRows2Cols(meta, aliasMap, rows)
 	if err != nil {
 		return nil, err
 	}
-	return hydrate(typ, mapped, 0)
+
+	hydrateds := make([]interface{}, 0, len(mappedCols))
+	for _, mapped := range mappedCols {
+		hydrated, err := hydrate(typ, mapped, 0)
+		if err != nil {
+			return nil, err
+		}
+		hydrateds = append(hydrateds, hydrated)
+	}
+
+	return hydrateds, nil
 }
 
 func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter int) (interface{}, error) {
@@ -118,8 +128,8 @@ This function would return something like:
 
 
 */
-func mapRows2Cols(meta *tags.TableMetadata, aliasMap map[string]FieldDescriptor, rows *sql.Rows) (map[string]map[string]interface{}, error) {
-	results := make(map[string]map[string]interface{})
+func mapRows2Cols(meta *tags.TableMetadata, aliasMap map[string]FieldDescriptor, rows *sql.Rows) ([]map[string]map[string]interface{}, error) {
+	results := make([]map[string]map[string]interface{}, 0)
 
 	cols, err := rows.Columns()
 	if err != nil {
@@ -127,7 +137,6 @@ func mapRows2Cols(meta *tags.TableMetadata, aliasMap map[string]FieldDescriptor,
 	}
 
 	for rows.Next() {
-
 		columns := make([]interface{}, len(cols))
 		columnPointers := make([]interface{}, len(cols))
 		for i := range columns {
@@ -139,25 +148,29 @@ func mapRows2Cols(meta *tags.TableMetadata, aliasMap map[string]FieldDescriptor,
 			return nil, err
 		}
 
+		result := make(map[string]map[string]interface{})
+
 		// Create our map, and retrieve the value for each column from the pointers slice,
 		// storing it in the map with the name of the column as the key.
 		for i, colName := range cols {
 			tmap := aliasMap[colName]
 			aliasedTbl := fmt.Sprintf(aliasedField, tmap.Alias, tmap.Table)
 
-			if results[aliasedTbl] == nil {
-				results[aliasedTbl] = make(map[string]interface{})
+			if result[aliasedTbl] == nil {
+				result[aliasedTbl] = make(map[string]interface{})
 			}
 
 			val := columns[i]
 			reflectValue := reflect.ValueOf(val)
 			reflectTyp := reflectValue.Type()
 			if reflectValue.IsValid() && reflectTyp == reflect.TypeOf([]byte(nil)) && reflectValue.Len() == 36 {
-				results[aliasedTbl][tmap.Field] = string(val.([]uint8))
+				result[aliasedTbl][tmap.Field] = string(val.([]uint8))
 			} else {
-				results[aliasedTbl][tmap.Field] = val
+				result[aliasedTbl][tmap.Field] = val
 			}
 		}
+
+		results = append(results, result)
 	}
 
 	return results, nil

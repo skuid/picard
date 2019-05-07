@@ -9,6 +9,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/skuid/picard/crypto"
+	"github.com/skuid/picard/query"
 	"github.com/skuid/picard/stringutil"
 	"github.com/skuid/picard/tags"
 )
@@ -27,13 +28,12 @@ func (p PersistenceORM) getFilterModelResults(filterModelValue reflect.Value, fi
 	return filterResults, nil
 }
 
-// FilterModel returns models that match the provided struct, ignoring zero values.
-func (p PersistenceORM) FilterModel(filterModel interface{}) ([]interface{}, error) {
-	return p.FilterModelAssociations(filterModel, nil)
-}
-
 // FilterModels returns models that match the provided struct, multiple models can be provided
 func (p PersistenceORM) FilterModels(filterModels interface{}, transaction *sql.Tx) ([]interface{}, error) {
+	//TODO: Is this used anywhere? I need more context on the purpose of this call, and then to
+	// run it through the new code.
+
+	// looks like it is used for deletes? Wut?
 	s := reflect.ValueOf(filterModels)
 	filterMetadata := tags.TableMetadataFromType(s.Type().Elem())
 	ors := squirrel.Or{}
@@ -69,35 +69,46 @@ func (p PersistenceORM) FilterModels(filterModels interface{}, transaction *sql.
 	return concreteResults, nil
 }
 
+// FilterModel returns models that match the provided struct, ignoring zero values.
+func (p PersistenceORM) FilterModel(filterModel interface{}) ([]interface{}, error) {
+	return p.FilterModelAssociations(filterModel, nil)
+}
+
 // FilterModelAssociations returns models that match the provide struct and also
 // return the requested associated models
 func (p PersistenceORM) FilterModelAssociations(filterModel interface{}, associations []tags.Association) ([]interface{}, error) {
 	// root model results
-	filterModelValue, err := stringutil.GetStructValue(filterModel)
+	tbl, err := query.Build(p.multitenancyValue, filterModel, associations)
 	if err != nil {
 		return nil, err
 	}
 
-	filterModelType := filterModelValue.Type()
-	filterMetadata := tags.TableMetadataFromType(filterModelType)
-
-	// First do the filter with out any of the associations
-	results, err := p.getFilterModelResults(filterModelValue, filterMetadata)
+	rows, err := tbl.BuildSQL().RunWith(GetConnection()).Query()
 	if err != nil {
 		return nil, err
 	}
 
-	err = p.processAssociations(associations, filterModelValue, filterMetadata, results)
+	aliasMap := tbl.FieldAliases()
+	result, err := query.Hydrate(filterModel, aliasMap, rows)
 	if err != nil {
 		return nil, err
 	}
 
-	concreteResults := []interface{}{}
-	for _, result := range results {
-		concreteResults = append(concreteResults, reflect.ValueOf(result).Elem().Interface())
-	}
+	results := make([]interface{}, 0, 1)
+	results = append(results, result...)
 
-	return concreteResults, nil
+	//TODO: Need to start loading children. This means taking any
+
+	// e.g for each result just returned,
+	//		- vParentModel.Children -> ptags[child] == true,
+	//		- Build vChildModel (based on reflecting type), adding parent model's id
+	//		- Hydrate vChildModels and then pop it into the vParentModel field
+	// Need to recursively load each as you encounter matches in 'associations'
+
+	//TODO: Does the foreign_key thing work? I don't see how it does. If so, we
+	// need to make this work the same way as "reference" works possibly.
+
+	return results, nil
 }
 
 func (p PersistenceORM) processAssociations(associations []tags.Association, filterModelValue reflect.Value, filterMetadata *tags.TableMetadata, results []interface{}) error {

@@ -1,6 +1,7 @@
 package query
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
@@ -13,11 +14,11 @@ func fmtSQL(sql string) string {
 	return strings.Trim(str, " ")
 }
 
-func fmtSQLRegex(sql string) string {
+func FmtSQLRegex(sql string) string {
 	str := fmtSQL(sql)
 	str = strings.Replace(str, ".", "\\.", -1)
 	str = strings.Replace(str, "$", "\\$", -1)
-	return str
+	return fmt.Sprintf("^%s", str)
 }
 
 type grandParentModel struct {

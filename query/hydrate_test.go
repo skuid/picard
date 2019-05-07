@@ -15,7 +15,7 @@ func TestHydrate(t *testing.T) {
 		model    interface{}
 		aliasMap map[string]FieldDescriptor
 		rows     *sqlmock.Rows
-		expected interface{}
+		expected []interface{}
 	}{
 		{
 			"should hydrate a single table with a few columns",
@@ -49,10 +49,12 @@ func TestHydrate(t *testing.T) {
 					orgID,
 					"pops",
 				),
-			field{
-				ID:             "00000000-0000-0000-0000-000000000002",
-				OrganizationID: orgID,
-				Name:           "pops",
+			[]interface{}{
+				field{
+					ID:             "00000000-0000-0000-0000-000000000002",
+					OrganizationID: orgID,
+					Name:           "pops",
+				},
 			},
 		},
 		{
@@ -171,22 +173,24 @@ func TestHydrate(t *testing.T) {
 					orgID, // t3.organization_id
 					"a_referenced_object", // t3.name
 				),
-			field{
-				ID:             "00000000-0000-0000-0000-000000000002",
-				OrganizationID: orgID,
-				Name:           "a_field",
-				ObjectID:       "00000000-0000-0000-0000-000000000003",
-				ReferenceTo: referenceTo{
-					ID:             "00000000-0000-0000-0000-000000000004",
+			[]interface{}{
+				field{
+					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
-					RefField: refField{
-						ID:             "00000000-0000-0000-0000-000000000005",
+					Name:           "a_field",
+					ObjectID:       "00000000-0000-0000-0000-000000000003",
+					ReferenceTo: referenceTo{
+						ID:             "00000000-0000-0000-0000-000000000004",
 						OrganizationID: orgID,
-						Name:           "a_referenced_field",
-						RefObject: refObject{
-							ID:             "00000000-0000-0000-0000-000000000006",
+						RefField: refField{
+							ID:             "00000000-0000-0000-0000-000000000005",
 							OrganizationID: orgID,
-							Name:           "a_referenced_object",
+							Name:           "a_referenced_field",
+							RefObject: refObject{
+								ID:             "00000000-0000-0000-0000-000000000006",
+								OrganizationID: orgID,
+								Name:           "a_referenced_object",
+							},
 						},
 					},
 				},
@@ -218,8 +222,10 @@ func TestHydrate(t *testing.T) {
 			}
 
 			// Testing our Hydrate function
-			actual, err := Hydrate(tc.model, tc.aliasMap, rows)
-			assert.Equal(tc.expected, actual.(field))
+			actuals, err := Hydrate(tc.model, tc.aliasMap, rows)
+			for i, actual := range actuals {
+				assert.Equal(tc.expected[i], actual.(field))
+			}
 		})
 	}
 }
