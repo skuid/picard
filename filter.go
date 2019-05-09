@@ -89,26 +89,72 @@ func (p PersistenceORM) FilterModelAssociations(filterModel interface{}, associa
 	}
 
 	aliasMap := tbl.FieldAliases()
-	result, err := query.Hydrate(filterModel, aliasMap, rows)
+	results, err := query.Hydrate(filterModel, aliasMap, rows)
 	if err != nil {
 		return nil, err
 	}
 
-	results := make([]interface{}, 0, 1)
-	results = append(results, result...)
+	for _, result := range results {
+		err := findChildren(p.multitenancyValue, result, associations)
 
-	//TODO: Need to start loading children. This means taking any
+		if err != nil {
+			return nil, err
+		}
+	}
 
-	// e.g for each result just returned,
-	//		- vParentModel.Children -> ptags[child] == true,
-	//		- Build vChildModel (based on reflecting type), adding parent model's id
-	//		- Hydrate vChildModels and then pop it into the vParentModel field
-	// Need to recursively load each as you encounter matches in 'associations'
+	ir := make([]interface{}, 0, len(results))
+	for _, r := range results {
+		ir = append(ir, r.Interface())
+	}
 
-	//TODO: Does the foreign_key thing work? I don't see how it does. If so, we
-	// need to make this work the same way as "reference" works possibly.
+	return ir, nil
+}
 
-	return results, nil
+func findChildren(mtk string, val *reflect.Value, associations []tags.Association) error {
+	typ := val.Type()
+
+	for _, association := range associations {
+		field := val.FieldByName(association.Name)
+		if structField, ok := typ.FieldByName(association.Name); ok {
+			ptags := tags.GetStructTagsMap(structField, "picard")
+
+			if _, yes := ptags["child"]; yes {
+				fk, _ := ptags["foreign_key"]
+				filterModel := reflect.Indirect(reflect.New(structField.Type.Elem()))
+				pkval := val.FieldByName("ID")
+				filterModel.FieldByName(fk).Set(pkval)
+
+				tbl, err := query.Build(mtk, filterModel.Interface(), association.Associations)
+				if err != nil {
+					return err
+				}
+
+				rows, err := tbl.BuildSQL().RunWith(GetConnection()).Query()
+				if err != nil {
+					return err
+				}
+
+				aliasMap := tbl.FieldAliases()
+				childResults, err := query.Hydrate(filterModel.Interface(), aliasMap, rows)
+				if err != nil {
+					return err
+				}
+
+				field.Set(reflect.MakeSlice(field.Type(), len(childResults), len(childResults)))
+
+				for i, cr := range childResults {
+					field.Index(i).Set(*cr)
+					cf := field.Index(i)
+					err = findChildren(mtk, &cf, association.Associations)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func (p PersistenceORM) processAssociations(associations []tags.Association, filterModelValue reflect.Value, filterMetadata *tags.TableMetadata, results []interface{}) error {

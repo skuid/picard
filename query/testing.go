@@ -98,6 +98,7 @@ type referenceTo struct {
 	Metadata       metadata.Metadata `picard:"tablename=reference_to"`
 	ID             string            `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
+	RefFieldID     string            `picard:"column=reference_field_id"`
 	RefField       refField          `json:"field" picard:"reference,column=reference_field_id"`
 }
 

@@ -14,7 +14,7 @@ import (
 Hydrate takes the rows and pops them into the correct struct, in the correct
 order. This is usually called after you've built and executed the query model.
 */
-func Hydrate(filterModel interface{}, aliasMap map[string]FieldDescriptor, rows *sql.Rows) ([]interface{}, error) {
+func Hydrate(filterModel interface{}, aliasMap map[string]FieldDescriptor, rows *sql.Rows) ([]*reflect.Value, error) {
 	modelVal, err := stringutil.GetStructValue(filterModel)
 	if err != nil {
 		return nil, err
@@ -29,9 +29,10 @@ func Hydrate(filterModel interface{}, aliasMap map[string]FieldDescriptor, rows 
 		return nil, err
 	}
 
-	hydrateds := make([]interface{}, 0, len(mappedCols))
+	hydrateds := make([]*reflect.Value, 0, len(mappedCols))
 	for _, mapped := range mappedCols {
 		hydrated, err := hydrate(typ, mapped, 0)
+
 		if err != nil {
 			return nil, err
 		}
@@ -41,14 +42,11 @@ func Hydrate(filterModel interface{}, aliasMap map[string]FieldDescriptor, rows 
 	return hydrateds, nil
 }
 
-func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter int) (interface{}, error) {
+func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter int) (*reflect.Value, error) {
 	meta := tags.TableMetadataFromType(typ)
 
 	model := reflect.Indirect(reflect.New(typ))
 
-	// TODO: Fragile b/c the aliasing is based on the order we run across references.
-	// This is a bit of coupling, where we could probably look up the alias somewhere
-	// from the query.Table object
 	alias := fmt.Sprintf("t%d", counter)
 
 	mappedFields := mapped[fmt.Sprintf(aliasedField, alias, meta.GetTableName())]
@@ -64,19 +62,14 @@ func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter
 				return nil, err
 			}
 
-			modelRefVal, err := stringutil.GetStructValue(refValHydrated)
-			if err != nil {
-				return nil, err
-			}
-
-			model.FieldByName(field.GetName()).Set(modelRefVal)
+			model.FieldByName(field.GetName()).Set(*refValHydrated)
 		} else {
 			setFieldValue(&model, field, fieldVal)
 		}
 	}
 
-	hydratedModel := reflect.ValueOf(model.Addr().Interface()).Elem().Interface()
-	return hydratedModel, nil
+	hydratedModel := reflect.ValueOf(model.Addr().Interface()).Elem()
+	return &hydratedModel, nil
 }
 
 func setFieldValue(model *reflect.Value, field tags.FieldMetadata, value interface{}) {

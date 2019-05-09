@@ -182,6 +182,7 @@ func TestHydrate(t *testing.T) {
 					ReferenceTo: referenceTo{
 						ID:             "00000000-0000-0000-0000-000000000004",
 						OrganizationID: orgID,
+						RefFieldID:     "00000000-0000-0000-0000-000000000005",
 						RefField: refField{
 							ID:             "00000000-0000-0000-0000-000000000005",
 							OrganizationID: orgID,
@@ -224,7 +225,7 @@ func TestHydrate(t *testing.T) {
 			// Testing our Hydrate function
 			actuals, err := Hydrate(tc.model, tc.aliasMap, rows)
 			for i, actual := range actuals {
-				assert.Equal(tc.expected[i], actual.(field))
+				assert.Equal(tc.expected[i], actual.Interface().(field))
 			}
 		})
 	}

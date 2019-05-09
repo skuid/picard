@@ -92,6 +92,7 @@ func buildQuery(
 	tbl := NewIndexed(tableName, counter)
 
 	cols := make([]string, 0, modelType.NumField())
+	seen := make(map[string]bool)
 
 	for i := 0; i < modelType.NumField(); i++ {
 		field := modelType.Field(i)
@@ -104,8 +105,8 @@ func buildQuery(
 		ptags := tags.GetStructTagsMap(field, "picard")
 		column, hasColumn := ptags["column"]
 		_, isMultitenancyColumn := ptags["multitenancy_key"]
-		_, isPK := ptags["primary_key"]
-		_, isFK := ptags["foreign_key"]
+		// _, isPK := ptags["primary_key"]
+		// _, isFK := ptags["foreign_key"]
 		_, isReference := ptags["reference"]
 
 		if !hasColumn {
@@ -114,17 +115,19 @@ func buildQuery(
 
 		switch {
 		case isMultitenancyColumn:
-			cols = append(cols, column)
+			if !seen[column] {
+				cols = append(cols, column)
+				seen[column] = true
+			}
 			tbl.AddWhere(column, multitenancyVal)
-		case isFK:
-			fallthrough
-		case isPK:
-			cols = append(cols, column)
 		case isReference:
 			refTypName := field.Name
 
 			if association, ok := getAssociation(associations, refTypName); ok {
-				cols = append(cols, column)
+				if !seen[column] {
+					cols = append(cols, column)
+					seen[column] = true
+				}
 				// Get type, load it as a model so we can build it out
 				refTyp := field.Type
 
@@ -145,10 +148,16 @@ func buildQuery(
 			if isEncrypted {
 				return nil, errors.New("cannot perform queries with where clauses on encrypted fields")
 			}
-			cols = append(cols, column)
+			if !seen[column] {
+				cols = append(cols, column)
+				seen[column] = true
+			}
 			tbl.AddWhere(column, val.Interface())
 		default:
-			cols = append(cols, column)
+			if !seen[column] {
+				cols = append(cols, column)
+				seen[column] = true
+			}
 		}
 	}
 
