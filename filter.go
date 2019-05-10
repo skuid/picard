@@ -95,7 +95,7 @@ func (p PersistenceORM) FilterModelAssociations(filterModel interface{}, associa
 	}
 
 	for _, result := range results {
-		err := findChildren(p.multitenancyValue, result, associations)
+		err := query.FindChildren(GetConnection(), p.multitenancyValue, result, associations)
 
 		if err != nil {
 			return nil, err
@@ -108,53 +108,6 @@ func (p PersistenceORM) FilterModelAssociations(filterModel interface{}, associa
 	}
 
 	return ir, nil
-}
-
-func findChildren(mtk string, val *reflect.Value, associations []tags.Association) error {
-	typ := val.Type()
-
-	for _, association := range associations {
-		field := val.FieldByName(association.Name)
-		if structField, ok := typ.FieldByName(association.Name); ok {
-			ptags := tags.GetStructTagsMap(structField, "picard")
-
-			if _, yes := ptags["child"]; yes {
-				fk, _ := ptags["foreign_key"]
-				filterModel := reflect.Indirect(reflect.New(structField.Type.Elem()))
-				pkval := val.FieldByName("ID")
-				filterModel.FieldByName(fk).Set(pkval)
-
-				tbl, err := query.Build(mtk, filterModel.Interface(), association.Associations)
-				if err != nil {
-					return err
-				}
-
-				rows, err := tbl.BuildSQL().RunWith(GetConnection()).Query()
-				if err != nil {
-					return err
-				}
-
-				aliasMap := tbl.FieldAliases()
-				childResults, err := query.Hydrate(filterModel.Interface(), aliasMap, rows)
-				if err != nil {
-					return err
-				}
-
-				field.Set(reflect.MakeSlice(field.Type(), len(childResults), len(childResults)))
-
-				for i, cr := range childResults {
-					field.Index(i).Set(*cr)
-					cf := field.Index(i)
-					err = findChildren(mtk, &cf, association.Associations)
-					if err != nil {
-						return err
-					}
-				}
-			}
-		}
-	}
-
-	return nil
 }
 
 func (p PersistenceORM) processAssociations(associations []tags.Association, filterModelValue reflect.Value, filterMetadata *tags.TableMetadata, results []interface{}) error {

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/MakeNowJust/heredoc"
 	"github.com/Masterminds/squirrel"
 	"github.com/skuid/picard/crypto"
 	"github.com/skuid/picard/metadata"
@@ -92,7 +91,7 @@ type vParentModel struct {
 	OrganizationID string                 `picard:"multitenancy_key,column=organization_id"`
 	Name           string                 `json:"name" picard:"lookup,column=name"`
 	ParentID       string                 `picard:"foreign_key,lookup,required,related=GrandParent,column=parent_id"`
-	GrandParent    vGrandParentModel      `json:"parent" validate:"-"`
+	GrandParent    vGrandParentModel      `json:"parent" picard:"reference,column=parent_id"`
 	Children       []vChildModel          `json:"children" picard:"child,foreign_key=ParentID"`
 	Animals        []vPetModel            `json:"animals" picard:"child,foreign_key=ParentID"`
 	ChildrenMap    map[string]vChildModel `picard:"child,foreign_key=ParentID,key_mapping=Name"`
@@ -110,13 +109,12 @@ type vChildModel struct {
 }
 
 type vToyModel struct {
-	Metadata metadata.Metadata `picard:"tablename=toymodel"`
-
-	ID             string      `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string      `picard:"multitenancy_key,column=organization_id"`
-	Name           string      `json:"name" picard:"lookup,column=name"`
-	ParentID       string      `picard:"foreign_key,lookup,required,related=Parent,column=parent_id"`
-	Parent         vChildModel `json:"parent" validate:"-"`
+	Metadata       metadata.Metadata `picard:"tablename=toymodel"`
+	ID             string            `json:"id" picard:"primary_key,column=id"`
+	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
+	Name           string            `json:"name" picard:"lookup,column=name"`
+	ParentID       string            `picard:"foreign_key,lookup,required,related=Parent,column=parent_id"`
+	Parent         vChildModel       `json:"parent" validate:"-"`
 }
 
 type vPetModel struct {
@@ -155,14 +153,14 @@ func TestFilterModelAssociations(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(query.FmtSQLRegex(`
-						SELECT
-							t0.id AS "t0.id",
-							t0.organization_id AS "t0.organization_id",
-							t0.name AS "t0.name",
-							t0.parent_id AS "t0.parent_id"
-						FROM parentmodel AS t0
-						WHERE t0.organization_id = $1 AND t0.name = $2
-					`)).
+					SELECT
+						t0.id AS "t0.id",
+						t0.organization_id AS "t0.organization_id",
+						t0.name AS "t0.name",
+						t0.parent_id AS "t0.parent_id"
+					FROM parentmodel AS t0
+					WHERE t0.organization_id = $1 AND t0.name = $2
+				`)).
 					WithArgs(orgID, "pops").
 					WillReturnRows(
 						sqlmock.NewRows([]string{
@@ -245,12 +243,15 @@ func TestFilterModelAssociations(t *testing.T) {
 			},
 			[]interface{}{
 				vParentModel{
-					Name:     "pops",
-					ID:       "00000000-0000-0000-0000-000000000002",
-					ParentID: "00000000-0000-0000-0000-000000000023",
+					ID:             "00000000-0000-0000-0000-000000000002",
+					OrganizationID: orgID,
+					Name:           "pops",
+					ParentID:       "00000000-0000-0000-0000-000000000023",
 					GrandParent: vGrandParentModel{
-						Name: "grandpops",
-						ID:   "00000000-0000-0000-0000-000000000023",
+						ID:             "00000000-0000-0000-0000-000000000023",
+						OrganizationID: orgID,
+						Name:           "grandpops",
+						Age:            77,
 					},
 				},
 			},
@@ -260,40 +261,40 @@ func TestFilterModelAssociations(t *testing.T) {
 						t0.id AS "t0.id",
 						t0.organization_id AS "t0.organization_id",
 						t0.name AS "t0.name",
-						t0.parent_id AS "t0.parent_id"
+						t0.parent_id AS "t0.parent_id",
+						t1.id AS "t1.id",
+						t1.organization_id AS "t1.organization_id",
+						t1.name AS "t1.name",
+						t1.age AS "t1.age" 
 					FROM parentmodel AS t0
-					WHERE t0.organization_id = $1 AND t0.name = $2
+					LEFT JOIN grandparentmodel AS t1 ON t1.id = t0.parent_id
+					WHERE
+						t0.organization_id = $1 AND
+						t0.name = $2 AND
+						t1.organization_id = $3	
 				`)).
-					WithArgs(orgID, "pops").
+					WithArgs(orgID, "pops", orgID).
 					WillReturnRows(
 						sqlmock.NewRows([]string{
 							"t0.id",
 							"t0.organization_id",
 							"t0.name",
 							"t0.parent_id",
+							"t1.id",
+							"t1.organization_id",
+							"t1.name",
+							"t1.age",
 						}).
 							AddRow(
 								"00000000-0000-0000-0000-000000000002",
 								orgID,
 								"pops",
 								"00000000-0000-0000-0000-000000000023",
+								"00000000-0000-0000-0000-000000000023",
+								orgID,
+								"grandpops",
+								77,
 							),
-					)
-
-				mock.ExpectQuery(query.FmtSQLRegex(`
-					SELECT
-						t0.id AS "t0.id",
-						t0.organization_id AS "t0.organization_id",
-						t0.name AS "t0.name",
-						t0.age AS "t0.age"
-					FROM grandparentmodel AS t0
-					WHERE t0.organization_id = $1 AND 
-						t0.id IN ($2)
-				`)).
-					WithArgs(orgID, orgID, "pops").
-					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id"}).
-							AddRow("grandpops", "00000000-0000-0000-0000-000000000023"),
 					)
 			},
 			nil,
@@ -518,140 +519,116 @@ func TestFilterModelAssociations(t *testing.T) {
 			},
 			[]interface{}{
 				vParentModel{
-					Name: "pops",
-					ID:   "00000000-0000-0000-0000-000000000001",
+					ID:             "00000000-0000-0000-0000-000000000002",
+					OrganizationID: orgID,
+					Name:           "pops",
+					ParentID:       "00000000-0000-0000-0000-000000000011",
 					ChildrenMap: map[string]vChildModel{
 						"kiddo": vChildModel{
-							Name:     "kiddo",
-							ID:       "00000000-0000-0000-0000-000000000002",
-							ParentID: "00000000-0000-0000-0000-000000000001",
+							ID:             "00000000-0000-0000-0000-000000000021",
+							OrganizationID: orgID,
+							Name:           "kiddo",
+							ParentID:       "00000000-0000-0000-0000-000000000002",
 						},
 					},
 				},
 				vParentModel{
-					Name: "uncle",
-					ID:   "00000000-0000-0000-0000-000000000004",
+					ID:             "00000000-0000-0000-0000-000000000003",
+					OrganizationID: orgID,
+					Name:           "uncle",
+					ParentID:       "00000000-0000-0000-0000-000000000011",
 					ChildrenMap: map[string]vChildModel{
 						"coz": vChildModel{
-							Name:     "coz",
-							ID:       "00000000-0000-0000-0000-000000000005",
-							ParentID: "00000000-0000-0000-0000-000000000004",
+							ID:             "00000000-0000-0000-0000-000000000022",
+							OrganizationID: orgID,
+							Name:           "coz",
+							ParentID:       "00000000-0000-0000-0000-000000000003",
 						},
 					},
 				},
 			},
 			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("^SELECT parentmodel.id, parentmodel.organization_id, parentmodel.name, parentmodel.parent_id FROM parentmodel WHERE parentmodel.organization_id = \\$1 AND parentmodel.name = \\$2").
+				mock.ExpectQuery(query.FmtSQLRegex(`
+					SELECT
+						t0.id AS "t0.id",
+						t0.organization_id AS "t0.organization_id",
+						t0.name AS "t0.name",
+						t0.parent_id AS "t0.parent_id"
+					FROM parentmodel AS t0
+					WHERE t0.organization_id = $1 AND t0.name = $2
+				`)).
 					WithArgs(orgID, "pops").
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id"}).
-							AddRow("pops", "00000000-0000-0000-0000-000000000001").
-							AddRow("uncle", "00000000-0000-0000-0000-000000000004"),
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+						}).
+							AddRow(
+								"00000000-0000-0000-0000-000000000002",
+								orgID,
+								"pops",
+								"00000000-0000-0000-0000-000000000011",
+							).
+							AddRow(
+								"00000000-0000-0000-0000-000000000003",
+								orgID,
+								"uncle",
+								"00000000-0000-0000-0000-000000000011",
+							),
 					)
 
-				// parent is vParentModel
-				mock.ExpectQuery("^SELECT childmodel.id, childmodel.organization_id, childmodel.name, childmodel.parent_id FROM childmodel JOIN parentmodel as t1 on t1.id = parent_id WHERE childmodel.organization_id = \\$1 AND t1.organization_id = \\$2 AND t1.name = \\$3").
-					WithArgs(orgID, orgID, "pops").
+				msql := query.FmtSQLRegex(`
+					SELECT
+						t0.id AS "t0.id",
+						t0.organization_id AS "t0.organization_id",
+						t0.name AS "t0.name",
+						t0.parent_id AS "t0.parent_id"
+					FROM childmodel AS t0
+					WHERE 
+						t0.organization_id = $1 AND t0.parent_id = $2
+				`)
+
+				mock.ExpectQuery(msql).
+					WithArgs(orgID, "00000000-0000-0000-0000-000000000002").
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
-							AddRow("kiddo", "00000000-0000-0000-0000-000000000002", "00000000-0000-0000-0000-000000000001").
-							AddRow("coz", "00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000004"),
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+						}).
+							AddRow(
+								"00000000-0000-0000-0000-000000000021",
+								orgID,
+								"kiddo",
+								"00000000-0000-0000-0000-000000000002",
+							),
 					)
-			},
-			nil,
-		},
-		{
-			"happy path for filtering multiple parent nested results w/ eager loading associations",
-			vParentModel{},
-			[]tags.Association{
-				{
-					Name: "Children",
-					Associations: []tags.Association{
-						{
-							Name: "Toys",
-						},
-					},
-				},
-			},
-			[]interface{}{
-				vParentModel{
-					Name: "pops",
-					ID:   "00000000-0000-0000-0000-000000000001",
-					Children: []vChildModel{
-						vChildModel{
-							Name:     "kiddo",
-							ID:       "00000000-0000-0000-0000-000000000002",
-							ParentID: "00000000-0000-0000-0000-000000000001",
-							Toys: []vToyModel{
-								vToyModel{
-									Name:     "lego",
-									ID:       "00000000-0000-0000-0000-000000000001",
-									ParentID: "00000000-0000-0000-0000-000000000002",
-								},
-							},
-						},
-					},
-				},
-				vParentModel{
-					Name: "uncle",
-					ID:   "00000000-0000-0000-0000-000000000004",
-				},
-				vParentModel{
-					Name: "aunt",
-					ID:   "00000000-0000-0000-0000-000000000005",
-					Children: []vChildModel{
-						vChildModel{
-							Name:     "suzy",
-							ID:       "00000000-0000-0000-0000-000000000009",
-							ParentID: "00000000-0000-0000-0000-000000000005",
-							Toys: []vToyModel{
-								vToyModel{
-									Name:     "beanie baby",
-									ID:       "00000000-0000-0000-0000-000000000009",
-									ParentID: "00000000-0000-0000-0000-000000000009",
-								},
-								vToyModel{
-									Name:     "polly pocket",
-									ID:       "00000000-0000-0000-0000-000000000011",
-									ParentID: "00000000-0000-0000-0000-000000000009",
-								},
-							},
-						},
-					},
-				},
-			},
-			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("^SELECT parentmodel.id, parentmodel.organization_id, parentmodel.name, parentmodel.parent_id FROM parentmodel WHERE parentmodel.organization_id = \\$1").
-					WithArgs(orgID).
+
+				mock.ExpectQuery(msql).
+					WithArgs(orgID, "00000000-0000-0000-0000-000000000003").
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id"}).
-							AddRow("pops", "00000000-0000-0000-0000-000000000001").
-							AddRow("uncle", "00000000-0000-0000-0000-000000000004").
-							AddRow("aunt", "00000000-0000-0000-0000-000000000005"),
-					)
-				// parent is vParentModel
-				mock.ExpectQuery("^SELECT childmodel.id, childmodel.organization_id, childmodel.name, childmodel.parent_id FROM childmodel WHERE childmodel.organization_id = \\$1").
-					WithArgs(orgID).
-					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
-							AddRow("kiddo", "00000000-0000-0000-0000-000000000002", "00000000-0000-0000-0000-000000000001").
-							AddRow("suzy", "00000000-0000-0000-0000-000000000009", "00000000-0000-0000-0000-000000000005"),
-					)
-				// parent is vChildModel
-				mock.ExpectQuery("^SELECT toymodel.id, toymodel.organization_id, toymodel.name, toymodel.parent_id FROM toymodel WHERE toymodel.organization_id = \\$1").
-					WithArgs(orgID).
-					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
-							AddRow("lego", "00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002").
-							AddRow("beanie baby", "00000000-0000-0000-0000-000000000009", "00000000-0000-0000-0000-000000000009").
-							AddRow("polly pocket", "00000000-0000-0000-0000-000000000011", "00000000-0000-0000-0000-000000000009"),
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+						}).
+							AddRow(
+								"00000000-0000-0000-0000-000000000022",
+								orgID,
+								"coz",
+								"00000000-0000-0000-0000-000000000003",
+							),
 					)
 			},
 			nil,
 		},
 	}
 
-	for _, tc := range testCases[3:4] {
+	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			if err != nil {
@@ -681,232 +658,6 @@ func TestFilterModelAssociations(t *testing.T) {
 			}
 
 			assert.Equal(t, tc.wantErr, err)
-		})
-	}
-}
-
-// Let's explore relationships that run the other way, where the parent has an
-// FK to a child.
-type vObject struct {
-	Metadata       metadata.Metadata `picard:"tablename=object"`
-	ID             string            `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
-	Name           string            `json:"name" picard:"lookup,column=name"`
-	Fields         []vField          `json:"fields" picard:"child,foreign_key=ObjectID"`
-}
-
-type vField struct {
-	Metadata       metadata.Metadata `picard:"tablename=field"`
-	ID             string            `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
-	Name           string            `json:"name" picard:"lookup,column=name"`
-	ObjectID       string            `picard:"foreign_key,lookup,required,related=Object,column=object_id"`
-	Object         vObject           `json:"object" validate:"-"`
-	Reference      vReference        `json:"reference" picard:"reference,column=reference_id"`
-}
-
-type vReference struct {
-	Metadata       metadata.Metadata `picard:"tablename=reference"`
-	ID             string            `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
-	Field          vRefField         `picard:"field" picard:"reference,column=reference_field_id"`
-}
-
-type vRefField struct {
-	Metadata       metadata.Metadata `picard:"tablename=field"`
-	ID             string            `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
-	Name           string            `json:"name" picard:"lookup,column=name"`
-	Object         vRefObject        `json:"object" picard:"reference,column=object_id"`
-}
-
-type vRefObject struct {
-	Metadata       metadata.Metadata `picard:"tablename=field"`
-	ID             string            `json:"id" picard:"primary_key,column=id"`
-	Name           string            `json:"name" picard:"lookup,column=name"`
-	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
-}
-
-func fmtSQL(sql string) string {
-	return strings.Replace(heredoc.Doc(sql), "\n", " ", -1)
-}
-
-func TestFilterModelReferenceAssociations(t *testing.T) {
-	orgID := "00000000-0000-0000-0000-000000000001"
-	testCases := []struct {
-		description  string
-		filterModel  interface{}
-		associations []tags.Association
-		sqlmocks     func(sqlmock.Sqlmock)
-		expected     []interface{}
-	}{
-		{
-			"Loading objects with childTables and references",
-			vObject{
-				Name: "first_object",
-			},
-			[]tags.Association{
-				{
-					Name: "Fields",
-					Associations: []tags.Association{
-						{
-							Name: "Reference",
-							Associations: []tags.Association{
-								{
-									Name: "Field",
-									Associations: []tags.Association{
-										{
-											Name: "Object",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(query.FmtSQLRegex(`
-						SELECT t0.id AS "t0.id",
-							t0.organization_id AS "t0.organization_id",
-							t0.name AS "t0.name"
-						FROM object AS t0
-						WHERE
-							t0.organization_id = $1 AND
-							t0.name = $2
-				`)).
-					WithArgs(
-						orgID,
-						"first_object",
-					).
-					WillReturnRows(
-						sqlmock.NewRows([]string{"t0.name", "t0.id"}).
-							AddRow("first_object", "00000000-0000-0000-0000-000000000002"),
-					)
-
-				// All of the reference chains should load in one query since
-				// we're just following 1:1 references down
-				mock.ExpectQuery(fmtSQL(`
-					^SELECT t0.id as "t0.id",
-						t0.organization_id as "t0.organization_id",
-						t0.name as "t0.name",
-						t0.reference_id as "t0.reference_id",
-						t1.id as "t1.id",
-						t1.reference_field_id as "t1.reference_field_id",
-						t2.id as "t2.id",
-						t2.name as "t2.name",
-						t2.object_id as "t2.object_id",
-						t3.id as "t3.id",
-						t3.name as "t3.name"
-					FROM field as t0
-					JOIN
-						reference as t1 on t0.reference_id = t1.id AND t0.organization_id = t1.organization_id
-					JOIN
-						field as t2 on t1.reference_field_id = t2.id AND t1.organization_id = t2.organization_id
-					JOIN
-						object as t3 on t2.object_id = t3.id AND t2.organization_id = t3.organization_id
-					WHERE
-						t0.organization_id = $1 AND
-						t0.object_id = $2
-				`)).
-					WithArgs(orgID, orgID, "pops").
-					WillReturnRows(
-						sqlmock.NewRows([]string{
-							"t0.id",
-							"t0.name",
-							"t0.reference_id",
-							"t1.id",
-							"t1.reference_field_id",
-							"t2.id",
-							"t2.name",
-							"t2.object_id",
-							"t3.id",
-							"t3.name",
-						}).
-							AddRow( // Add a row with no references
-								"00000000-0000-0000-0000-000000000003", // t0.id
-								"field-1", // t0.name
-								"",        // t0.reference_id
-								"",        // t1.id
-								"",        // t1.reference_field_id
-								"",        // t2.id
-								"",        // t2.name
-								"",        // t2.object_id
-								"",        // t3.id
-								"",        // t3.name
-							).
-							AddRow( // And another row with references
-								"00000000-0000-0000-0000-000000000004", // t0.id
-								"field-2", // t0.name
-								"00000000-0000-0000-0000-000000000005", // t0.reference_id
-								"00000000-0000-0000-0000-000000000005", // t1.id
-								"00000000-0000-0000-0000-000000000006", // t1.reference_field_id
-								"00000000-0000-0000-0000-000000000006", // t2.id
-								"referenced-field-1",                   // t2.name
-								"00000000-0000-0000-0000-000000000007", // t2.object_id
-								"00000000-0000-0000-0000-000000000007", // t3.id
-								"referenced-object-1",                  // t3.name
-							),
-					)
-			},
-			[]interface{}{
-				vObject{
-					ID:   "00000000-0000-0000-0000-000000000002",
-					Name: "first_object",
-					Fields: []vField{
-						{
-							ID:       "00000000-0000-0000-0000-000000000003",
-							Name:     "field-1",
-							ObjectID: "00000000-0000-0000-0000-000000000002",
-						},
-						{
-							ID:       "00000000-0000-0000-0000-000000000004",
-							Name:     "field-2",
-							ObjectID: "00000000-0000-0000-0000-000000000002",
-							Reference: vReference{
-								ID: "00000000-0000-0000-0000-000000000005",
-								Field: vRefField{
-									ID:   "00000000-0000-0000-0000-000000000006",
-									Name: "referenced-field-1",
-									Object: vRefObject{
-										ID:   "00000000-0000-0000-0000-000000000007",
-										Name: "referenced-object-1",
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.description, func(t *testing.T) {
-			assert := assert.New(t)
-
-			db, mock, err := sqlmock.New()
-			if err != nil {
-				t.Fatal(err)
-			}
-			conn = db
-
-			tc.sqlmocks(mock)
-
-			// Create the Picard instance
-			p := PersistenceORM{
-				multitenancyValue: orgID,
-			}
-
-			actual, err := p.FilterModelAssociations(tc.filterModel, tc.associations)
-
-			assert.NoError(err)
-			assert.Equal(tc.expected, actual)
-
-			// sqlmock expectations
-			if err := mock.ExpectationsWereMet(); err != nil {
-				t.Errorf("there were unmet sqlmock expectations: %s", err)
-			}
-
 		})
 	}
 }
