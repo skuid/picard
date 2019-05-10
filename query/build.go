@@ -52,11 +52,14 @@ func FindChildren(db *sql.DB, mtk string, val *reflect.Value, associations []tag
 				}
 
 				filterModel := reflect.Indirect(reflect.New(structField.Type.Elem()))
-				//TODO: Get pk from model
-				pkval := val.FieldByName("ID")
+
+				pkval, ok := reflectutil.GetPK(*val)
+				if !ok {
+					return fmt.Errorf("Missing 'primary_key' tag on %v", val.Type().Name())
+				}
 
 				if fmf := filterModel.FieldByName(fk); fmf.CanSet() {
-					fmf.Set(pkval)
+					fmf.Set(*pkval)
 				} else {
 					return fmt.Errorf("Error setting 'foreign_key' field '%s' on 'child' type %v", fk, filterModel.Type())
 				}
@@ -122,28 +125,6 @@ func FindChildren(db *sql.DB, mtk string, val *reflect.Value, associations []tag
 }
 
 /*
-reflectTableInfo will return the table name and primary key name from the type
-*/
-func reflectTableInfo(typ reflect.Type) (string, string) {
-	var tblName string
-	var primaryKey string
-
-	for i := 0; i < typ.NumField(); i++ {
-		field := typ.Field(i)
-		typName := field.Type.Name()
-		ptags := tags.GetStructTagsMap(field, "picard")
-		if typName == "Metadata" {
-			tblName = ptags["tablename"]
-		}
-		if _, isPK := ptags["primary_key"]; isPK {
-			primaryKey = ptags["column"]
-		}
-	}
-
-	return tblName, primaryKey
-}
-
-/*
 getAssociation will look through the list of associations and will return one
 if it matches the name
 */
@@ -178,7 +159,7 @@ func buildQuery(
 ) (*Table, error) {
 	// Inspect current reflected value, and add select/where clauses
 
-	tableName, pkName := reflectTableInfo(modelType)
+	tableName, pkName := reflectutil.ReflectTableInfo(modelType)
 
 	tbl := NewIndexed(tableName, counter)
 
@@ -222,7 +203,7 @@ func buildQuery(
 				// Get type, load it as a model so we can build it out
 				refTyp := field.Type
 
-				refTbl, err := buildQuery(multitenancyVal, refTyp, nil, association.Associations, counter+1)
+				refTbl, err := buildQuery(multitenancyVal, refTyp, &val, association.Associations, counter+1)
 				if err != nil {
 					return nil, err
 				}

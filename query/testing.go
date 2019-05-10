@@ -18,6 +18,8 @@ func FmtSQLRegex(sql string) string {
 	str := fmtSQL(sql)
 	str = strings.Replace(str, ".", "\\.", -1)
 	str = strings.Replace(str, "$", "\\$", -1)
+	str = strings.Replace(str, "(", "\\(", -1)
+	str = strings.Replace(str, ")", "\\)", -1)
 	return fmt.Sprintf("^%s", str)
 }
 

@@ -44,7 +44,7 @@ type TestObject struct {
 	Children       []ChildTestObject          `json:"children" picard:"child,foreign_key=ParentID"`
 	ChildrenMap    map[string]ChildTestObject `json:"childrenmap" picard:"child,foreign_key=ParentID,key_mapping=Name,value_mappings=Type->OtherInfo"`
 	ParentID       string                     `picard:"foreign_key,related=Parent,column=parent_id"`
-	Parent         ParentTestObject           `validate:"-"`
+	Parent         ParentTestObject           `picard:"reference,column=parent_id"`
 	Config         Config                     `json:"config" picard:"jsonb,column=config"`
 	CreatedByID    string                     `picard:"column=created_by_id,audit=created_by"`
 	UpdatedByID    string                     `picard:"column=updated_by_id,audit=updated_by"`

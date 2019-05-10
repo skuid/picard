@@ -241,6 +241,25 @@ func (t *Table) BuildSQL() sql.SelectBuilder {
 	return bld
 }
 
+/*
+DeleteSQL returns a squirrel SelectBuilder, which can be used to execute the query
+or to just add more to the query
+*/
+func (t *Table) DeleteSQL() sql.DeleteBuilder {
+	bld := sql.Delete(fmt.Sprintf("%s AS %s", t.Name, t.Alias)).
+		PlaceholderFormat(sql.Dollar)
+
+	for _, where := range t.Wheres {
+		bld = bld.Where(sql.Eq{fmt.Sprintf(aliasedField, t.Alias, where.Field): where.Val})
+	}
+
+	// for _, join := range t.Joins {
+	// 	bld = sqlizeJoin(bld, join)
+	// }
+
+	return bld
+}
+
 func sqlizeJoin(bld sql.SelectBuilder, join Join) sql.SelectBuilder {
 
 	bld = bld.Columns(join.Columns()...)

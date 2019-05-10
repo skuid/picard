@@ -10,25 +10,11 @@ import (
 	"github.com/Masterminds/squirrel"
 	"github.com/skuid/picard/crypto"
 	"github.com/skuid/picard/query"
-	"github.com/skuid/picard/stringutil"
 	"github.com/skuid/picard/tags"
 )
 
-func (p PersistenceORM) getFilterModelResults(filterModelValue reflect.Value, filterMetadata *tags.TableMetadata) ([]interface{}, error) {
-	var zeroFields []string
-	whereClauses, joinClauses, err := p.generateWhereClausesFromModel(filterModelValue, zeroFields, filterMetadata)
-	if err != nil {
-		return nil, err
-	}
-
-	filterResults, err := p.doFilterSelect(filterModelValue.Type(), whereClauses, joinClauses, nil)
-	if err != nil {
-		return nil, err
-	}
-	return filterResults, nil
-}
-
-// FilterModels returns models that match the provided struct, multiple models can be provided
+// FilterModels returns models that match the provided struct,
+// multiple models can be provided
 func (p PersistenceORM) FilterModels(filterModels interface{}, transaction *sql.Tx) ([]interface{}, error) {
 	//TODO: Is this used anywhere? I need more context on the purpose of this call, and then to
 	// run it through the new code.
@@ -110,41 +96,6 @@ func (p PersistenceORM) FilterModelAssociations(filterModel interface{}, associa
 	return ir, nil
 }
 
-func (p PersistenceORM) processAssociations(associations []tags.Association, filterModelValue reflect.Value, filterMetadata *tags.TableMetadata, results []interface{}) error {
-	for _, association := range associations {
-		child := filterMetadata.GetChildField(association.Name)
-		foreignKey := filterMetadata.GetForeignKeyFieldFromRelation(association.Name)
-		if child != nil {
-			childType := child.FieldType.Elem()
-			childMetadata := tags.TableMetadataFromType(childType)
-			foreignKey := childMetadata.GetForeignKeyField(child.ForeignKey)
-			newFilter := reflect.New(childType)
-			if foreignKey != nil {
-				relatedField := newFilter.Elem().FieldByName(foreignKey.RelatedFieldName)
-				relatedField.Set(filterModelValue)
-			}
-			childResults, err := p.FilterModelAssociations(newFilter.Interface(), association.Associations)
-			if err != nil {
-				return err
-			}
-			populateChildResults(results, childResults, child, filterMetadata)
-		} else if foreignKey != nil {
-			relationField := filterModelValue.FieldByName(foreignKey.RelatedFieldName)
-			relationType := relationField.Type()
-			parentRelationField := foreignKey.TableMetadata.GetChildFieldFromForeignKey(foreignKey.FieldName, reflect.SliceOf(filterModelValue.Type()))
-			newFilter := reflect.New(relationType)
-			relatedField := newFilter.Elem().FieldByName(parentRelationField.FieldName)
-			relatedField.Set(reflect.Append(relatedField, filterModelValue))
-			foreignResults, err := p.FilterModelAssociations(newFilter.Interface(), association.Associations)
-			if err != nil {
-				return err
-			}
-			populateForeignKeyResults(results, foreignResults, foreignKey)
-		}
-	}
-	return nil
-}
-
 func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClauses []squirrel.Sqlizer, joinClauses []string, transaction *sql.Tx) ([]interface{}, error) {
 	var returnModels []interface{}
 	var db squirrel.BaseRunner
@@ -207,97 +158,6 @@ func (p PersistenceORM) doFilterSelect(filterModelType reflect.Type, whereClause
 	}
 
 	return returnModels, nil
-}
-
-func populateChildResults(results []interface{}, childResults []interface{}, child *tags.Child, filterMetadata *tags.TableMetadata) {
-	var parentGroupingCriteria []string
-	var childGroupingCriteria []string
-	if child.GroupingCriteria != nil {
-		parentGroupingCriteria = []string{}
-		childGroupingCriteria = []string{}
-		for childMatchKey, parentMatchKey := range child.GroupingCriteria {
-			childGroupingCriteria = append(childGroupingCriteria, childMatchKey)
-			parentGroupingCriteria = append(parentGroupingCriteria, parentMatchKey)
-		}
-	}
-
-	// Attach the results
-	for _, childResult := range childResults {
-		childValue := reflect.ValueOf(childResult)
-		var childMatchValues []reflect.Value
-		// Child Match Value
-		if childGroupingCriteria != nil {
-			for _, childMatchKey := range childGroupingCriteria {
-				matchValue := stringutil.GetValueFromLookupString(childValue, childMatchKey)
-				childMatchValues = append(childMatchValues, matchValue)
-			}
-		} else {
-
-			// Just use the foreign key as a default grouping criteria key
-			childMatchValues = append(childMatchValues, childValue.FieldByName(child.ForeignKey))
-		}
-
-		// Find the parent and attach
-		for _, parentResult := range results {
-			parentValue := reflect.ValueOf(parentResult)
-			var parentMatchValues []reflect.Value
-
-			// Parent Match Value
-			if parentGroupingCriteria != nil {
-				for _, parentMatchKey := range parentGroupingCriteria {
-					matchValue := stringutil.GetValueFromLookupString(parentValue.Elem(), parentMatchKey)
-					parentMatchValues = append(parentMatchValues, matchValue)
-				}
-			} else {
-				// Just use the primary key as a default grouping criteria match
-				parentMatchValues = append(parentMatchValues, parentValue.Elem().FieldByName(filterMetadata.GetPrimaryKeyFieldName()))
-			}
-			if parentMatchesChild(childMatchValues, parentMatchValues) {
-				parentChildRelField := parentValue.Elem().FieldByName(child.FieldName)
-				if child.FieldKind == reflect.Slice {
-					parentChildRelField.Set(reflect.Append(parentChildRelField, childValue))
-				} else if child.FieldKind == reflect.Map {
-					if parentChildRelField.IsNil() {
-						parentChildRelField.Set(reflect.MakeMap(child.FieldType))
-					}
-					keyMappingValue := stringutil.GetValueFromLookupString(childValue, child.KeyMapping)
-					parentChildRelField.SetMapIndex(keyMappingValue, childValue)
-				}
-				break
-			}
-		}
-	}
-}
-
-func parentMatchesChild(childMatchValues []reflect.Value, parentMatchValues []reflect.Value) bool {
-	if len(childMatchValues) != len(parentMatchValues) || len(childMatchValues) == 0 {
-		return false
-	}
-	for i, childMatchValue := range childMatchValues {
-		if !(childMatchValue.CanInterface() && parentMatchValues[i].CanInterface()) {
-			return false
-		}
-		if childMatchValue.Interface() != parentMatchValues[i].Interface() {
-			return false
-		}
-	}
-	return true
-}
-
-func populateForeignKeyResults(mainResults []interface{}, foreignResults []interface{}, foreignKey *tags.ForeignKey) {
-	for _, mainResult := range mainResults {
-		mainValue := reflect.ValueOf(mainResult)
-		foreignKeyValue := mainValue.Elem().FieldByName(foreignKey.FieldName)
-		for _, foreignResult := range foreignResults {
-			foreignValue := reflect.ValueOf(foreignResult)
-			primaryKeyValue := foreignValue.FieldByName(foreignKey.TableMetadata.GetPrimaryKeyFieldName())
-			if foreignKeyValue.Interface() == primaryKeyValue.Interface() {
-				relField := mainValue.Elem().FieldByName(foreignKey.RelatedFieldName)
-				relField.Set(foreignValue)
-				break
-			}
-		}
-	}
 }
 
 func hydrateModel(modelType reflect.Type, tableMetadata *tags.TableMetadata, values map[string]interface{}) reflect.Value {
