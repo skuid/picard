@@ -1,11 +1,9 @@
 package picard
 
 import (
-	"reflect"
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/Masterminds/squirrel"
 	"github.com/skuid/picard/metadata"
 	"github.com/skuid/picard/query"
 	"github.com/skuid/picard/tags"
@@ -659,213 +657,213 @@ func TestFilterModelAssociations(t *testing.T) {
 	}
 }
 
-func TestDoFilterSelectWithJSONBField(t *testing.T) {
+// func TestDoFilterSelectWithJSONBField(t *testing.T) {
 
-	testMultitenancyValue := "00000000-0000-0000-0000-000000000001"
-	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
-	testCases := []struct {
-		description          string
-		filterModelType      reflect.Type
-		whereClauses         []squirrel.Sqlizer
-		wantReturnInterfaces []interface{}
-		expectationFunction  func(sqlmock.Sqlmock)
-		wantErr              error
-	}{
-		{
-			"Should do query correctly and return correct values with single JSONB field",
-			reflect.TypeOf(modelOneFieldJSONB{}),
-			nil,
-			[]interface{}{
-				&modelOneFieldJSONB{
-					TestFieldOne: TestSerializedObject{
-						Name:               "Matt",
-						Active:             true,
-						NonSerializedField: "",
-					},
-				},
-			},
-			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
-					sqlmock.NewRows([]string{"test_column_one"}).
-						AddRow([]byte(`{"name":"Matt","active":true}`)),
-				)
-			},
-			nil,
-		},
-		{
-			"Should do query correctly and return correct values with single JSONB field and string return",
-			reflect.TypeOf(modelOneFieldJSONB{}),
-			nil,
-			[]interface{}{
-				&modelOneFieldJSONB{
-					TestFieldOne: TestSerializedObject{
-						Name:               "Matt",
-						Active:             true,
-						NonSerializedField: "",
-					},
-				},
-			},
-			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
-					sqlmock.NewRows([]string{"test_column_one"}).
-						AddRow(`{"name":"Matt","active":true}`),
-				)
-			},
-			nil,
-		},
-		{
-			"Should do query correctly and return correct values with single pointer JSONB field",
-			reflect.TypeOf(modelOnePointerFieldJSONB{}),
-			nil,
-			[]interface{}{
-				&modelOnePointerFieldJSONB{
-					TestFieldOne: &TestSerializedObject{
-						Name:               "Ben",
-						Active:             true,
-						NonSerializedField: "",
-					},
-				},
-			},
-			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
-					sqlmock.NewRows([]string{"test_column_one"}).
-						AddRow([]byte(`{"name":"Ben","active":true}`)),
-				)
-			},
-			nil,
-		},
-		{
-			"Should do query correctly and return correct values with array JSONB field",
-			reflect.TypeOf(modelOneArrayFieldJSONB{}),
-			nil,
-			[]interface{}{
-				&modelOneArrayFieldJSONB{
-					TestFieldOne: []TestSerializedObject{
-						TestSerializedObject{
-							Name:               "Matt",
-							Active:             true,
-							NonSerializedField: "",
-						},
-						TestSerializedObject{
-							Name:               "Ben",
-							Active:             true,
-							NonSerializedField: "",
-						},
-					},
-				},
-			},
-			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
-					sqlmock.NewRows([]string{"test_column_one"}).
-						AddRow([]byte(`[{"name":"Matt","active":true},{"name":"Ben","active":true}]`)),
-				)
-			},
-			nil,
-		},
-	}
+// 	testMultitenancyValue := "00000000-0000-0000-0000-000000000001"
+// 	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
+// 	testCases := []struct {
+// 		description          string
+// 		filterModelType      reflect.Type
+// 		whereClauses         []squirrel.Sqlizer
+// 		wantReturnInterfaces []interface{}
+// 		expectationFunction  func(sqlmock.Sqlmock)
+// 		wantErr              error
+// 	}{
+// 		{
+// 			"Should do query correctly and return correct values with single JSONB field",
+// 			reflect.TypeOf(modelOneFieldJSONB{}),
+// 			nil,
+// 			[]interface{}{
+// 				&modelOneFieldJSONB{
+// 					TestFieldOne: TestSerializedObject{
+// 						Name:               "Matt",
+// 						Active:             true,
+// 						NonSerializedField: "",
+// 					},
+// 				},
+// 			},
+// 			func(mock sqlmock.Sqlmock) {
+// 				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
+// 					sqlmock.NewRows([]string{"test_column_one"}).
+// 						AddRow([]byte(`{"name":"Matt","active":true}`)),
+// 				)
+// 			},
+// 			nil,
+// 		},
+// 		{
+// 			"Should do query correctly and return correct values with single JSONB field and string return",
+// 			reflect.TypeOf(modelOneFieldJSONB{}),
+// 			nil,
+// 			[]interface{}{
+// 				&modelOneFieldJSONB{
+// 					TestFieldOne: TestSerializedObject{
+// 						Name:               "Matt",
+// 						Active:             true,
+// 						NonSerializedField: "",
+// 					},
+// 				},
+// 			},
+// 			func(mock sqlmock.Sqlmock) {
+// 				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
+// 					sqlmock.NewRows([]string{"test_column_one"}).
+// 						AddRow(`{"name":"Matt","active":true}`),
+// 				)
+// 			},
+// 			nil,
+// 		},
+// 		{
+// 			"Should do query correctly and return correct values with single pointer JSONB field",
+// 			reflect.TypeOf(modelOnePointerFieldJSONB{}),
+// 			nil,
+// 			[]interface{}{
+// 				&modelOnePointerFieldJSONB{
+// 					TestFieldOne: &TestSerializedObject{
+// 						Name:               "Ben",
+// 						Active:             true,
+// 						NonSerializedField: "",
+// 					},
+// 				},
+// 			},
+// 			func(mock sqlmock.Sqlmock) {
+// 				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
+// 					sqlmock.NewRows([]string{"test_column_one"}).
+// 						AddRow([]byte(`{"name":"Ben","active":true}`)),
+// 				)
+// 			},
+// 			nil,
+// 		},
+// 		{
+// 			"Should do query correctly and return correct values with array JSONB field",
+// 			reflect.TypeOf(modelOneArrayFieldJSONB{}),
+// 			nil,
+// 			[]interface{}{
+// 				&modelOneArrayFieldJSONB{
+// 					TestFieldOne: []TestSerializedObject{
+// 						TestSerializedObject{
+// 							Name:               "Matt",
+// 							Active:             true,
+// 							NonSerializedField: "",
+// 						},
+// 						TestSerializedObject{
+// 							Name:               "Ben",
+// 							Active:             true,
+// 							NonSerializedField: "",
+// 						},
+// 					},
+// 				},
+// 			},
+// 			func(mock sqlmock.Sqlmock) {
+// 				mock.ExpectQuery("^SELECT test_table.test_column_one FROM test_table$").WillReturnRows(
+// 					sqlmock.NewRows([]string{"test_column_one"}).
+// 						AddRow([]byte(`[{"name":"Matt","active":true},{"name":"Ben","active":true}]`)),
+// 				)
+// 			},
+// 			nil,
+// 		},
+// 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.description, func(t *testing.T) {
-			db, mock, err := sqlmock.New()
-			if err != nil {
-				t.Fatal(err)
-			}
-			conn = db
+// 	for _, tc := range testCases {
+// 		t.Run(tc.description, func(t *testing.T) {
+// 			db, mock, err := sqlmock.New()
+// 			if err != nil {
+// 				t.Fatal(err)
+// 			}
+// 			conn = db
 
-			tc.expectationFunction(mock)
+// 			tc.expectationFunction(mock)
 
-			// Create the Picard instance
-			p := PersistenceORM{
-				multitenancyValue: testMultitenancyValue,
-				performedBy:       testPerformedByValue,
-			}
+// 			// Create the Picard instance
+// 			p := PersistenceORM{
+// 				multitenancyValue: testMultitenancyValue,
+// 				performedBy:       testPerformedByValue,
+// 			}
 
-			results, err := p.doFilterSelect(tc.filterModelType, tc.whereClauses, []string{}, nil)
+// 			results, err := p.doFilterSelect(tc.filterModelType, tc.whereClauses, []string{}, nil)
 
-			if tc.wantErr != nil {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.wantReturnInterfaces, results)
+// 			if tc.wantErr != nil {
+// 				assert.Error(t, err)
+// 			} else {
+// 				assert.NoError(t, err)
+// 				assert.Equal(t, tc.wantReturnInterfaces, results)
 
-				// sqlmock expectations
-				if err := mock.ExpectationsWereMet(); err != nil {
-					t.Errorf("there were unmet sqlmock expectations: %s", err)
-				}
-			}
+// 				// sqlmock expectations
+// 				if err := mock.ExpectationsWereMet(); err != nil {
+// 					t.Errorf("there were unmet sqlmock expectations: %s", err)
+// 				}
+// 			}
 
-		})
-	}
-}
+// 		})
+// 	}
+// }
 
-func TestHydrateModel(t *testing.T) {
-	testCases := []struct {
-		description     string
-		filterModelType reflect.Type
-		hydrationValues map[string]interface{}
-		wantValue       interface{}
-	}{
-		{
-			"Should hydrate columns",
-			reflect.TypeOf(modelTwoField{}),
-			map[string]interface{}{
-				"test_column_one": "column one value",
-				"test_column_two": "column two value",
-			},
-			modelTwoField{
-				TestFieldOne: "column one value",
-				TestFieldTwo: "column two value",
-			},
-		},
-		{
-			"Should hydrate multitenancy key like other columns",
-			reflect.TypeOf(modelMultitenant{}),
-			map[string]interface{}{
-				"test_multitenancy_column": "test return value",
-			},
-			modelMultitenant{
-				TestMultitenancyField: "test return value",
-			},
-		},
-		{
-			"Should hydrate primary key like other columns",
-			reflect.TypeOf(modelPK{}),
-			map[string]interface{}{
-				"primary_key_column": "primary key column value",
-			},
-			modelPK{
-				PrimaryKeyField: "primary key column value",
-			},
-		},
-		{
-			"Should not hydrate columns not provided",
-			reflect.TypeOf(modelTwoField{}),
-			map[string]interface{}{
-				"test_column_one": "column one value",
-			},
-			modelTwoField{
-				TestFieldOne: "column one value",
-				TestFieldTwo: "",
-			},
-		},
-		{
-			"Should not hydrate columns without tags",
-			reflect.TypeOf(modelTwoFieldOneTagged{}),
-			map[string]interface{}{
-				"test_column_one": "column one value",
-				"test_column_two": "column two value",
-			},
-			modelTwoFieldOneTagged{
-				TestFieldOne: "column one value",
-				TestFieldTwo: "",
-			},
-		},
-	}
+// func TestHydrateModel(t *testing.T) {
+// 	testCases := []struct {
+// 		description     string
+// 		filterModelType reflect.Type
+// 		hydrationValues map[string]interface{}
+// 		wantValue       interface{}
+// 	}{
+// 		{
+// 			"Should hydrate columns",
+// 			reflect.TypeOf(modelTwoField{}),
+// 			map[string]interface{}{
+// 				"test_column_one": "column one value",
+// 				"test_column_two": "column two value",
+// 			},
+// 			modelTwoField{
+// 				TestFieldOne: "column one value",
+// 				TestFieldTwo: "column two value",
+// 			},
+// 		},
+// 		{
+// 			"Should hydrate multitenancy key like other columns",
+// 			reflect.TypeOf(modelMultitenant{}),
+// 			map[string]interface{}{
+// 				"test_multitenancy_column": "test return value",
+// 			},
+// 			modelMultitenant{
+// 				TestMultitenancyField: "test return value",
+// 			},
+// 		},
+// 		{
+// 			"Should hydrate primary key like other columns",
+// 			reflect.TypeOf(modelPK{}),
+// 			map[string]interface{}{
+// 				"primary_key_column": "primary key column value",
+// 			},
+// 			modelPK{
+// 				PrimaryKeyField: "primary key column value",
+// 			},
+// 		},
+// 		{
+// 			"Should not hydrate columns not provided",
+// 			reflect.TypeOf(modelTwoField{}),
+// 			map[string]interface{}{
+// 				"test_column_one": "column one value",
+// 			},
+// 			modelTwoField{
+// 				TestFieldOne: "column one value",
+// 				TestFieldTwo: "",
+// 			},
+// 		},
+// 		{
+// 			"Should not hydrate columns without tags",
+// 			reflect.TypeOf(modelTwoFieldOneTagged{}),
+// 			map[string]interface{}{
+// 				"test_column_one": "column one value",
+// 				"test_column_two": "column two value",
+// 			},
+// 			modelTwoFieldOneTagged{
+// 				TestFieldOne: "column one value",
+// 				TestFieldTwo: "",
+// 			},
+// 		},
+// 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.description, func(t *testing.T) {
-			resultValue := hydrateModel(tc.filterModelType, tags.TableMetadataFromType(tc.filterModelType), tc.hydrationValues)
-			assert.True(t, reflect.DeepEqual(tc.wantValue, resultValue.Elem().Interface()))
-		})
-	}
-}
+// 	for _, tc := range testCases {
+// 		t.Run(tc.description, func(t *testing.T) {
+// 			resultValue := hydrateModel(tc.filterModelType, tags.TableMetadataFromType(tc.filterModelType), tc.hydrationValues)
+// 			assert.True(t, reflect.DeepEqual(tc.wantValue, resultValue.Elem().Interface()))
+// 		})
+// 	}
+// }

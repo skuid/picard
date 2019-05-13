@@ -121,9 +121,15 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.multitenancy_key_column = \$1 AND test_tablename.test_column_one = \$2$`).
-					WithArgs("00000000-0000-0000-0000-000000000001", "test value 1").
+				mock.ExpectExec(query.FmtSQLRegex(`
+					DELETE FROM test_tablename AS t0
+					WHERE 
+						t0.multitenancy_key_column = $1 AND
+						t0.test_column_one = $2
+				`)).
+					WithArgs(testMultitenancyValue, "test value 1").
 					WillReturnResult(sqlmock.NewResult(0, 2))
+
 				mock.ExpectCommit()
 			},
 			2,
@@ -143,7 +149,10 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.multitenancy_key_column = \$1$`).
+				mock.ExpectExec(query.FmtSQLRegex(`
+					DELETE FROM test_tablename AS t0
+					WHERE t0.multitenancy_key_column = $1
+				`)).
 					WithArgs("00000000-0000-0000-0000-000000000001").
 					WillReturnResult(sqlmock.NewResult(0, 20))
 				mock.ExpectCommit()
@@ -185,8 +194,12 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE  test_tablename.multitenancy_key_column = \$1$`).
-					WithArgs("00000000-0000-0000-0000-000000000001").
+
+				mock.ExpectExec(query.FmtSQLRegex(`
+					DELETE FROM test_tablename AS t0
+					WHERE t0.multitenancy_key_column = $1
+				`)).
+					WithArgs(testMultitenancyValue).
 					WillReturnError(errors.New("some test error 2"))
 			},
 			20,
@@ -206,8 +219,11 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.multitenancy_key_column = \$1$`).
-					WithArgs("00000000-0000-0000-0000-000000000001").
+				mock.ExpectExec(query.FmtSQLRegex(`
+					DELETE FROM test_tablename AS t0
+					WHERE t0.multitenancy_key_column = $1
+				`)).
+					WithArgs(testMultitenancyValue).
 					WillReturnResult(sqlmock.NewResult(0, 20))
 				mock.ExpectCommit().
 					WillReturnError(errors.New("some test error 3"))
@@ -217,7 +233,7 @@ func TestDeleteModel(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases[1:2] {
+	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			db, mock, err := sqlmock.New()
 			if err != nil {
