@@ -234,6 +234,8 @@ func ExpectDelete(mock *sqlmock.Sqlmock, expect ExpectationHelper, expectedIDs [
 // ExpectInsert Mocks an insert request to the database.
 func ExpectInsert(mock *sqlmock.Sqlmock, expect ExpectationHelper, columnNames []string, insertValues [][]driver.Value) [][]driver.Value {
 
+	columnNames = deDup(columnNames)
+
 	returnData := [][]driver.Value{}
 	for range columnNames {
 		returnData = append(returnData, []driver.Value{

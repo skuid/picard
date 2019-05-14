@@ -177,8 +177,6 @@ func buildQuery(
 		ptags := tags.GetStructTagsMap(field, "picard")
 		column, hasColumn := ptags["column"]
 		_, isMultitenancyColumn := ptags["multitenancy_key"]
-		// _, isPK := ptags["primary_key"]
-		// _, isFK := ptags["foreign_key"]
 		_, isReference := ptags["reference"]
 
 		if !hasColumn {
@@ -210,9 +208,7 @@ func buildQuery(
 
 				joinField := ptags["column"]
 
-				// TODO: parent field should pull PK from referenced table
 				tbl.AppendJoinTable(refTbl, pkName, joinField, "left")
-
 			}
 
 		case notZero:

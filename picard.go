@@ -282,6 +282,19 @@ func (p PersistenceORM) performUpdates(updates []dbchange.Change, tableMetadata 
 	return nil
 }
 
+func deDup(values []string) []string {
+	r := make([]string, 0, len(values))
+	seen := make(map[string]bool)
+	for _, val := range values {
+		if !seen[val] {
+			r = append(r, val)
+			seen[val] = true
+		}
+	}
+
+	return r
+}
+
 func (p PersistenceORM) performInserts(inserts []dbchange.Change, insertsHavePrimaryKey bool, tableMetadata *tags.TableMetadata) error {
 	if len(inserts) > 0 {
 
@@ -298,6 +311,8 @@ func (p PersistenceORM) performInserts(inserts []dbchange.Change, insertsHavePri
 		} else {
 			columnNames = tableMetadata.GetColumnNamesWithoutPrimaryKey()
 		}
+
+		columnNames = deDup(columnNames)
 
 		insertQuery := psql.Insert(tableName)
 		insertQuery = insertQuery.Columns(columnNames...)
@@ -571,14 +586,13 @@ func getQueryParts(tableMetadata *tags.TableMetadata, lookupsToUse []tags.Lookup
 	columns := []string{}
 	joins := []string{}
 	whereFields := []squirrel.Sqlizer{}
-	tableAlias := "t0"
 
 	for _, lookup := range lookupsToUse {
 		tableToUse := tableName
 		if lookup.TableName != "" {
 			tableToUse = lookup.TableName
 		}
-		// tableAlias := tableToUse
+		tableAlias := tableToUse
 		if lookup.JoinKey != "" && lookup.TableName != "" && tableToUse != tableName {
 			tableAlias = getTableAlias(tableToUse, lookup.JoinKey, tableAliasCache)
 			_, alreadyAddedJoin := joinMap[tableAlias]
@@ -1217,21 +1231,4 @@ func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFie
 		}
 	}
 	return lookups, nil
-}
-
-func (p PersistenceORM) generateWhereClausesFromModel(
-	filterModelValue reflect.Value,
-	zeroFields []string,
-	tableMetadata *tags.TableMetadata,
-) ([]squirrel.Sqlizer, []string, error) {
-
-	tableAliasCache := map[string]string{}
-
-	lookups, err := p.getFilterLookups(filterModelValue, zeroFields, tableMetadata, "", "", tableAliasCache)
-	if err != nil {
-		return nil, nil, err
-	}
-	_, joins, whereFields := getQueryParts(tableMetadata, lookups, tableAliasCache)
-
-	return whereFields, joins, nil
 }

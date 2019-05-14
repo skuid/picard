@@ -83,7 +83,8 @@ func setFieldValue(model *reflect.Value, field tags.FieldMetadata, value interfa
 			}
 			destinationValue := reflect.New(field.GetFieldType()).Interface()
 			json.Unmarshal([]byte(valueString), destinationValue)
-			value = reflect.Indirect(reflect.ValueOf(destinationValue)).Interface()
+			rval := reflect.Indirect(reflect.ValueOf(destinationValue))
+			model.FieldByName(field.GetName()).Set(rval)
 		}
 
 		if reflectedValue.Type().ConvertibleTo(field.GetFieldType()) {
