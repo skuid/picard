@@ -10,6 +10,7 @@ import (
 	_ "github.com/lib/pq"
 	uuid "github.com/satori/go.uuid"
 	"github.com/skuid/picard/metadata"
+	"github.com/skuid/picard/query"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -880,10 +881,20 @@ func TestDeployments(t *testing.T) {
 				})
 
 				// Expect the lookup to find orphans to delete for the first child field
-				ExpectQuery(mock, "^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id FROM childtest WHERE \\(\\(childtest.organization_id = \\$1 AND childtest.parent_id = \\$2\\)\\)$").
+				ExpectQuery(mock, query.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE ((t0.organization_id = $1 AND t0.parent_id = $2))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id"}).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001").
 							AddRow("Orphan2", "00000000-0000-0000-0000-000000000002"),
 					)
@@ -947,10 +958,20 @@ func TestDeployments(t *testing.T) {
 				})
 
 				// Expect the lookup to find orphans to delete for the first child field
-				ExpectQuery(mock, "^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id FROM childtest WHERE \\(\\(childtest.organization_id = \\$1 AND childtest.parent_id = \\$2\\)\\)$").
+				ExpectQuery(mock, query.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE ((t0.organization_id = $1 AND t0.parent_id = $2))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id"}).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001").
 							AddRow("Orphan2", "00000000-0000-0000-0000-000000000002"),
 					)
@@ -958,13 +979,24 @@ func TestDeployments(t *testing.T) {
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"})
 
 				// Expect the lookup to find orphans to delete for the second child field
-				ExpectQuery(mock, "^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id FROM childtest WHERE \\(\\(childtest.organization_id = \\$1 AND childtest.parent_id = \\$2\\)\\)$").
+				ExpectQuery(mock, query.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE ((t0.organization_id = $1 AND t0.parent_id = $2))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id"}).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001").
 							AddRow("Orphan2", "00000000-0000-0000-0000-000000000002"),
 					)
+
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"})
 			},
 			"",
@@ -1071,24 +1103,45 @@ func TestDeployments(t *testing.T) {
 				}, childReturnData)
 
 				// Expect the lookup to find orphans to delete for the first child field
-				ExpectQuery(mock, "^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id FROM childtest WHERE \\(\\(childtest.organization_id = \\$1 AND childtest.parent_id = \\$2\\)\\)$").
+				ExpectQuery(mock, query.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE ((t0.organization_id = $1 AND t0.parent_id = $2))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("ChildRecord", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000002", parentIDs[0]),
 					)
 
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000002"})
 
-				// Expect the lookup to find orphans to delete for the second child field
-				ExpectQuery(mock, "^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id FROM childtest WHERE \\(\\(childtest.organization_id = \\$1 AND childtest.parent_id = \\$2\\)\\)$").
+				ExpectQuery(mock, query.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE ((t0.organization_id = $1 AND t0.parent_id = $2))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
 							AddRow("Orphan2", "00000000-0000-0000-0000-000000000002", parentIDs[0]),
 					)
+
+				// Expect the lookup to find orphans to delete for the second child field
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"})
 			},
 			"",
@@ -1163,13 +1216,22 @@ func TestDeployments(t *testing.T) {
 				}, childReturnData)
 
 				// Expect the lookup to find orphans to delete for the first child field
-				ExpectQuery(mock, `
-								^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id
-								FROM childtest
-								WHERE \(\(childtest.organization_id = \$1 AND childtest.parent_id = \$2\) OR \(childtest.organization_id = \$3 AND childtest.parent_id = \$4\)\)$`).
+				ExpectQuery(mock, query.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE
+							((t0.organization_id = $1 AND t0.parent_id = $2) OR
+							(t0.organization_id = $3 AND t0.parent_id = $4))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[0], sampleOrgID, parentIDs[1]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("ChildRecord", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
 							AddRow("ChildRecord2", "00000000-0000-0000-0000-000000000002", parentIDs[0]).
 							AddRow("ChildRecord3", "00000000-0000-0000-0000-000000000003", parentIDs[1]).
@@ -1182,16 +1244,25 @@ func TestDeployments(t *testing.T) {
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000004", "00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000006"})
 
 				// Expect the lookup to find orphans to delete for the second child field
-				ExpectQuery(mock, `
-							^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id
-							FROM childtest
-							WHERE \(\(childtest.organization_id = \$1 AND childtest.parent_id = \$2\)\)$`).
+				ExpectQuery(mock, query.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE
+							((t0.organization_id = $1 AND t0.parent_id = $2))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
 							AddRow("Orphan2", "00000000-0000-0000-0000-000000000002", parentIDs[0]),
 					)
+
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"})
 			},
 			"",
@@ -1276,13 +1347,21 @@ func TestDeployments(t *testing.T) {
 				}, childReturnDataBatch2)
 
 				// Expect the lookup to find orphans to delete for the first child field
-				ExpectQuery(mock, `
-								^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id
-								FROM childtest
-								WHERE \(\(childtest.organization_id = \$1 AND childtest.parent_id = \$2\)\)$`).
+				ExpectQuery(mock, query.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE
+							((t0.organization_id = $1 AND t0.parent_id = $2))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("ChildRecord", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
 							AddRow("ChildRecord2", "00000000-0000-0000-0000-000000000002", parentIDs[0]).
 							// Match on name, but not parent id, still should delete
@@ -1294,16 +1373,25 @@ func TestDeployments(t *testing.T) {
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000004", "00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000006"})
 
 				// Expect the lookup to find orphans to delete for the second child field
-				ExpectQuery(mock, `
-							^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id
-							FROM childtest
-							WHERE \(\(childtest.organization_id = \$1 AND childtest.parent_id = \$2\)\)$`).
+				ExpectQuery(mock, query.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE
+							((t0.organization_id = $1 AND t0.parent_id = $2))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
 							AddRow("Orphan2", "00000000-0000-0000-0000-000000000002", parentIDs[0]),
 					)
+
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"})
 
 				ExpectLookup(mock, helper, batch2LookupKeys, batch2ReturnData)
@@ -1364,17 +1452,24 @@ func TestDeployments(t *testing.T) {
 				}, childReturnDataBatch4)
 
 				// Expect the lookup to find orphans to delete for the first child field
-				ExpectQuery(mock, `
-								^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id
-								FROM childtest
-								WHERE \(\(childtest.organization_id = \$1 AND childtest.parent_id = \$2\)\)$`).
+				ExpectQuery(mock, query.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE
+							((t0.organization_id = $1 AND t0.parent_id = $2))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[1]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("ChildRecord3", "00000000-0000-0000-0000-000000000003", parentIDs[1]).
 							AddRow("ChildRecord7", "00000000-0000-0000-0000-000000000007", parentIDs[1]),
 					)
-
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000007"})
 			},
 			"",
