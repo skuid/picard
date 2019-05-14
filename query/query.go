@@ -169,6 +169,11 @@ func (j *Join) Columns() []string {
 	return j.Table.Columns()
 }
 
+/*
+Build will turn the current join into the needed SQL, adding all of the aliases
+to the join. It will return something like:
+	t1.customer ON t1.parent_id = t0.id
+*/
 func (j *Join) Build(parentAlias string) string {
 	return fmt.Sprintf(
 		aliasedJoin,
@@ -252,10 +257,6 @@ func (t *Table) DeleteSQL() sql.DeleteBuilder {
 	for _, where := range t.Wheres {
 		bld = bld.Where(sql.Eq{fmt.Sprintf(aliasedField, t.Alias, where.Field): where.Val})
 	}
-
-	// for _, join := range t.Joins {
-	// 	bld = sqlizeJoin(bld, join)
-	// }
 
 	return bld
 }

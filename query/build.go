@@ -145,7 +145,7 @@ to generate the SQL. It takes
 - modelType: This is the reflected type of the struct used for this table's load. It
 			is used to figure out which columns to select, joins to add, and wheres.
 - modelVal: This is an instance of the struct, holding any lookup values
-- assocations: List of associations to load. For references, this will add the
+- associations: List of associations to load. For references, this will add the
 			join to the table at the correct level.
 - counter: because record keeping and aliasing is hard, we have to keep track
 			of which join we're currently looking at during the recursions.
