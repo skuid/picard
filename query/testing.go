@@ -14,6 +14,10 @@ func fmtSQL(sql string) string {
 	return strings.Trim(str, " ")
 }
 
+//FmtSQLRegex will covert a multiline/heredoc SQL statement into a REGEX version,
+// which is useful for testing mock SQL calls. This allows the user to write out
+// the SQL without worrying about tabs, newlines, and escaping characters like
+// ., $, (, ). It also adds the ^ at the beginning.
 func FmtSQLRegex(sql string) string {
 	str := fmtSQL(sql)
 	str = strings.Replace(str, ".", "\\.", -1)

@@ -1,6 +1,7 @@
 package picard
 
 import (
+	"errors"
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"

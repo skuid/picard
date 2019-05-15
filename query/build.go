@@ -41,27 +41,36 @@ func FindChildren(db *sql.DB, mtk string, val *reflect.Value, associations []tag
 
 	for _, association := range associations {
 		field := val.FieldByName(association.Name)
+
+		if !field.IsValid() {
+			return fmt.Errorf("The association '%s' was requested, but was not found in the struct of type '%v'", association.Name, typ.Name())
+		}
+
 		if structField, ok := typ.FieldByName(association.Name); ok {
 			ptags := tags.GetStructTagsMap(structField, "picard")
 
 			if _, yes := ptags["child"]; yes {
 				fk, ok := ptags["foreign_key"]
 
+				if structField.Type.Kind() != reflect.Slice || structField.Type.Kind() != reflect.Map {
+					return fmt.Errorf("Child type for the field '%v' on type '%v' must be a map or slice. Found '%v' instead", structField.Name, typ.Name(), structField.Type.Kind())
+				}
+
 				if !ok {
-					return fmt.Errorf("Missing 'foreign_key' tag on child %s", association.Name)
+					return fmt.Errorf("Missing 'foreign_key' tag on child '%s' of type '%v'", association.Name, typ.Name())
 				}
 
 				filterModel := reflect.Indirect(reflect.New(structField.Type.Elem()))
 
 				pkval, ok := reflectutil.GetPK(*val)
 				if !ok {
-					return fmt.Errorf("Missing 'primary_key' tag on %v", val.Type().Name())
+					return fmt.Errorf("Missing 'primary_key' tag on type '%v'", val.Type().Name())
 				}
 
 				if fmf := filterModel.FieldByName(fk); fmf.CanSet() {
 					fmf.Set(*pkval)
 				} else {
-					return fmt.Errorf("Error setting 'foreign_key' field '%s' on 'child' type %v", fk, filterModel.Type())
+					return fmt.Errorf("'foreign_key' field '%s' on 'child' type '%v' is not settable", fk, filterModel.Type())
 				}
 
 				tbl, err := Build(mtk, filterModel.Interface(), association.Associations)
@@ -97,7 +106,7 @@ func FindChildren(db *sql.DB, mtk string, val *reflect.Value, associations []tag
 					for _, cr := range childResults {
 						keyField, ok := ptags["key_mapping"]
 						if !ok {
-							return fmt.Errorf("Missing 'key_mapping' in the picard tags for this child field")
+							return fmt.Errorf("Missing 'key_mapping' in the picard tags for the child field type '%v'", cr.Type().Name())
 						}
 
 						key := cr.FieldByName(keyField)
