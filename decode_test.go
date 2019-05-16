@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/skuid/picard/metadata"
+	"github.com/skuid/picard/testdata"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,8 +20,8 @@ func TestUnmarshal(t *testing.T) {
 		{
 			"Unmarshal a testObject with empty object",
 			[]byte(`{}`),
-			&TestObject{},
-			&TestObject{
+			&testdata.TestObject{},
+			&testdata.TestObject{
 				Metadata: metadata.Metadata{
 					DefinedFields: []string{},
 				},
@@ -36,8 +37,8 @@ func TestUnmarshal(t *testing.T) {
 				"id":"myID",
 				"name":"myName"
 			}`),
-			&TestObject{},
-			&TestObject{
+			&testdata.TestObject{},
+			&testdata.TestObject{
 				Metadata: metadata.Metadata{
 					DefinedFields: []string{"ID", "Name"},
 				},
@@ -53,8 +54,8 @@ func TestUnmarshal(t *testing.T) {
 				"id":"myID",
 				"name":null
 			}`),
-			&TestObject{},
-			&TestObject{
+			&testdata.TestObject{},
+			&testdata.TestObject{
 				Metadata: metadata.Metadata{
 					DefinedFields: []string{"ID", "Name"},
 				},
@@ -69,8 +70,8 @@ func TestUnmarshal(t *testing.T) {
 			[]byte(`{
 				"id":"myID"
 			}`),
-			&TestObject{},
-			&TestObject{
+			&testdata.TestObject{},
+			&testdata.TestObject{
 				Metadata: metadata.Metadata{
 					DefinedFields: []string{"ID"},
 				},
@@ -89,14 +90,14 @@ func TestUnmarshal(t *testing.T) {
 						"name":"childName"
 					}]
 				}`),
-			&TestObject{},
-			&TestObject{
+			&testdata.TestObject{},
+			&testdata.TestObject{
 				Metadata: metadata.Metadata{
 					DefinedFields: []string{"ID", "Name", "Children"},
 				},
 				ID:   "anotherID",
 				Name: "anotherName",
-				Children: []ChildTestObject{
+				Children: []testdata.ChildTestObject{
 					{
 						Metadata: metadata.Metadata{
 							DefinedFields: []string{"Name"},
@@ -114,14 +115,14 @@ func TestUnmarshal(t *testing.T) {
 					"name":"anotherName",
 					"children":[{}]
 				}`),
-			&TestObject{},
-			&TestObject{
+			&testdata.TestObject{},
+			&testdata.TestObject{
 				Metadata: metadata.Metadata{
 					DefinedFields: []string{"ID", "Name", "Children"},
 				},
 				ID:   "anotherID",
 				Name: "anotherName",
-				Children: []ChildTestObject{
+				Children: []testdata.ChildTestObject{
 					{
 						Metadata: metadata.Metadata{
 							DefinedFields: []string{},
@@ -141,14 +142,14 @@ func TestUnmarshal(t *testing.T) {
 						"name":"childName"
 					}]
 				}`),
-			&TestObject{},
-			&TestObject{
+			&testdata.TestObject{},
+			&testdata.TestObject{
 				Metadata: metadata.Metadata{
 					DefinedFields: []string{"ID", "Name", "Children"},
 				},
 				ID:   "anotherID",
 				Name: "anotherName",
-				Children: []ChildTestObject{
+				Children: []testdata.ChildTestObject{
 					{
 						Metadata: metadata.Metadata{
 							DefinedFields: []string{},

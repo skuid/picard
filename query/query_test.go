@@ -3,6 +3,7 @@ package query
 import (
 	"testing"
 
+	"github.com/skuid/picard/testdata"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,7 +33,7 @@ func TestQueryColumns(t *testing.T) {
 				"col_two",
 				"col_three",
 			},
-			fmtSQL(`
+			testdata.FmtSQL(`
 				SELECT t0.col_one AS "t0.col_one",
 					t0.col_two AS "t0.col_two",
 					t0.col_three AS "t0.col_three"
@@ -87,7 +88,7 @@ func TestQueryWheres(t *testing.T) {
 					12345,
 				},
 			},
-			fmtSQL(`
+			testdata.FmtSQL(`
 				SELECT t0.col_one AS "t0.col_one",
 					t0.col_two AS "t0.col_two",
 					t0.col_three AS "t0.col_three"
@@ -118,7 +119,7 @@ func TestQueryWheres(t *testing.T) {
 					"blah blah blah",
 				},
 			},
-			fmtSQL(`
+			testdata.FmtSQL(`
 				SELECT t0.col_one AS "t0.col_one",
 					t0.col_two AS "t0.col_two",
 					t0.col_three AS "t0.col_three"
@@ -194,7 +195,7 @@ func TestQueryJoins(t *testing.T) {
 				},
 			},
 			nil,
-			fmtSQL(`
+			testdata.FmtSQL(`
 				SELECT t0.col_one AS "t0.col_one",
 					t0.col_two AS "t0.col_two",
 					t0.col_three AS "t0.col_three"
@@ -231,7 +232,7 @@ func TestQueryJoins(t *testing.T) {
 					val:   "something col 4",
 				},
 			},
-			fmtSQL(`
+			testdata.FmtSQL(`
 				SELECT t0.col_one AS "t0.col_one",
 					t0.col_two AS "t0.col_two",
 					t0.col_three AS "t0.col_three"
@@ -286,7 +287,7 @@ func TestQueryJoins(t *testing.T) {
 					val:   "something col 4",
 				},
 			},
-			fmtSQL(`
+			testdata.FmtSQL(`
 				SELECT t0.col_one AS "t0.col_one",
 					t0.col_two AS "t0.col_two",
 					t0.col_three AS "t0.col_three",
@@ -359,7 +360,7 @@ func TestQueryJoins(t *testing.T) {
 					val:   "something col 4",
 				},
 			},
-			fmtSQL(`
+			testdata.FmtSQL(`
 				SELECT t0.col_one AS "t0.col_one",
 					t0.col_two AS "t0.col_two",
 					t0.col_three AS "t0.col_three",

@@ -52,7 +52,7 @@ func FindChildren(db *sql.DB, mtk string, val *reflect.Value, associations []tag
 			if _, yes := ptags["child"]; yes {
 				fk, ok := ptags["foreign_key"]
 
-				if structField.Type.Kind() != reflect.Slice || structField.Type.Kind() != reflect.Map {
+				if structField.Type.Kind() != reflect.Slice && structField.Type.Kind() != reflect.Map {
 					return fmt.Errorf("Child type for the field '%v' on type '%v' must be a map or slice. Found '%v' instead", structField.Name, typ.Name(), structField.Type.Kind())
 				}
 

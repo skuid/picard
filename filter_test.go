@@ -1,70 +1,13 @@
 package picard
 
 import (
-	"errors"
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/skuid/picard/metadata"
-	"github.com/skuid/picard/query"
 	"github.com/skuid/picard/tags"
+	"github.com/skuid/picard/testdata"
 	"github.com/stretchr/testify/assert"
 )
-
-// These all explore relationships where a child table has an FK to the parent
-// as a 1:M relationship
-type vGrandParentModel struct {
-	Metadata       metadata.Metadata `picard:"tablename=grandparentmodel"`
-	ID             string            `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
-	Name           string            `json:"name" picard:"lookup,column=name"`
-	Age            int               `json:"age" picard:"lookup,column=age"`
-	Toys           []vToyModel       `json:"toys" picard:"child,foreign_key=ParentID"`
-	Children       []vParentModel    `json:"children" picard:"child,foreign_key=ParentID"`
-	Animals        []vPetModel       `json:"animals" picard:"child,foreign_key=ParentID"`
-}
-
-type vParentModel struct {
-	Metadata       metadata.Metadata      `picard:"tablename=parentmodel"`
-	ID             string                 `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string                 `picard:"multitenancy_key,column=organization_id"`
-	Name           string                 `json:"name" picard:"lookup,column=name"`
-	ParentID       string                 `picard:"foreign_key,lookup,required,related=GrandParent,column=parent_id"`
-	GrandParent    vGrandParentModel      `json:"parent" picard:"reference,column=parent_id"`
-	Children       []vChildModel          `json:"children" picard:"child,foreign_key=ParentID"`
-	Animals        []vPetModel            `json:"animals" picard:"child,foreign_key=ParentID"`
-	ChildrenMap    map[string]vChildModel `picard:"child,foreign_key=ParentID,key_mapping=Name"`
-}
-
-type vChildModel struct {
-	Metadata metadata.Metadata `picard:"tablename=childmodel"`
-
-	ID             string       `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string       `picard:"multitenancy_key,column=organization_id"`
-	Name           string       `json:"name" picard:"lookup,column=name"`
-	ParentID       string       `picard:"foreign_key,lookup,required,related=Parent,column=parent_id"`
-	Parent         vParentModel `json:"parent" validate:"-"`
-	Toys           []vToyModel  `json:"children" picard:"child,delete_orphans,foreign_key=ParentID"`
-}
-
-type vToyModel struct {
-	Metadata       metadata.Metadata `picard:"tablename=toymodel"`
-	ID             string            `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
-	Name           string            `json:"name" picard:"lookup,column=name"`
-	ParentID       string            `picard:"foreign_key,lookup,required,related=Parent,column=parent_id"`
-	Parent         vChildModel       `json:"parent" validate:"-"`
-}
-
-type vPetModel struct {
-	Metadata metadata.Metadata `picard:"tablename=petmodel"`
-
-	ID             string       `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string       `picard:"multitenancy_key,column=organization_id"`
-	Name           string       `json:"name" picard:"lookup,column=name"`
-	ParentID       string       `picard:"foreign_key,lookup,required,related=Parent,column=parent_id"`
-	Parent         vParentModel `json:"parent" validate:"-"`
-}
 
 func TestFilterModelAssociations(t *testing.T) {
 	orgID := "00000000-0000-0000-0000-000000000001"
@@ -78,12 +21,12 @@ func TestFilterModelAssociations(t *testing.T) {
 	}{
 		{
 			"happy path for single parent filter w/o eager loading",
-			vParentModel{
+			testdata.ParentModel{
 				Name: "pops",
 			},
 			nil,
 			[]interface{}{
-				vParentModel{
+				testdata.ParentModel{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
 					Name:           "pops",
@@ -91,7 +34,7 @@ func TestFilterModelAssociations(t *testing.T) {
 				},
 			},
 			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(query.FmtSQLRegex(`
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
 					SELECT
 						t0.id AS "t0.id",
 						t0.organization_id AS "t0.organization_id",
@@ -120,16 +63,16 @@ func TestFilterModelAssociations(t *testing.T) {
 		},
 		{
 			"happy path for multiple parent filter w/o eager loading",
-			vParentModel{},
+			testdata.ParentModel{},
 			nil,
 			[]interface{}{
-				vParentModel{
+				testdata.ParentModel{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
 					Name:           "pops",
 					ParentID:       "00000000-0000-0000-0000-000000000004",
 				},
-				vParentModel{
+				testdata.ParentModel{
 					ID:             "00000000-0000-0000-0000-000000000003",
 					OrganizationID: orgID,
 					Name:           "uncle",
@@ -137,7 +80,7 @@ func TestFilterModelAssociations(t *testing.T) {
 				},
 			},
 			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(query.FmtSQLRegex(`
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
 					SELECT
 						t0.id AS "t0.id",
 						t0.organization_id AS "t0.organization_id",
@@ -172,7 +115,7 @@ func TestFilterModelAssociations(t *testing.T) {
 		},
 		{
 			"happy path for single parent filter with eager loading parent",
-			vParentModel{
+			testdata.ParentModel{
 				Name: "pops",
 			},
 			[]tags.Association{
@@ -181,12 +124,12 @@ func TestFilterModelAssociations(t *testing.T) {
 				},
 			},
 			[]interface{}{
-				vParentModel{
+				testdata.ParentModel{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
 					Name:           "pops",
 					ParentID:       "00000000-0000-0000-0000-000000000023",
-					GrandParent: vGrandParentModel{
+					GrandParent: testdata.GrandParentModel{
 						ID:             "00000000-0000-0000-0000-000000000023",
 						OrganizationID: orgID,
 						Name:           "grandpops",
@@ -195,7 +138,7 @@ func TestFilterModelAssociations(t *testing.T) {
 				},
 			},
 			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(query.FmtSQLRegex(`
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
 					SELECT
 						t0.id AS "t0.id",
 						t0.organization_id AS "t0.organization_id",
@@ -240,7 +183,7 @@ func TestFilterModelAssociations(t *testing.T) {
 		},
 		{
 			"happy path for filtering nested results for multiple parents for eager loading multiple associations",
-			vParentModel{
+			testdata.ParentModel{
 				Name: "pops",
 			},
 			[]tags.Association{
@@ -257,18 +200,18 @@ func TestFilterModelAssociations(t *testing.T) {
 				},
 			},
 			[]interface{}{
-				vParentModel{
+				testdata.ParentModel{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
 					Name:           "pops",
 					ParentID:       "00000000-0000-0000-0000-000000000004",
-					Children: []vChildModel{
-						vChildModel{
+					Children: []testdata.ChildModel{
+						testdata.ChildModel{
 							ID:             "00000000-0000-0000-0000-000000000011",
 							OrganizationID: orgID,
 							Name:           "kiddo",
 							ParentID:       "00000000-0000-0000-0000-000000000002",
-							Toys: []vToyModel{
+							Toys: []testdata.ToyModel{
 								{
 									ID:             "00000000-0000-0000-0000-000000000022",
 									OrganizationID: orgID,
@@ -277,12 +220,12 @@ func TestFilterModelAssociations(t *testing.T) {
 								},
 							},
 						},
-						vChildModel{
+						testdata.ChildModel{
 							ID:             "00000000-0000-0000-0000-000000000012",
 							OrganizationID: orgID,
 							Name:           "another_kid",
 							ParentID:       "00000000-0000-0000-0000-000000000002",
-							Toys: []vToyModel{
+							Toys: []testdata.ToyModel{
 								{
 									ID:             "00000000-0000-0000-0000-000000000023",
 									OrganizationID: orgID,
@@ -292,7 +235,7 @@ func TestFilterModelAssociations(t *testing.T) {
 							},
 						},
 					},
-					Animals: []vPetModel{
+					Animals: []testdata.PetModel{
 						{
 							ID:             "00000000-0000-0000-0000-000000000031",
 							OrganizationID: orgID,
@@ -309,7 +252,7 @@ func TestFilterModelAssociations(t *testing.T) {
 				},
 			},
 			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(query.FmtSQLRegex(`
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
 					SELECT
 						t0.id AS "t0.id",
 						t0.organization_id AS "t0.organization_id",
@@ -334,8 +277,8 @@ func TestFilterModelAssociations(t *testing.T) {
 							),
 					)
 
-				// parent is vParentModel
-				mock.ExpectQuery(query.FmtSQLRegex(`
+				// parent is vtestdata.ParentModel
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
 					SELECT
 						t0.id AS "t0.id",
 						t0.organization_id AS "t0.organization_id",
@@ -367,7 +310,7 @@ func TestFilterModelAssociations(t *testing.T) {
 							),
 					)
 
-				tmSQL := query.FmtSQLRegex(`
+				tmSQL := testdata.FmtSQLRegex(`
 					SELECT
 						t0.id AS "t0.id",
 						t0.organization_id AS "t0.organization_id",
@@ -412,7 +355,7 @@ func TestFilterModelAssociations(t *testing.T) {
 							),
 					)
 
-				mock.ExpectQuery(query.FmtSQLRegex(`
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
 					SELECT
 						t0.id AS "t0.id",
 						t0.organization_id AS "t0.organization_id",
@@ -448,7 +391,7 @@ func TestFilterModelAssociations(t *testing.T) {
 		},
 		{
 			"happy path for filtering nested results for multiple parents for eager loading into a map with key mappings",
-			vParentModel{
+			testdata.ParentModel{
 				Name: "pops",
 			},
 			[]tags.Association{
@@ -457,13 +400,13 @@ func TestFilterModelAssociations(t *testing.T) {
 				},
 			},
 			[]interface{}{
-				vParentModel{
+				testdata.ParentModel{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
 					Name:           "pops",
 					ParentID:       "00000000-0000-0000-0000-000000000011",
-					ChildrenMap: map[string]vChildModel{
-						"kiddo": vChildModel{
+					ChildrenMap: map[string]testdata.ChildModel{
+						"kiddo": testdata.ChildModel{
 							ID:             "00000000-0000-0000-0000-000000000021",
 							OrganizationID: orgID,
 							Name:           "kiddo",
@@ -471,13 +414,13 @@ func TestFilterModelAssociations(t *testing.T) {
 						},
 					},
 				},
-				vParentModel{
+				testdata.ParentModel{
 					ID:             "00000000-0000-0000-0000-000000000003",
 					OrganizationID: orgID,
 					Name:           "uncle",
 					ParentID:       "00000000-0000-0000-0000-000000000011",
-					ChildrenMap: map[string]vChildModel{
-						"coz": vChildModel{
+					ChildrenMap: map[string]testdata.ChildModel{
+						"coz": testdata.ChildModel{
 							ID:             "00000000-0000-0000-0000-000000000022",
 							OrganizationID: orgID,
 							Name:           "coz",
@@ -487,7 +430,7 @@ func TestFilterModelAssociations(t *testing.T) {
 				},
 			},
 			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(query.FmtSQLRegex(`
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
 					SELECT
 						t0.id AS "t0.id",
 						t0.organization_id AS "t0.organization_id",
@@ -518,7 +461,7 @@ func TestFilterModelAssociations(t *testing.T) {
 							),
 					)
 
-				msql := query.FmtSQLRegex(`
+				msql := testdata.FmtSQLRegex(`
 					SELECT
 						t0.id AS "t0.id",
 						t0.organization_id AS "t0.organization_id",
@@ -621,12 +564,12 @@ func TestFilterModels(t *testing.T) {
 		{
 			"should return a single object for a filter with one filter model",
 			[]interface{}{
-				vToyModel{
+				testdata.ToyModel{
 					ParentID: "00000000-0000-0000-0000-000000000002",
 				},
 			},
 			[]interface{}{
-				vToyModel{
+				testdata.ToyModel{
 					ID:             "00000000-0000-0000-0000-000000000011",
 					OrganizationID: orgID,
 					Name:           "lego",
@@ -635,7 +578,7 @@ func TestFilterModels(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectQuery(query.FmtSQLRegex(`
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
 					SELECT
 						t0.id AS "t0.id",
 						t0.organization_id AS "t0.organization_id",
@@ -665,30 +608,30 @@ func TestFilterModels(t *testing.T) {
 		{
 			"should return a multiple objects for a filter with multiple filter models",
 			[]interface{}{
-				vToyModel{
+				testdata.ToyModel{
 					ParentID: "00000000-0000-0000-0000-000000000002",
 				},
-				vToyModel{
+				testdata.ToyModel{
 					ParentID: "00000000-0000-0000-0000-000000000003",
 				},
-				vToyModel{
+				testdata.ToyModel{
 					ParentID: "00000000-0000-0000-0000-000000000004",
 				},
 			},
 			[]interface{}{
-				vToyModel{
+				testdata.ToyModel{
 					ID:             "00000000-0000-0000-0000-000000000012",
 					OrganizationID: orgID,
 					Name:           "lego",
 					ParentID:       "00000000-0000-0000-0000-000000000002",
 				},
-				vToyModel{
+				testdata.ToyModel{
 					ID:             "00000000-0000-0000-0000-000000000013",
 					OrganizationID: orgID,
 					Name:           "transformer",
 					ParentID:       "00000000-0000-0000-0000-000000000003",
 				},
-				vToyModel{
+				testdata.ToyModel{
 					ID:             "00000000-0000-0000-0000-000000000014",
 					OrganizationID: orgID,
 					Name:           "my little pony",
@@ -697,7 +640,7 @@ func TestFilterModels(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectQuery(query.FmtSQLRegex(`
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
 					SELECT
 						t0.id AS "t0.id",
 						t0.organization_id AS "t0.organization_id",
@@ -783,63 +726,6 @@ func TestFilterModels(t *testing.T) {
 	}
 }
 
-type modelMutitenantPKWithTwoFields struct {
-	Metadata              metadata.Metadata `picard:"tablename=test_table"`
-	TestMultitenancyField string            `picard:"multitenancy_key,column=test_multitenancy_column"`
-	TestPrimaryKeyField   string            `picard:"primary_key,column=primary_key_column"`
-	TestFieldOne          string            `picard:"column=test_column_one"`
-	TestFieldTwo          string            `picard:"column=test_column_two"`
-}
-
-type modelOneField struct {
-	Metadata     metadata.Metadata `picard:"tablename=test_table"`
-	TestFieldOne string            `picard:"column=test_column_one"`
-}
-
-type modelOneFieldEncrypted struct {
-	Metadata     metadata.Metadata `picard:"tablename=test_table"`
-	TestFieldOne string            `picard:"encrypted,column=test_column_one"`
-}
-
-type modelTwoFieldEncrypted struct {
-	Metadata     metadata.Metadata `picard:"tablename=test_table"`
-	TestFieldOne string            `picard:"encrypted,column=test_column_one"`
-	TestFieldTwo string            `picard:"encrypted,column=test_column_two"`
-}
-
-type modelOneFieldJSONB struct {
-	Metadata     metadata.Metadata    `picard:"tablename=test_table"`
-	TestFieldOne TestSerializedObject `picard:"jsonb,column=test_column_one"`
-}
-
-type modelOnePointerFieldJSONB struct {
-	Metadata     metadata.Metadata     `picard:"tablename=test_table"`
-	TestFieldOne *TestSerializedObject `picard:"jsonb,column=test_column_one"`
-}
-
-type modelOneArrayFieldJSONB struct {
-	Metadata     metadata.Metadata      `picard:"tablename=test_table"`
-	TestFieldOne []TestSerializedObject `picard:"jsonb,column=test_column_one"`
-}
-
-type modelTwoField struct {
-	TestFieldOne string `picard:"column=test_column_one"`
-	TestFieldTwo string `picard:"column=test_column_two"`
-}
-
-type modelTwoFieldOneTagged struct {
-	TestFieldOne string `picard:"column=test_column_one"`
-	TestFieldTwo string
-}
-
-type modelMultitenant struct {
-	TestMultitenancyField string `picard:"multitenancy_key,column=test_multitenancy_column"`
-}
-
-type modelPK struct {
-	PrimaryKeyField string `picard:"primary_key,column=primary_key_column"`
-}
-
 func TestDoFilterSelectWithJSONBField(t *testing.T) {
 
 	testMultitenancyValue := "00000000-0000-0000-0000-000000000001"
@@ -856,7 +742,7 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 			modelOneFieldJSONB{},
 			[]interface{}{
 				modelOneFieldJSONB{
-					TestFieldOne: TestSerializedObject{
+					TestFieldOne: testdata.TestSerializedObject{
 						Name:               "Matt",
 						Active:             true,
 						NonSerializedField: "",
@@ -864,7 +750,7 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 				},
 			},
 			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(query.FmtSQLRegex(`
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
 					SELECT t0.test_column_one AS "t0.test_column_one"
 					FROM test_table AS t0
 				`)).
@@ -880,7 +766,7 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 			modelOneFieldJSONB{},
 			[]interface{}{
 				modelOneFieldJSONB{
-					TestFieldOne: TestSerializedObject{
+					TestFieldOne: testdata.TestSerializedObject{
 						Name:               "Matt",
 						Active:             true,
 						NonSerializedField: "",
@@ -888,7 +774,7 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 				},
 			},
 			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(query.FmtSQLRegex(`
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
 					SELECT t0.test_column_one AS "t0.test_column_one"
 					FROM test_table AS t0
 				`)).
@@ -904,7 +790,7 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 			modelOnePointerFieldJSONB{},
 			[]interface{}{
 				modelOnePointerFieldJSONB{
-					TestFieldOne: &TestSerializedObject{
+					TestFieldOne: &testdata.TestSerializedObject{
 						Name:               "Ben",
 						Active:             true,
 						NonSerializedField: "",
@@ -912,7 +798,7 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 				},
 			},
 			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(query.FmtSQLRegex(`
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
 					SELECT t0.test_column_one AS "t0.test_column_one"
 					FROM test_table AS t0
 				`)).
@@ -928,13 +814,13 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 			modelOneArrayFieldJSONB{},
 			[]interface{}{
 				modelOneArrayFieldJSONB{
-					TestFieldOne: []TestSerializedObject{
-						TestSerializedObject{
+					TestFieldOne: []testdata.TestSerializedObject{
+						testdata.TestSerializedObject{
 							Name:               "Matt",
 							Active:             true,
 							NonSerializedField: "",
 						},
-						TestSerializedObject{
+						testdata.TestSerializedObject{
 							Name:               "Ben",
 							Active:             true,
 							NonSerializedField: "",
@@ -943,7 +829,7 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 				},
 			},
 			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(query.FmtSQLRegex(`
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
 					SELECT t0.test_column_one AS "t0.test_column_one"
 					FROM test_table AS t0
 				`)).

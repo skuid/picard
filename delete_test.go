@@ -6,7 +6,7 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/skuid/picard/metadata"
-	"github.com/skuid/picard/query"
+	"github.com/skuid/picard/testdata"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -35,7 +35,7 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(query.FmtSQLRegex(`
+				mock.ExpectExec(testdata.FmtSQLRegex(`
 					DELETE FROM test_tablename AS t0
 					WHERE t0.primary_key_column = $1 AND t0.multitenancy_key_column = $2
 				`)).
@@ -49,13 +49,13 @@ func TestDeleteModel(t *testing.T) {
 		// Handle join filter
 		{
 			"Runs correct query when we add a join filter to the delete",
-			TestObject{
-				Parent: ParentTestObject{
+			testdata.TestObject{
+				Parent: testdata.ParentTestObject{
 					Name: "ParentName",
 				},
 			},
 			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery(query.FmtSQLRegex(`
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
 					SELECT
 						t0.id AS "t0.id",
 						t0.organization_id AS "t0.organization_id",
@@ -90,7 +90,7 @@ func TestDeleteModel(t *testing.T) {
 							AddRow("00000000-0000-0000-0000-000000000007"),
 					)
 				mock.ExpectBegin()
-				mock.ExpectExec(query.FmtSQLRegex(`
+				mock.ExpectExec(testdata.FmtSQLRegex(`
 					DELETE FROM testobject AS t0
 					WHERE
 						t0.organization_id = $1 AND
@@ -121,7 +121,7 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(query.FmtSQLRegex(`
+				mock.ExpectExec(testdata.FmtSQLRegex(`
 					DELETE FROM test_tablename AS t0
 					WHERE 
 						t0.multitenancy_key_column = $1 AND
@@ -149,7 +149,7 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(query.FmtSQLRegex(`
+				mock.ExpectExec(testdata.FmtSQLRegex(`
 					DELETE FROM test_tablename AS t0
 					WHERE t0.multitenancy_key_column = $1
 				`)).
@@ -195,7 +195,7 @@ func TestDeleteModel(t *testing.T) {
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 
-				mock.ExpectExec(query.FmtSQLRegex(`
+				mock.ExpectExec(testdata.FmtSQLRegex(`
 					DELETE FROM test_tablename AS t0
 					WHERE t0.multitenancy_key_column = $1
 				`)).
@@ -219,7 +219,7 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(query.FmtSQLRegex(`
+				mock.ExpectExec(testdata.FmtSQLRegex(`
 					DELETE FROM test_tablename AS t0
 					WHERE t0.multitenancy_key_column = $1
 				`)).

@@ -8,6 +8,7 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/skuid/picard/metadata"
 	"github.com/skuid/picard/tags"
+	"github.com/skuid/picard/testdata"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,11 +23,11 @@ func TestQueryBuilder(t *testing.T) {
 	}{
 		{
 			"should return a single table with a few columns",
-			parentModel{
+			testdata.ParentModel{
 				Name: "pops",
 			},
 			nil,
-			fmtSQL(`
+			testdata.FmtSQL(`
 				SELECT
 					t0.id AS "t0.id",
 					t0.organization_id AS "t0.organization_id",
@@ -50,7 +51,7 @@ func TestQueryBuilder(t *testing.T) {
 					Name: "ReferenceTo",
 				},
 			},
-			fmtSQL(`
+			testdata.FmtSQL(`
 				SELECT
 					t0.id AS "t0.id",
 					t0.organization_id AS "t0.organization_id",
@@ -91,7 +92,7 @@ func TestQueryBuilder(t *testing.T) {
 					},
 				},
 			},
-			fmtSQL(`
+			testdata.FmtSQL(`
 				SELECT
 					t0.id AS "t0.id",
 					t0.organization_id AS "t0.organization_id",
@@ -145,23 +146,23 @@ func TestQueryBuilder(t *testing.T) {
 }
 
 type noForeignKey struct {
-	Metadata       metadata.Metadata `picard:"tablename=parentmodel"`
-	ID             string            `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
-	Children       []childModel      `json:"children" picard:"child"`
+	Metadata       metadata.Metadata     `picard:"tablename=parentmodel"`
+	ID             string                `json:"id" picard:"primary_key,column=id"`
+	OrganizationID string                `picard:"multitenancy_key,column=organization_id"`
+	Children       []testdata.ChildModel `json:"children" picard:"child"`
 }
 
 type noPrimaryKey struct {
-	Metadata       metadata.Metadata `picard:"tablename=parentmodel"`
-	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
-	Children       []childModel      `json:"children" picard:"child,foreign_key=parent_id"`
+	Metadata       metadata.Metadata     `picard:"tablename=parentmodel"`
+	OrganizationID string                `picard:"multitenancy_key,column=organization_id"`
+	Children       []testdata.ChildModel `json:"children" picard:"child,foreign_key=parent_id"`
 }
 
 type childNotSlice struct {
-	Metadata       metadata.Metadata `picard:"tablename=parentmodel"`
-	ID             string            `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
-	Children       childModel        `json:"children" picard:"child,foreign_key=parent_id"`
+	Metadata       metadata.Metadata   `picard:"tablename=parentmodel"`
+	ID             string              `json:"id" picard:"primary_key,column=id"`
+	OrganizationID string              `picard:"multitenancy_key,column=organization_id"`
+	Children       testdata.ChildModel `json:"children" picard:"child,foreign_key=parent_id"`
 }
 
 func TestFindChildrenErrors(t *testing.T) {
@@ -174,7 +175,7 @@ func TestFindChildrenErrors(t *testing.T) {
 	}{
 		{
 			"should throw an error if an association is requested that doens't exist on the struct",
-			parentModel{
+			testdata.ParentModel{
 				ID: "1",
 			},
 			[]tags.Association{

@@ -12,6 +12,7 @@ import (
 	"github.com/skuid/picard/dbchange"
 	"github.com/skuid/picard/metadata"
 	"github.com/skuid/picard/tags"
+	"github.com/skuid/picard/testdata"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -387,13 +388,13 @@ func TestJSONBSaveModel(t *testing.T) {
 			&struct {
 				metadata.Metadata `picard:"tablename=test_tablename"`
 
-				PrimaryKeyField        string               `picard:"primary_key,column=primary_key_column"`
-				TestMultitenancyColumn string               `picard:"multitenancy_key,column=multitenancy_key_column"`
-				TestFieldOne           string               `picard:"column=test_column_one"`
-				TestFieldTwo           TestSerializedObject `picard:"jsonb,column=test_column_two"`
+				PrimaryKeyField        string                        `picard:"primary_key,column=primary_key_column"`
+				TestMultitenancyColumn string                        `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne           string                        `picard:"column=test_column_one"`
+				TestFieldTwo           testdata.TestSerializedObject `picard:"jsonb,column=test_column_two"`
 			}{
 				TestFieldOne: "test value one",
-				TestFieldTwo: TestSerializedObject{
+				TestFieldTwo: testdata.TestSerializedObject{
 					Name:               "Matt",
 					Active:             true,
 					NonSerializedField: "does not matter",
@@ -415,19 +416,19 @@ func TestJSONBSaveModel(t *testing.T) {
 			&struct {
 				metadata.Metadata `picard:"tablename=test_tablename"`
 
-				PrimaryKeyField        string                 `picard:"primary_key,column=primary_key_column"`
-				TestMultitenancyColumn string                 `picard:"multitenancy_key,column=multitenancy_key_column"`
-				TestFieldOne           string                 `picard:"column=test_column_one"`
-				TestFieldTwo           []TestSerializedObject `picard:"jsonb,column=test_column_two"`
+				PrimaryKeyField        string                          `picard:"primary_key,column=primary_key_column"`
+				TestMultitenancyColumn string                          `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne           string                          `picard:"column=test_column_one"`
+				TestFieldTwo           []testdata.TestSerializedObject `picard:"jsonb,column=test_column_two"`
 			}{
 				TestFieldOne: "test value one",
-				TestFieldTwo: []TestSerializedObject{
-					TestSerializedObject{
+				TestFieldTwo: []testdata.TestSerializedObject{
+					testdata.TestSerializedObject{
 						Name:               "Matt",
 						Active:             true,
 						NonSerializedField: "does not matter", // This field is not json serialized
 					},
-					TestSerializedObject{
+					testdata.TestSerializedObject{
 						Name:               "Ben",
 						Active:             true,
 						NonSerializedField: "does not matter again",
@@ -450,13 +451,13 @@ func TestJSONBSaveModel(t *testing.T) {
 			&struct {
 				metadata.Metadata `picard:"tablename=test_tablename"`
 
-				PrimaryKeyField        string                `picard:"primary_key,column=primary_key_column"`
-				TestMultitenancyColumn string                `picard:"multitenancy_key,column=multitenancy_key_column"`
-				TestFieldOne           string                `picard:"column=test_column_one"`
-				TestFieldTwo           *TestSerializedObject `picard:"jsonb,column=test_column_two"`
+				PrimaryKeyField        string                         `picard:"primary_key,column=primary_key_column"`
+				TestMultitenancyColumn string                         `picard:"multitenancy_key,column=multitenancy_key_column"`
+				TestFieldOne           string                         `picard:"column=test_column_one"`
+				TestFieldTwo           *testdata.TestSerializedObject `picard:"jsonb,column=test_column_two"`
 			}{
 				TestFieldOne: "test value one",
-				TestFieldTwo: &TestSerializedObject{
+				TestFieldTwo: &testdata.TestSerializedObject{
 					Name:               "Brian",
 					Active:             true,
 					NonSerializedField: "does not matter", // This field is not json serialized
