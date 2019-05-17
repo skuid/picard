@@ -93,7 +93,7 @@ type TestObject struct {
 	Children       []ChildTestObject          `json:"children" picard:"child,foreign_key=ParentID"`
 	ChildrenMap    map[string]ChildTestObject `json:"childrenmap" picard:"child,foreign_key=ParentID,key_mapping=Name,value_mappings=Type->OtherInfo"`
 	ParentID       string                     `picard:"column=parent_id"`
-	Parent         ParentTestObject           `picard:"reference,column=parent_id"`
+	Parent         ParentTestObject           `json:"parent" picard:"reference,column=parent_id" validate:"-"`
 	Config         Config                     `json:"config" picard:"jsonb,column=config"`
 	CreatedByID    string                     `picard:"column=created_by_id,audit=created_by"`
 	UpdatedByID    string                     `picard:"column=updated_by_id,audit=updated_by"`
@@ -130,10 +130,10 @@ type ChildTestObject struct {
 	OrganizationID   string     `picard:"multitenancy_key,column=organization_id"`
 	Name             string     `json:"name" picard:"lookup,column=name"`
 	OtherInfo        string     `picard:"column=other_info"`
-	ParentID         string     `picard:"required,column=parent_id"`
-	Parent           TestObject `json:"parent" picard:"reference,column=parent_id"`
+	ParentID         string     `picard:"column=parent_id"`
+	Parent           TestObject `json:"parent" picard:"reference,required,column=parent_id" validate:"-"`
 	OptionalParentID string     `picard:"column=optional_parent_id"`
-	OptionalParent   TestObject `json:"parent" picard:"reference,column=optional_parent_id"`
+	OptionalParent   TestObject `json:"optional_parent" picard:"reference,column=optional_parent_id" validate:"-"`
 }
 
 // ChildTestObjectWithKeyMap sample child object for tests
@@ -144,10 +144,10 @@ type ChildTestObjectWithKeyMap struct {
 	OrganizationID   string     `picard:"multitenancy_key,column=organization_id"`
 	Name             string     `json:"name" picard:"lookup,column=name"`
 	OtherInfo        string     `picard:"column=other_info"`
-	ParentID         string     `json:"parent" picard:"required,column=parent_id"`
-	Parent           TestObject `validate:"-" picard:"reference,column=parent_id,key_map=Name"`
+	ParentID         string     `picard:"column=parent_id"`
+	Parent           TestObject `json:"parent" picard:"reference,required,column=parent_id,key_map=Name" validate:"-"`
 	OptionalParentID string     `picard:"column=optional_parent_id"`
-	OptionalParent   TestObject `json:"optional_parent" picard:"reference,column=optional_parent_id"`
+	OptionalParent   TestObject `json:"optional_parent" picard:"reference,column=optional_parent_id" validate:"-"`
 }
 
 type TestParentSerializedObject struct {

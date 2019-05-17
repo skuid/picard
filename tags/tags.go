@@ -416,6 +416,30 @@ func TableMetadataFromType(t reflect.Type) *TableMetadata {
 			})
 		}
 
+		if isReference {
+			tableMetadata := TableMetadataFromType(field.Type)
+			foreignKeys = append(foreignKeys, ForeignKey{
+				TableMetadata:    tableMetadata,
+				FieldName:        field.Name,
+				KeyColumn:        tagsMap["column"],
+				RelatedFieldName: field.Name,
+				Required:         isRequired,
+				NeedsLookup:      isLookup,
+				KeyMapField:      tagsMap["key_map"],
+			})
+			if isRequired {
+				for _, refLookup := range tableMetadata.lookups {
+					lookups = append(lookups, Lookup{
+						TableName:           tableMetadata.tableName,
+						MatchDBColumn:       refLookup.MatchDBColumn,
+						MatchObjectProperty: field.Name + "." + refLookup.MatchObjectProperty,
+						JoinKey:             tagsMap["column"],
+					})
+
+				}
+			}
+		}
+
 		if isForeignKey {
 
 			relatedField, hasRelatedField := t.FieldByName(tagsMap["related"])

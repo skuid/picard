@@ -15,6 +15,7 @@ const (
 	aliasedField string = "%[1]v.%[2]v"
 	aliasedCol   string = "%[1]v.%[2]v AS \"%[1]v.%[2]v\""
 	aliasedJoin  string = "%[2]v AS %[1]v ON %[3]v = %[4]v"
+	coalesce     string = "COALESCE(%[1]v.%[2]v::\"varchar\",'')"
 )
 
 /*
@@ -28,6 +29,7 @@ type Table struct {
 	Alias   string
 	Name    string
 	columns []string
+	lookups map[string]interface{}
 	Joins   []Join
 	Wheres  []Where
 }
@@ -68,6 +70,7 @@ func NewIndexed(name string, index int) *Table {
 		Alias:   fmt.Sprintf("t%d", index),
 		Name:    name,
 		columns: make([]string, 0),
+		lookups: make(map[string]interface{}),
 	}
 }
 
@@ -244,6 +247,44 @@ func (t *Table) BuildSQL() sql.SelectBuilder {
 	}
 
 	return bld
+}
+
+/*
+Lookups will return all of the coalesce where clauses needed to do the lookup
+*/
+func (t *Table) Lookups() []string {
+	lookups := make([]string, 0)
+
+	for col := range t.lookups {
+		lookups = append(lookups, fmt.Sprintf(coalesce, t.Alias, col))
+	}
+
+	for _, join := range t.Joins {
+		lookups = append(lookups, join.Table.Lookups()...)
+	}
+
+	return lookups
+}
+
+/*
+LookupVals will return the filter/lookup values from the model
+*/
+func (t *Table) LookupVals() string {
+	return strings.Join(t.lookupVals(), "|")
+}
+
+func (t *Table) lookupVals() []string {
+	lookups := make([]string, 0)
+
+	for _, val := range t.lookups {
+		lookups = append(lookups, fmt.Sprintf("%v", val))
+	}
+
+	for _, join := range t.Joins {
+		lookups = append(lookups, join.Table.lookupVals()...)
+	}
+
+	return lookups
 }
 
 /*

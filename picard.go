@@ -248,7 +248,7 @@ func (p PersistenceORM) performUpdates(updates []dbchange.Change, tableMetadata 
 
 		tableName := tableMetadata.GetTableName()
 
-		columnNames := tableMetadata.GetColumnNamesWithoutPrimaryKey()
+		columnNames := deDup(tableMetadata.GetColumnNamesWithoutPrimaryKey())
 
 		primaryKeyColumnName := tableMetadata.GetPrimaryKeyColumnName()
 		multitenancyKeyColumnName := tableMetadata.GetMultitenancyKeyColumnName()
@@ -376,6 +376,12 @@ func (p PersistenceORM) checkForExisting(
 	[]tags.Lookup,
 	error,
 ) {
+
+	// results, err := p.FilterLookups(data)
+	// if err != nil {
+	// 	return nil, nil, err
+	// }
+
 	tableName := tableMetadata.GetTableName()
 	primaryKeyColumnName := tableMetadata.GetPrimaryKeyColumnName()
 	multitenancyKeyColumnName := tableMetadata.GetMultitenancyKeyColumnName()
@@ -390,6 +396,10 @@ func (p PersistenceORM) checkForExisting(
 	query := squirrel.Select(fmt.Sprintf("%v.%v", tableName, primaryKeyColumnName))
 	query = query.From(tableName)
 
+	/***************************************************************************
+	* We aren't getting the joins here anymore. Need to figure out why. Not sure
+	* if they come from getQueryParts, or when we load the table metadata.
+	 */
 	columns, joins, whereFields := getQueryParts(tableMetadata, lookupsToUse, tableAliasCache)
 
 	for _, join := range joins {
@@ -586,22 +596,37 @@ func getQueryParts(tableMetadata *tags.TableMetadata, lookupsToUse []tags.Lookup
 	columns := []string{}
 	joins := []string{}
 	whereFields := []squirrel.Sqlizer{}
+	tableAlias := tableName
+	whereSeen := make(map[string]bool)
 
 	for _, lookup := range lookupsToUse {
 		tableToUse := tableName
 		if lookup.TableName != "" {
 			tableToUse = lookup.TableName
 		}
-		tableAlias := tableToUse
+		tableAlias = tableToUse
+
 		if lookup.JoinKey != "" && lookup.TableName != "" && tableToUse != tableName {
-			tableAlias = getTableAlias(tableToUse, lookup.JoinKey, tableAliasCache)
-			_, alreadyAddedJoin := joinMap[tableAlias]
-			if !alreadyAddedJoin {
-				joinMap[tableAlias] = true
-				joins = append(joins, fmt.Sprintf("%[1]v as %[4]v on %[4]v.%[2]v = %[3]v", tableToUse, primaryKeyColumnName, lookup.JoinKey, tableAlias))
+
+			if lookup.Value != nil {
+				tableAlias = getTableAlias(tableToUse, lookup.JoinKey, tableAliasCache)
+				_, alreadyAddedJoin := joinMap[tableAlias]
+				if !alreadyAddedJoin {
+					joinMap[tableAlias] = true
+					joins = append(joins, fmt.Sprintf("%[1]v as %[4]v on %[4]v.%[2]v = %[3]v", tableToUse, primaryKeyColumnName, lookup.JoinKey, tableAlias))
+				}
+				columns = append(columns, fmt.Sprintf("%[3]v.%[2]v as %[3]v_%[2]v", tableToUse, lookup.MatchDBColumn, tableAlias))
+			} else {
+				columns = append(columns, fmt.Sprintf("%[3]v.%[2]v as %[3]v_%[2]v", tableName, lookup.JoinKey, tableName))
+				whereKey := fmt.Sprintf("%v.%v", tableName, lookup.JoinKey)
+				if !whereSeen[whereKey] {
+					whereFields = append(whereFields, squirrel.Eq{whereKey: lookup.Value})
+					whereSeen[whereKey] = true
+				}
 			}
+		} else {
+			columns = append(columns, fmt.Sprintf("%[3]v.%[2]v as %[3]v_%[2]v", tableToUse, lookup.MatchDBColumn, tableAlias))
 		}
-		columns = append(columns, fmt.Sprintf("%[3]v.%[2]v as %[3]v_%[2]v", tableToUse, lookup.MatchDBColumn, tableAlias))
 		if lookup.SubQuery != nil {
 			_, joinParts, whereParts := getQueryParts(lookup.SubQueryMetadata, lookup.SubQuery, tableAliasCache)
 			subQueryFKField := lookup.SubQueryMetadata.GetField(lookup.SubQueryForeignKey)
@@ -610,10 +635,15 @@ func getQueryParts(tableMetadata *tags.TableMetadata, lookupsToUse []tags.Lookup
 			sql, args, _ := subquery.ToSql()
 			whereFields = append(whereFields, squirrel.Expr(lookup.MatchDBColumn+" IN ("+sql+")", args...))
 		} else {
-			whereFields = append(whereFields, squirrel.Eq{fmt.Sprintf("%v.%v", tableAlias, lookup.MatchDBColumn): lookup.Value})
+			_, joinExists := joinMap[tableAlias]
+
+			if tableName == tableToUse || joinExists {
+				whereFields = append(whereFields, squirrel.Eq{fmt.Sprintf("%v.%v", tableAlias, lookup.MatchDBColumn): lookup.Value})
+			}
 		}
 	}
-	return columns, joins, whereFields
+
+	return deDup(columns), joins, whereFields
 }
 
 func createQueryFromParts(tableName string, columnNames []string, joinClauses []string, whereClauses []squirrel.Sqlizer) squirrel.SelectBuilder {
@@ -759,6 +789,7 @@ func (p PersistenceORM) generateChanges(
 
 	for i := 0; i < s.Len(); i++ {
 		value := s.Index(i)
+
 		objectKey := getObjectKeyReflect(value, lookups)
 
 		object := lookupResults[objectKey]
@@ -888,6 +919,10 @@ func (p PersistenceORM) processObject(
 
 		// Don't ever update the primary key or the multitenancy key or "create triggered" audit fields
 		if isUpdate && !field.IncludeInUpdate() {
+			continue
+		}
+
+		if field.IsReference() {
 			continue
 		}
 
@@ -1129,106 +1164,106 @@ func getColumnValues(columnNames []string, data map[string]interface{}) []interf
 	return columnValues
 }
 
-func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFields []string, parentTableMetadata *tags.TableMetadata, baseJoinKey string, joinKey string, tableAliasCache map[string]string) ([]tags.Lookup, error) {
-	filterModelType := filterModelValue.Type()
-	tableName := parentTableMetadata.GetTableName()
-	primaryKeyColumnName := parentTableMetadata.GetPrimaryKeyColumnName()
-	lookups := []tags.Lookup{}
+// func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFields []string, parentTableMetadata *tags.TableMetadata, baseJoinKey string, joinKey string, tableAliasCache map[string]string) ([]tags.Lookup, error) {
+// 	filterModelType := filterModelValue.Type()
+// 	tableName := parentTableMetadata.GetTableName()
+// 	primaryKeyColumnName := parentTableMetadata.GetPrimaryKeyColumnName()
+// 	lookups := []tags.Lookup{}
 
-	fullJoinKey := getJoinKey(baseJoinKey, joinKey)
+// 	fullJoinKey := getJoinKey(baseJoinKey, joinKey)
 
-	for i := 0; i < filterModelType.NumField(); i++ {
-		field := filterModelType.Field(i)
-		fieldValue := filterModelValue.FieldByName(field.Name)
+// 	for i := 0; i < filterModelType.NumField(); i++ {
+// 		field := filterModelType.Field(i)
+// 		fieldValue := filterModelValue.FieldByName(field.Name)
 
-		picardTags := tags.GetStructTagsMap(field, "picard")
-		column, hasColumn := picardTags["column"]
-		_, isMultitenancyColumn := picardTags["multitenancy_key"]
-		_, isChild := picardTags["child"]
+// 		picardTags := tags.GetStructTagsMap(field, "picard")
+// 		column, hasColumn := picardTags["column"]
+// 		_, isMultitenancyColumn := picardTags["multitenancy_key"]
+// 		_, isChild := picardTags["child"]
 
-		isZeroField := reflectutil.IsZeroValue(fieldValue)
+// 		isZeroField := reflectutil.IsZeroValue(fieldValue)
 
-		kind := fieldValue.Kind()
+// 		kind := fieldValue.Kind()
 
-		isZeroColumn := false
-		for _, zeroField := range zeroFields {
-			if field.Name == zeroField {
-				isZeroColumn = true
-			}
-		}
+// 		isZeroColumn := false
+// 		for _, zeroField := range zeroFields {
+// 			if field.Name == zeroField {
+// 				isZeroColumn = true
+// 			}
+// 		}
 
-		switch {
-		case hasColumn && isMultitenancyColumn:
-			lookups = append(lookups, tags.Lookup{
-				MatchDBColumn:       column,
-				MatchObjectProperty: field.Name,
-				TableName:           tableName,
-				JoinKey:             fullJoinKey,
-				Value:               p.multitenancyValue,
-			})
-		case hasColumn && !isZeroField:
-			_, isEncrypted := picardTags["encrypted"]
-			if isEncrypted {
-				return nil, errors.New("cannot perform queries with where clauses on encrypted fields")
-			}
+// 		switch {
+// 		case hasColumn && isMultitenancyColumn:
+// 			lookups = append(lookups, tags.Lookup{
+// 				MatchDBColumn:       column,
+// 				MatchObjectProperty: field.Name,
+// 				TableName:           tableName,
+// 				JoinKey:             fullJoinKey,
+// 				Value:               p.multitenancyValue,
+// 			})
+// 		case hasColumn && !isZeroField:
+// 			_, isEncrypted := picardTags["encrypted"]
+// 			if isEncrypted {
+// 				return nil, errors.New("cannot perform queries with where clauses on encrypted fields")
+// 			}
 
-			lookups = append(lookups, tags.Lookup{
-				MatchDBColumn:       column,
-				MatchObjectProperty: field.Name,
-				TableName:           tableName,
-				JoinKey:             fullJoinKey,
-				Value:               fieldValue.Interface(),
-			})
+// 			lookups = append(lookups, tags.Lookup{
+// 				MatchDBColumn:       column,
+// 				MatchObjectProperty: field.Name,
+// 				TableName:           tableName,
+// 				JoinKey:             fullJoinKey,
+// 				Value:               fieldValue.Interface(),
+// 			})
 
-		case isZeroColumn:
-			lookups = append(lookups, tags.Lookup{
-				MatchDBColumn:       column,
-				MatchObjectProperty: field.Name,
-				TableName:           tableName,
-				JoinKey:             fullJoinKey,
-				Value:               reflect.Zero(field.Type).Interface(),
-			})
-		case kind == reflect.Struct && !isZeroField:
-			foreignKeyValue := ""
-			for _, foreignKey := range parentTableMetadata.GetForeignKeys() {
-				if foreignKey.RelatedFieldName == field.Name {
-					foreignKeyValue = foreignKey.KeyColumn
-					break
-				}
-			}
+// 		case isZeroColumn:
+// 			lookups = append(lookups, tags.Lookup{
+// 				MatchDBColumn:       column,
+// 				MatchObjectProperty: field.Name,
+// 				TableName:           tableName,
+// 				JoinKey:             fullJoinKey,
+// 				Value:               reflect.Zero(field.Type).Interface(),
+// 			})
+// 		case kind == reflect.Struct && !isZeroField:
+// 			foreignKeyValue := ""
+// 			for _, foreignKey := range parentTableMetadata.GetForeignKeys() {
+// 				if foreignKey.RelatedFieldName == field.Name {
+// 					foreignKeyValue = foreignKey.KeyColumn
+// 					break
+// 				}
+// 			}
 
-			if foreignKeyValue == "" {
-				return nil, errors.New("No Foreign Key Value Found in Struct Tags")
-			}
-			relatedPicardTags := tags.TableMetadataFromType(fieldValue.Type())
-			tableAlias := getTableAlias(tableName, fullJoinKey, tableAliasCache)
-			if tableAlias == tableName {
-				tableAlias = ""
-			}
-			relatedLookups, err := p.getFilterLookups(fieldValue, []string{}, relatedPicardTags, tableAlias, foreignKeyValue, tableAliasCache)
-			if err != nil {
-				return nil, err
-			}
-			lookups = append(lookups, relatedLookups...)
-		case kind == reflect.Slice && isChild && !isZeroField:
-			foreignKeyField := picardTags["foreign_key"]
+// 			if foreignKeyValue == "" {
+// 				return nil, errors.New("No Foreign Key Value Found in Struct Tags")
+// 			}
+// 			relatedPicardTags := tags.TableMetadataFromType(fieldValue.Type())
+// 			tableAlias := getTableAlias(tableName, fullJoinKey, tableAliasCache)
+// 			if tableAlias == tableName {
+// 				tableAlias = ""
+// 			}
+// 			relatedLookups, err := p.getFilterLookups(fieldValue, []string{}, relatedPicardTags, tableAlias, foreignKeyValue, tableAliasCache)
+// 			if err != nil {
+// 				return nil, err
+// 			}
+// 			lookups = append(lookups, relatedLookups...)
+// 		case kind == reflect.Slice && isChild && !isZeroField:
+// 			foreignKeyField := picardTags["foreign_key"]
 
-			for i := 0; i < fieldValue.Len(); i++ {
-				item := fieldValue.Index(i)
-				relatedPicardTags := tags.TableMetadataFromType(item.Type())
-				subQueryLookups, err := p.getFilterLookups(item, []string{}, relatedPicardTags, "", "", tableAliasCache)
-				if err != nil {
-					return nil, err
-				}
-				lookups = append(lookups, tags.Lookup{
-					MatchDBColumn:      primaryKeyColumnName,
-					TableName:          tableName,
-					SubQuery:           subQueryLookups,
-					SubQueryForeignKey: foreignKeyField,
-					SubQueryMetadata:   relatedPicardTags,
-				})
-			}
-		}
-	}
-	return lookups, nil
-}
+// 			for i := 0; i < fieldValue.Len(); i++ {
+// 				item := fieldValue.Index(i)
+// 				relatedPicardTags := tags.TableMetadataFromType(item.Type())
+// 				subQueryLookups, err := p.getFilterLookups(item, []string{}, relatedPicardTags, "", "", tableAliasCache)
+// 				if err != nil {
+// 					return nil, err
+// 				}
+// 				lookups = append(lookups, tags.Lookup{
+// 					MatchDBColumn:      primaryKeyColumnName,
+// 					TableName:          tableName,
+// 					SubQuery:           subQueryLookups,
+// 					SubQueryForeignKey: foreignKeyField,
+// 					SubQueryMetadata:   relatedPicardTags,
+// 				})
+// 			}
+// 		}
+// 	}
+// 	return lookups, nil
+// }

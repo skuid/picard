@@ -24,7 +24,28 @@ func Build(multitenancyVal, model interface{}, associations []tags.Association) 
 
 	typ := val.Type()
 
-	tbl, err := buildQuery(multitenancyVal, typ, &val, associations, 0)
+	tbl, err := buildQuery(multitenancyVal, typ, &val, associations, false, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	return tbl, nil
+}
+
+/*
+Build takes the filter model and returns a query object. It takes the
+multitenancy value, current reflected value, and any tags
+*/
+func BuildLookups(multitenancyVal, model interface{}) (*Table, error) {
+
+	val, err := stringutil.GetStructValue(model)
+	if err != nil {
+		return nil, err
+	}
+
+	typ := val.Type()
+
+	tbl, err := buildQuery(multitenancyVal, typ, &val, nil, true, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -164,6 +185,7 @@ func buildQuery(
 	modelType reflect.Type,
 	modelVal *reflect.Value,
 	associations []tags.Association,
+	onlyLookups bool,
 	counter int,
 ) (*Table, error) {
 	// Inspect current reflected value, and add select/where clauses
@@ -186,15 +208,35 @@ func buildQuery(
 		ptags := tags.GetStructTagsMap(field, "picard")
 		column, hasColumn := ptags["column"]
 		_, isMultitenancyColumn := ptags["multitenancy_key"]
+		_, isLookup := ptags["lookup"]
 		_, isReference := ptags["reference"]
+		_, isRequired := ptags["required"]
+		_, isPrimaryKey := ptags["primary_key"]
+
+		addCol := true
+
+		if onlyLookups && !isLookup && !isPrimaryKey {
+			addCol = false
+		}
 
 		if !hasColumn {
 			continue
 		}
 
+		if onlyLookups && isLookup {
+			var lval interface{}
+
+			if notZero {
+				lval = val.Interface()
+			} else {
+				lval = ""
+			}
+			tbl.lookups[column] = lval
+		}
+
 		switch {
 		case isMultitenancyColumn:
-			if !seen[column] {
+			if addCol && !seen[column] {
 				cols = append(cols, column)
 				seen[column] = true
 			}
@@ -202,22 +244,28 @@ func buildQuery(
 		case isReference:
 			refTypName := field.Name
 
-			if association, ok := getAssociation(associations, refTypName); ok {
-				if !seen[column] {
+			association, ok := getAssociation(associations, refTypName)
+
+			if (onlyLookups && isRequired) || ok {
+				if addCol && !seen[column] {
 					cols = append(cols, column)
 					seen[column] = true
 				}
 				// Get type, load it as a model so we can build it out
 				refTyp := field.Type
 
-				refTbl, err := buildQuery(multitenancyVal, refTyp, &val, association.Associations, counter+1)
+				refTbl, err := buildQuery(multitenancyVal, refTyp, &val, association.Associations, onlyLookups, counter+1)
 				if err != nil {
 					return nil, err
 				}
 
 				joinField := ptags["column"]
 
-				tbl.AppendJoinTable(refTbl, pkName, joinField, "left")
+				direction := "left"
+				if onlyLookups {
+					direction = ""
+				}
+				tbl.AppendJoinTable(refTbl, pkName, joinField, direction)
 			}
 
 		case notZero:
@@ -229,9 +277,11 @@ func buildQuery(
 				cols = append(cols, column)
 				seen[column] = true
 			}
-			tbl.AddWhere(column, val.Interface())
+			if !onlyLookups {
+				tbl.AddWhere(column, val.Interface())
+			}
 		default:
-			if !seen[column] {
+			if addCol && !seen[column] {
 				cols = append(cols, column)
 				seen[column] = true
 			}
