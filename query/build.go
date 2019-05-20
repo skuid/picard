@@ -209,7 +209,7 @@ func buildQuery(
 		column, hasColumn := ptags["column"]
 		_, isMultitenancyColumn := ptags["multitenancy_key"]
 		_, isLookup := ptags["lookup"]
-		_, isReference := ptags["reference"]
+		_, isFk := ptags["foreign_key"]
 		_, isRequired := ptags["required"]
 		_, isPrimaryKey := ptags["primary_key"]
 
@@ -241,20 +241,27 @@ func buildQuery(
 				seen[column] = true
 			}
 			tbl.AddWhere(column, multitenancyVal)
-		case isReference:
-			refTypName := field.Name
+		case isFk:
+			// refTypName := field.Name
+			relatedName := ptags["related"]
+			relatedVal := modelVal.FieldByName(relatedName)
 
-			association, ok := getAssociation(associations, refTypName)
+			association, ok := getAssociation(associations, relatedName)
+
+			if addCol && !seen[column] {
+				cols = append(cols, column)
+				seen[column] = true
+			}
+
+			if notZero {
+				tbl.AddWhere(column, val.Interface())
+			}
 
 			if (onlyLookups && isRequired) || ok {
-				if addCol && !seen[column] {
-					cols = append(cols, column)
-					seen[column] = true
-				}
 				// Get type, load it as a model so we can build it out
-				refTyp := field.Type
+				refTyp := relatedVal.Type()
 
-				refTbl, err := buildQuery(multitenancyVal, refTyp, &val, association.Associations, onlyLookups, counter+1)
+				refTbl, err := buildQuery(multitenancyVal, refTyp, &relatedVal, association.Associations, onlyLookups, counter+1)
 				if err != nil {
 					return nil, err
 				}

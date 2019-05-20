@@ -53,18 +53,17 @@ func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter
 
 	for _, field := range meta.GetFields() {
 		fieldVal := mappedFields[field.GetColumnName()]
-		if field.IsReference() {
-
-			refTyp := field.GetFieldType()
+		setFieldValue(&model, field, fieldVal)
+		if field.IsFK() {
+			refTyp := field.GetRelatedType()
+			fmt.Printf("refTyp: %v\n", refTyp)
 			// Recursively hydrate this reference field
 			refValHydrated, err := hydrate(refTyp, mapped, counter+1)
 			if err != nil {
 				return nil, err
 			}
 
-			model.FieldByName(field.GetName()).Set(*refValHydrated)
-		} else {
-			setFieldValue(&model, field, fieldVal)
+			model.FieldByName(field.GetRelatedName()).Set(*refValHydrated)
 		}
 	}
 

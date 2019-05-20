@@ -60,7 +60,8 @@ type FieldMetadata struct {
 	isMultitenancyKey bool
 	isJSONB           bool
 	isEncrypted       bool
-	isReference       bool
+	isFK              bool
+	relatedField      reflect.StructField
 	columnName        string
 	audit             string
 	fieldType         reflect.Type
@@ -87,8 +88,8 @@ func (fm FieldMetadata) IsPrimaryKey() bool {
 }
 
 // IsReference function
-func (fm FieldMetadata) IsReference() bool {
-	return fm.isReference
+func (fm FieldMetadata) IsFK() bool {
+	return fm.isFK
 }
 
 // GetName function
@@ -104,6 +105,14 @@ func (fm FieldMetadata) GetColumnName() string {
 // GetFieldType function
 func (fm FieldMetadata) GetFieldType() reflect.Type {
 	return fm.fieldType
+}
+
+func (fm FieldMetadata) GetRelatedType() reflect.Type {
+	return fm.relatedField.Type
+}
+
+func (fm FieldMetadata) GetRelatedName() string {
+	return fm.relatedField.Name
 }
 
 // TableMetadata structure
@@ -330,7 +339,7 @@ func TableMetadataFromType(t reflect.Type) *TableMetadata {
 		_, isChild := tagsMap["child"]
 		_, isRequired := tagsMap["required"]
 		_, isForeignKey := tagsMap["foreign_key"]
-		_, isReference := tagsMap["reference"]
+		// _, isReference := tagsMap["reference"]
 		_, isEncrypted := tagsMap["encrypted"]
 		_, isJSONB := tagsMap["jsonb"]
 		auditType, _ := tagsMap["audit"]
@@ -342,6 +351,10 @@ func TableMetadataFromType(t reflect.Type) *TableMetadata {
 		}
 
 		if hasColumnName {
+			var relatedField reflect.StructField
+			if isForeignKey {
+				relatedField, _ = t.FieldByName(tagsMap["related"])
+			}
 
 			tableMetadata.fields[field.Name] = FieldMetadata{
 				name:              field.Name,
@@ -349,7 +362,8 @@ func TableMetadataFromType(t reflect.Type) *TableMetadata {
 				isJSONB:           isJSONB,
 				isMultitenancyKey: isMultitenancyKey,
 				isPrimaryKey:      isPrimaryKey,
-				isReference:       isReference,
+				isFK:              isForeignKey,
+				relatedField:      relatedField,
 				columnName:        columnName,
 				audit:             auditType,
 				fieldType:         field.Type,
@@ -414,30 +428,6 @@ func TableMetadataFromType(t reflect.Type) *TableMetadata {
 				MatchDBColumn:       tagsMap["column"],
 				MatchObjectProperty: field.Name,
 			})
-		}
-
-		if isReference {
-			tableMetadata := TableMetadataFromType(field.Type)
-			foreignKeys = append(foreignKeys, ForeignKey{
-				TableMetadata:    tableMetadata,
-				FieldName:        field.Name,
-				KeyColumn:        tagsMap["column"],
-				RelatedFieldName: field.Name,
-				Required:         isRequired,
-				NeedsLookup:      isLookup,
-				KeyMapField:      tagsMap["key_map"],
-			})
-			if isRequired {
-				for _, refLookup := range tableMetadata.lookups {
-					lookups = append(lookups, Lookup{
-						TableName:           tableMetadata.tableName,
-						MatchDBColumn:       refLookup.MatchDBColumn,
-						MatchObjectProperty: field.Name + "." + refLookup.MatchObjectProperty,
-						JoinKey:             tagsMap["column"],
-					})
-
-				}
-			}
 		}
 
 		if isForeignKey {

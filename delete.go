@@ -92,22 +92,27 @@ func getAssociationsFromValue(val reflect.Value) ([]tags.Association, error) {
 		structField := val.Type().Field(i)
 		ptags := tags.GetStructTagsMap(structField, "picard")
 
-		fieldVal := val.FieldByName(structField.Name)
+		_, isFK := ptags["foreign_key"]
 
-		_, isRef := ptags["reference"]
+		if isFK {
+			if relatedName, ok := ptags["related"]; ok {
 
-		if isRef && !reflectutil.IsZeroValue(fieldVal) {
-			fieldAssoc := tags.Association{
-				Name: structField.Name,
+				relatedVal := val.FieldByName(relatedName)
+
+				if !reflectutil.IsZeroValue(relatedVal) {
+					fieldAssoc := tags.Association{
+						Name: relatedName,
+					}
+
+					childAssocs, err := getAssociationsFromValue(relatedVal)
+					if err != nil {
+						return nil, err
+					}
+					fieldAssoc.Associations = append(fieldAssoc.Associations, childAssocs...)
+
+					associations = append(associations, fieldAssoc)
+				}
 			}
-
-			childAssocs, err := getAssociationsFromValue(fieldVal)
-			if err != nil {
-				return nil, err
-			}
-			fieldAssoc.Associations = append(fieldAssoc.Associations, childAssocs...)
-
-			associations = append(associations, fieldAssoc)
 		}
 	}
 

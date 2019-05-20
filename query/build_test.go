@@ -59,7 +59,8 @@ func TestQueryBuilder(t *testing.T) {
 					t0.object_id AS "t0.object_id",
 					t0.reference_id AS "t0.reference_id",
 					t1.id AS "t1.id",
-					t1.organization_id AS "t1.organization_id"
+					t1.organization_id AS "t1.organization_id",
+					t1.reference_field_id AS "t1.reference_field_id"
 				FROM field AS t0
 				LEFT JOIN reference_to AS t1 ON t1.id = t0.reference_id
 				WHERE
@@ -130,7 +131,7 @@ func TestQueryBuilder(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases[len(testCases)-1:] {
+	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			assert := assert.New(t)
 

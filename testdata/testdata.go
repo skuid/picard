@@ -27,8 +27,8 @@ type ParentModel struct {
 	ID             string                `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string                `picard:"multitenancy_key,column=organization_id"`
 	Name           string                `json:"name" picard:"lookup,column=name"`
-	ParentID       string                `picard:"required,column=parent_id"`
-	GrandParent    GrandParentModel      `json:"parent" picard:"reference,column=parent_id"`
+	ParentID       string                `picard:"foreign_key,lookup,required,related=GrandParent,column=parent_id"`
+	GrandParent    GrandParentModel      `json:"parent" validate:"-"`
 	Children       []ChildModel          `json:"children" picard:"child,foreign_key=ParentID"`
 	Animals        []PetModel            `json:"animals" picard:"child,foreign_key=ParentID"`
 	ChildrenMap    map[string]ChildModel `picard:"child,foreign_key=ParentID,key_mapping=Name"`
@@ -40,18 +40,19 @@ type ChildModel struct {
 	ID             string      `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string      `picard:"multitenancy_key,column=organization_id"`
 	Name           string      `json:"name" picard:"lookup,column=name"`
-	ParentID       string      `picard:"required,column=parent_id"`
-	Parent         ParentModel `json:"parent" picard:"reference,column=parent_id"`
-	Toys           []ToyModel  `json:"children" picard:"child,delete_orphans,foreign_key=ParentID"`
+	ParentID       string      `picard:"foreign_key,lookup,required,related=Parent,column=parent_id"`
+	Parent         ParentModel `json:"parent" validate:"-"`
+	Toys           []ToyModel  `json:"children" picard:"child,foreign_key=ParentID"`
 }
 
 type ToyModel struct {
-	Metadata       metadata.Metadata `picard:"tablename=toymodel"`
-	ID             string            `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
-	Name           string            `json:"name" picard:"lookup,column=name"`
-	ParentID       string            `picard:"required,column=parent_id"`
-	Parent         ChildModel        `json:"parent" picard:"reference,parent_id"`
+	Metadata metadata.Metadata `picard:"tablename=toymodel"`
+
+	ID             string     `json:"id" picard:"primary_key,column=id"`
+	OrganizationID string     `picard:"multitenancy_key,column=organization_id"`
+	Name           string     `json:"name" picard:"lookup,column=name"`
+	ParentID       string     `picard:"foreign_key,lookup,required,related=Parent,column=parent_id"`
+	Parent         ChildModel `json:"parent" validate:"-"`
 }
 
 type PetModel struct {
@@ -60,8 +61,8 @@ type PetModel struct {
 	ID             string      `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string      `picard:"multitenancy_key,column=organization_id"`
 	Name           string      `json:"name" picard:"lookup,column=name"`
-	ParentID       string      `picard:"required,column=parent_id"`
-	Parent         ParentModel `json:"parent" picard:"reference,column=parent_id"`
+	ParentID       string      `picard:"foreign_key,lookup,required,related=Parent,column=parent_id"`
+	Parent         ParentModel `json:"parent" validate:"-"`
 }
 
 // Config is a sample struct that would go in a jsonb field
@@ -92,8 +93,8 @@ type TestObject struct {
 	IsActive       bool                       `json:"is_active" picard:"column=is_active"`
 	Children       []ChildTestObject          `json:"children" picard:"child,foreign_key=ParentID"`
 	ChildrenMap    map[string]ChildTestObject `json:"childrenmap" picard:"child,foreign_key=ParentID,key_mapping=Name,value_mappings=Type->OtherInfo"`
-	ParentID       string                     `picard:"column=parent_id"`
-	Parent         ParentTestObject           `json:"parent" picard:"reference,column=parent_id" validate:"-"`
+	ParentID       string                     `picard:"foreign_key,related=Parent,column=parent_id"`
+	Parent         ParentTestObject           `validate:"-"`
 	Config         Config                     `json:"config" picard:"jsonb,column=config"`
 	CreatedByID    string                     `picard:"column=created_by_id,audit=created_by"`
 	UpdatedByID    string                     `picard:"column=updated_by_id,audit=updated_by"`
@@ -113,8 +114,8 @@ type TestObjectWithOrphans struct {
 	IsActive       bool                       `json:"is_active" picard:"column=is_active"`
 	Children       []ChildTestObject          `json:"children" picard:"child,foreign_key=ParentID,delete_orphans"`
 	ChildrenMap    map[string]ChildTestObject `json:"childrenmap" picard:"child,foreign_key=ParentID,key_mapping=Name,value_mappings=Type->OtherInfo,delete_orphans"`
-	ParentID       string                     `picard:"column=parent_id"`
-	Parent         ParentTestObject           `picard:"reference,column=parent_id"`
+	ParentID       string                     `picard:"foreign_key,related=Parent,column=parent_id"`
+	Parent         ParentTestObject           `validate:"-"`
 	Config         Config                     `json:"config" picard:"jsonb,column=config"`
 	CreatedByID    string                     `picard:"column=created_by_id,audit=created_by"`
 	UpdatedByID    string                     `picard:"column=updated_by_id,audit=updated_by"`
@@ -130,10 +131,10 @@ type ChildTestObject struct {
 	OrganizationID   string     `picard:"multitenancy_key,column=organization_id"`
 	Name             string     `json:"name" picard:"lookup,column=name"`
 	OtherInfo        string     `picard:"column=other_info"`
-	ParentID         string     `picard:"column=parent_id"`
-	Parent           TestObject `json:"parent" picard:"reference,required,column=parent_id" validate:"-"`
-	OptionalParentID string     `picard:"column=optional_parent_id"`
-	OptionalParent   TestObject `json:"optional_parent" picard:"reference,column=optional_parent_id" validate:"-"`
+	ParentID         string     `picard:"foreign_key,lookup,required,related=Parent,column=parent_id"`
+	Parent           TestObject `json:"parent" validate:"-"`
+	OptionalParentID string     `picard:"foreign_key,related=OptionalParent,column=optional_parent_id"`
+	OptionalParent   TestObject `json:"optional_parent" validate:"-"`
 }
 
 // ChildTestObjectWithKeyMap sample child object for tests
@@ -144,10 +145,10 @@ type ChildTestObjectWithKeyMap struct {
 	OrganizationID   string     `picard:"multitenancy_key,column=organization_id"`
 	Name             string     `json:"name" picard:"lookup,column=name"`
 	OtherInfo        string     `picard:"column=other_info"`
-	ParentID         string     `picard:"column=parent_id"`
-	Parent           TestObject `json:"parent" picard:"reference,required,column=parent_id,key_map=Name" validate:"-"`
-	OptionalParentID string     `picard:"column=optional_parent_id"`
-	OptionalParent   TestObject `json:"optional_parent" picard:"reference,column=optional_parent_id" validate:"-"`
+	ParentID         string     `json:"parent" picard:"foreign_key,lookup,required,related=Parent,column=parent_id,key_map=Name"`
+	Parent           TestObject `validate:"-"`
+	OptionalParentID string     `picard:"foreign_key,related=OptionalParent,column=optional_parent_id"`
+	OptionalParent   TestObject `json:"optional_parent" validate:"-"`
 }
 
 type TestParentSerializedObject struct {
@@ -157,7 +158,7 @@ type TestParentSerializedObject struct {
 	SerializedThings []TestSerializedObject `json:"serialized_things" picard:"jsonb,column=serialized_things"`
 }
 
-//TestSerializedObject sample object to be stored in a JSONB column
+// SerializedObject sample object to be stored in a JSONB column
 type TestSerializedObject struct {
 	Name               string `json:"name"`
 	Active             bool   `json:"active"`
