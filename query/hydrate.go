@@ -56,7 +56,6 @@ func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter
 		setFieldValue(&model, field, fieldVal)
 		if field.IsFK() {
 			refTyp := field.GetRelatedType()
-			fmt.Printf("refTyp: %v\n", refTyp)
 			// Recursively hydrate this reference field
 			refValHydrated, err := hydrate(refTyp, mapped, counter+1)
 			if err != nil {
