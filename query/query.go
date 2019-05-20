@@ -250,44 +250,6 @@ func (t *Table) BuildSQL() sql.SelectBuilder {
 }
 
 /*
-Lookups will return all of the coalesce where clauses needed to do the lookup
-*/
-func (t *Table) Lookups() []string {
-	lookups := make([]string, 0)
-
-	for col := range t.lookups {
-		lookups = append(lookups, fmt.Sprintf(coalesce, t.Alias, col))
-	}
-
-	for _, join := range t.Joins {
-		lookups = append(lookups, join.Table.Lookups()...)
-	}
-
-	return lookups
-}
-
-/*
-LookupVals will return the filter/lookup values from the model
-*/
-func (t *Table) LookupVals() string {
-	return strings.Join(t.lookupVals(), "|")
-}
-
-func (t *Table) lookupVals() []string {
-	lookups := make([]string, 0)
-
-	for _, val := range t.lookups {
-		lookups = append(lookups, fmt.Sprintf("%v", val))
-	}
-
-	for _, join := range t.Joins {
-		lookups = append(lookups, join.Table.lookupVals()...)
-	}
-
-	return lookups
-}
-
-/*
 DeleteSQL returns a squirrel SelectBuilder, which can be used to execute the query
 or to just add more to the query
 */

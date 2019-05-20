@@ -33,27 +33,6 @@ func Build(multitenancyVal, model interface{}, associations []tags.Association) 
 }
 
 /*
-Build takes the filter model and returns a query object. It takes the
-multitenancy value, current reflected value, and any tags
-*/
-func BuildLookups(multitenancyVal, model interface{}) (*Table, error) {
-
-	val, err := stringutil.GetStructValue(model)
-	if err != nil {
-		return nil, err
-	}
-
-	typ := val.Type()
-
-	tbl, err := buildQuery(multitenancyVal, typ, &val, nil, true, 0)
-	if err != nil {
-		return nil, err
-	}
-
-	return tbl, nil
-}
-
-/*
 FindChildren will call all child tables recursively and load them into the
 appropriate place in the object's hierarchy
 */
