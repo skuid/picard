@@ -9,13 +9,73 @@ import (
 	"strings"
 
 	"github.com/lib/pq"
+	"github.com/skuid/picard/crypto"
 	"github.com/skuid/picard/decoding"
 	"github.com/skuid/picard/metadata"
 	"github.com/skuid/picard/tags"
+	"github.com/skuid/picard/testdata"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	uuid "github.com/satori/go.uuid"
 )
+
+//Test structs for JSONB tests
+type modelMutitenantPKWithTwoFields struct {
+	Metadata              metadata.Metadata `picard:"tablename=test_table"`
+	TestMultitenancyField string            `picard:"multitenancy_key,column=test_multitenancy_column"`
+	TestPrimaryKeyField   string            `picard:"primary_key,column=primary_key_column"`
+	TestFieldOne          string            `picard:"column=test_column_one"`
+	TestFieldTwo          string            `picard:"column=test_column_two"`
+}
+
+type modelOneField struct {
+	Metadata     metadata.Metadata `picard:"tablename=test_table"`
+	TestFieldOne string            `picard:"column=test_column_one"`
+}
+
+type modelOneFieldEncrypted struct {
+	Metadata     metadata.Metadata `picard:"tablename=test_table"`
+	TestFieldOne string            `picard:"encrypted,column=test_column_one"`
+}
+
+type modelTwoFieldEncrypted struct {
+	Metadata     metadata.Metadata `picard:"tablename=test_table"`
+	TestFieldOne string            `picard:"encrypted,column=test_column_one"`
+	TestFieldTwo string            `picard:"encrypted,column=test_column_two"`
+}
+
+type modelOneFieldJSONB struct {
+	Metadata     metadata.Metadata             `picard:"tablename=test_table"`
+	TestFieldOne testdata.TestSerializedObject `picard:"jsonb,column=test_column_one"`
+}
+
+type modelOnePointerFieldJSONB struct {
+	Metadata     metadata.Metadata              `picard:"tablename=test_table"`
+	TestFieldOne *testdata.TestSerializedObject `picard:"jsonb,column=test_column_one"`
+}
+
+type modelOneArrayFieldJSONB struct {
+	Metadata     metadata.Metadata               `picard:"tablename=test_table"`
+	TestFieldOne []testdata.TestSerializedObject `picard:"jsonb,column=test_column_one"`
+}
+
+type modelTwoField struct {
+	TestFieldOne string `picard:"column=test_column_one"`
+	TestFieldTwo string `picard:"column=test_column_two"`
+}
+
+type modelTwoFieldOneTagged struct {
+	TestFieldOne string `picard:"column=test_column_one"`
+	TestFieldTwo string
+}
+
+type modelMultitenant struct {
+	TestMultitenancyField string `picard:"multitenancy_key,column=test_multitenancy_column"`
+}
+
+type modelPK struct {
+	PrimaryKeyField string `picard:"primary_key,column=primary_key_column"`
+}
 
 // LoadFixturesFromFiles creates a slice of structs from a slice of file names
 func LoadFixturesFromFiles(names []string, path string, loadType reflect.Type, jsonTagKey string) (interface{}, error) {
@@ -233,6 +293,8 @@ func ExpectDelete(mock *sqlmock.Sqlmock, expect ExpectationHelper, expectedIDs [
 // ExpectInsert Mocks an insert request to the database.
 func ExpectInsert(mock *sqlmock.Sqlmock, expect ExpectationHelper, columnNames []string, insertValues [][]driver.Value) [][]driver.Value {
 
+	columnNames = deDup(columnNames)
+
 	returnData := [][]driver.Value{}
 	for range columnNames {
 		returnData = append(returnData, []driver.Value{
@@ -329,7 +391,7 @@ func RunImportTest(testObjects interface{}, testFunction func(*sqlmock.Sqlmock, 
 		return err
 	}
 
-	SetEncryptionKey([]byte("the-key-has-to-be-32-bytes-long!"))
+	crypto.SetEncryptionKey([]byte("the-key-has-to-be-32-bytes-long!"))
 	SetConnection(db)
 
 	orgID := sampleOrgID

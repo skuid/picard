@@ -6,6 +6,7 @@ import (
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/skuid/picard/metadata"
+	"github.com/skuid/picard/testdata"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -34,7 +35,10 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.primary_key_column = \$1 AND test_tablename.multitenancy_key_column = \$2$`).
+				mock.ExpectExec(testdata.FmtSQLRegex(`
+					DELETE FROM test_tablename AS t0
+					WHERE t0.primary_key_column = $1 AND t0.multitenancy_key_column = $2
+				`)).
 					WithArgs("00000000-0000-0000-0000-000000000555", "00000000-0000-0000-0000-000000000001").
 					WillReturnResult(sqlmock.NewResult(0, 1))
 				mock.ExpectCommit()
@@ -45,22 +49,58 @@ func TestDeleteModel(t *testing.T) {
 		// Handle join filter
 		{
 			"Runs correct query when we add a join filter to the delete",
-			TestObject{
-				Parent: ParentTestObject{
+			testdata.TestObject{
+				Parent: testdata.ParentTestObject{
 					Name: "ParentName",
 				},
 			},
 			func(mock sqlmock.Sqlmock) {
-				mock.ExpectQuery("^SELECT testobject.id, testobject.organization_id, testobject.name, testobject.nullable_lookup, testobject.type, testobject.is_active, testobject.parent_id, testobject.config, testobject.created_by_id, testobject.updated_by_id, testobject.created_at, testobject.updated_at FROM testobject JOIN parenttest as t1 on t1.id = parent_id WHERE testobject.organization_id = \\$1 AND t1.organization_id = \\$2 AND t1.name = \\$3$").
-					WithArgs("00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000001", "ParentName").
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
+					SELECT
+						t0.id AS "t0.id",
+						t0.organization_id AS "t0.organization_id",
+						t0.name AS "t0.name",
+						t0.nullable_lookup AS "t0.nullable_lookup",
+						t0.type AS "t0.type",
+						t0.is_active AS "t0.is_active",
+						t0.parent_id AS "t0.parent_id",
+						t0.config AS "t0.config",
+						t0.created_by_id AS "t0.created_by_id",
+						t0.updated_by_id AS "t0.updated_by_id",
+						t0.created_at AS "t0.created_at",
+						t0.updated_at AS "t0.updated_at",
+						t1.id AS "t1.id",
+						t1.organization_id AS "t1.organization_id",
+						t1.name AS "t1.name"
+					FROM testobject AS t0
+					LEFT JOIN parenttest AS t1 ON t1.id = t0.parent_id
+					WHERE
+						t0.organization_id = $1 AND
+						t1.organization_id = $2 AND
+						t1.name = $3
+				`)).
+					WithArgs(
+						testMultitenancyValue,
+						testMultitenancyValue,
+						"ParentName",
+					).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"id"}).
+						sqlmock.NewRows([]string{"t0.id"}).
 							AddRow("00000000-0000-0000-0000-000000000005").
 							AddRow("00000000-0000-0000-0000-000000000007"),
 					)
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM testobject WHERE id IN \(\$1,\$2\) AND organization_id = \$3$`).
-					WithArgs("00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000007", "00000000-0000-0000-0000-000000000001").
+				mock.ExpectExec(testdata.FmtSQLRegex(`
+					DELETE FROM testobject AS t0
+					WHERE
+						t0.organization_id = $1 AND
+						t0.id IN ($2,$3)
+				`)).
+					WithArgs(
+						testMultitenancyValue,
+						"00000000-0000-0000-0000-000000000005",
+						"00000000-0000-0000-0000-000000000007",
+					).
 					WillReturnResult(sqlmock.NewResult(0, 1))
 				mock.ExpectCommit()
 			},
@@ -81,9 +121,15 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.multitenancy_key_column = \$1 AND test_tablename.test_column_one = \$2$`).
-					WithArgs("00000000-0000-0000-0000-000000000001", "test value 1").
+				mock.ExpectExec(testdata.FmtSQLRegex(`
+					DELETE FROM test_tablename AS t0
+					WHERE 
+						t0.multitenancy_key_column = $1 AND
+						t0.test_column_one = $2
+				`)).
+					WithArgs(testMultitenancyValue, "test value 1").
 					WillReturnResult(sqlmock.NewResult(0, 2))
+
 				mock.ExpectCommit()
 			},
 			2,
@@ -103,7 +149,10 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.multitenancy_key_column = \$1$`).
+				mock.ExpectExec(testdata.FmtSQLRegex(`
+					DELETE FROM test_tablename AS t0
+					WHERE t0.multitenancy_key_column = $1
+				`)).
 					WithArgs("00000000-0000-0000-0000-000000000001").
 					WillReturnResult(sqlmock.NewResult(0, 20))
 				mock.ExpectCommit()
@@ -145,8 +194,12 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE  test_tablename.multitenancy_key_column = \$1$`).
-					WithArgs("00000000-0000-0000-0000-000000000001").
+
+				mock.ExpectExec(testdata.FmtSQLRegex(`
+					DELETE FROM test_tablename AS t0
+					WHERE t0.multitenancy_key_column = $1
+				`)).
+					WithArgs(testMultitenancyValue).
 					WillReturnError(errors.New("some test error 2"))
 			},
 			20,
@@ -166,8 +219,11 @@ func TestDeleteModel(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				mock.ExpectExec(`^DELETE FROM test_tablename WHERE test_tablename.multitenancy_key_column = \$1$`).
-					WithArgs("00000000-0000-0000-0000-000000000001").
+				mock.ExpectExec(testdata.FmtSQLRegex(`
+					DELETE FROM test_tablename AS t0
+					WHERE t0.multitenancy_key_column = $1
+				`)).
+					WithArgs(testMultitenancyValue).
 					WillReturnResult(sqlmock.NewResult(0, 20))
 				mock.ExpectCommit().
 					WillReturnError(errors.New("some test error 3"))
