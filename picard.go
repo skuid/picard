@@ -159,6 +159,10 @@ func (p PersistenceORM) upsert(data interface{}, deleteFilters interface{}) erro
 			for _, update := range changeSet.Updates {
 				updateKeyMap[update.Key] = true
 			}
+
+			for _, insert := range changeSet.Inserts {
+				updateKeyMap[insert.Key] = true
+			}
 		}
 
 		for _, result := range deleteResults {
