@@ -4,119 +4,16 @@ import (
 	"database/sql/driver"
 	"reflect"
 	"testing"
-	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/Masterminds/squirrel"
 	_ "github.com/lib/pq"
 	uuid "github.com/satori/go.uuid"
-	"github.com/skuid/picard/metadata"
-	"github.com/skuid/picard/tags"
+	"github.com/skuid/picard/testdata"
 	"github.com/stretchr/testify/assert"
 )
 
-// Config is a sample struct that would go in a jsonb field
-type Config struct {
-	ConfigA string
-	ConfigB string
-}
-
-// ParentTestObject sample parent object for tests
-type ParentTestObject struct {
-	Metadata metadata.Metadata `picard:"tablename=parenttest"`
-
-	ID             string       `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string       `picard:"multitenancy_key,column=organization_id"`
-	Name           string       `json:"name" picard:"column=name"`
-	Children       []TestObject `json:"children" picard:"child,foreign_key=ParentID"`
-}
-
-// TestObject sample parent object for tests
-type TestObject struct {
-	Metadata metadata.Metadata `picard:"tablename=testobject"`
-
-	ID             string                     `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string                     `picard:"multitenancy_key,column=organization_id"`
-	Name           string                     `json:"name" picard:"lookup,column=name" validate:"required"`
-	NullableLookup string                     `json:"nullableLookup" picard:"lookup,column=nullable_lookup"`
-	Type           string                     `json:"type" picard:"column=type"`
-	IsActive       bool                       `json:"is_active" picard:"column=is_active"`
-	Children       []ChildTestObject          `json:"children" picard:"child,foreign_key=ParentID"`
-	ChildrenMap    map[string]ChildTestObject `json:"childrenmap" picard:"child,foreign_key=ParentID,key_mapping=Name,value_mappings=Type->OtherInfo"`
-	ParentID       string                     `picard:"foreign_key,related=Parent,column=parent_id"`
-	Parent         ParentTestObject           `validate:"-"`
-	Config         Config                     `json:"config" picard:"jsonb,column=config"`
-	CreatedByID    string                     `picard:"column=created_by_id,audit=created_by"`
-	UpdatedByID    string                     `picard:"column=updated_by_id,audit=updated_by"`
-	CreatedDate    time.Time                  `picard:"column=created_at,audit=created_at"`
-	UpdatedDate    time.Time                  `picard:"column=updated_at,audit=updated_at"`
-}
-
-// TestObject sample parent object for tests
-type TestObjectWithOrphans struct {
-	Metadata metadata.Metadata `picard:"tablename=testobject"`
-
-	ID             string                     `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string                     `picard:"multitenancy_key,column=organization_id"`
-	Name           string                     `json:"name" picard:"lookup,column=name" validate:"required"`
-	NullableLookup string                     `json:"nullableLookup" picard:"lookup,column=nullable_lookup"`
-	Type           string                     `json:"type" picard:"column=type"`
-	IsActive       bool                       `json:"is_active" picard:"column=is_active"`
-	Children       []ChildTestObject          `json:"children" picard:"child,foreign_key=ParentID,delete_orphans"`
-	ChildrenMap    map[string]ChildTestObject `json:"childrenmap" picard:"child,foreign_key=ParentID,key_mapping=Name,value_mappings=Type->OtherInfo,delete_orphans"`
-	ParentID       string                     `picard:"foreign_key,related=Parent,column=parent_id"`
-	Parent         ParentTestObject           `validate:"-"`
-	Config         Config                     `json:"config" picard:"jsonb,column=config"`
-	CreatedByID    string                     `picard:"column=created_by_id,audit=created_by"`
-	UpdatedByID    string                     `picard:"column=updated_by_id,audit=updated_by"`
-	CreatedDate    time.Time                  `picard:"column=created_at,audit=created_at"`
-	UpdatedDate    time.Time                  `picard:"column=updated_at,audit=updated_at"`
-}
-
-// ChildTestObject sample child object for tests
-type ChildTestObject struct {
-	Metadata metadata.Metadata `picard:"tablename=childtest"`
-
-	ID               string     `json:"id" picard:"primary_key,column=id"`
-	OrganizationID   string     `picard:"multitenancy_key,column=organization_id"`
-	Name             string     `json:"name" picard:"lookup,column=name"`
-	OtherInfo        string     `picard:"column=other_info"`
-	ParentID         string     `picard:"foreign_key,lookup,required,related=Parent,column=parent_id"`
-	Parent           TestObject `json:"parent" validate:"-"`
-	OptionalParentID string     `picard:"foreign_key,related=OptionalParent,column=optional_parent_id"`
-	OptionalParent   TestObject `json:"optional_parent" validate:"-"`
-}
-
-// ChildTestObjectWithKeyMap sample child object for tests
-type ChildTestObjectWithKeyMap struct {
-	Metadata metadata.Metadata `picard:"tablename=childtest"`
-
-	ID               string     `json:"id" picard:"primary_key,column=id"`
-	OrganizationID   string     `picard:"multitenancy_key,column=organization_id"`
-	Name             string     `json:"name" picard:"lookup,column=name"`
-	OtherInfo        string     `picard:"column=other_info"`
-	ParentID         string     `json:"parent" picard:"foreign_key,lookup,required,related=Parent,column=parent_id,key_map=Name"`
-	Parent           TestObject `validate:"-"`
-	OptionalParentID string     `picard:"foreign_key,related=OptionalParent,column=optional_parent_id"`
-	OptionalParent   TestObject `json:"optional_parent" validate:"-"`
-}
-
-type TestParentSerializedObject struct {
-	Metadata metadata.Metadata `picard:"tablename=parent_serialize"`
-
-	ID               string                 `json:"id" picard:"primary_key,column=id"`
-	SerializedThings []TestSerializedObject `json:"serialized_things" picard:"jsonb,column=serialized_things"`
-}
-
-// SerializedObject sample object to be stored in a JSONB column
-type TestSerializedObject struct {
-	Name               string `json:"name"`
-	Active             bool   `json:"active"`
-	NonSerializedField string `json:"-"`
-}
-
 var parentObjectHelper = ExpectationHelper{
-	FixtureType:      ParentTestObject{},
+	FixtureType:      testdata.ParentTestObject{},
 	LookupSelect:     "",
 	LookupWhere:      "",
 	LookupReturnCols: []string{},
@@ -124,7 +21,7 @@ var parentObjectHelper = ExpectationHelper{
 }
 
 var testObjectHelper = ExpectationHelper{
-	FixtureType:      TestObject{},
+	FixtureType:      testdata.TestObject{},
 	LookupSelect:     "testobject.id, testobject.name as testobject_name, testobject.nullable_lookup as testobject_nullable_lookup",
 	LookupWhere:      `COALESCE(testobject.name::"varchar",'') || '|' || COALESCE(testobject.nullable_lookup::"varchar",'')`,
 	LookupReturnCols: []string{"id", "testobject_name", "testobject_nullable_lookup"},
@@ -132,7 +29,7 @@ var testObjectHelper = ExpectationHelper{
 }
 
 var testObjectWithPKHelper = ExpectationHelper{
-	FixtureType:      TestObject{},
+	FixtureType:      testdata.TestObject{},
 	LookupSelect:     "testobject.id, testobject.id as testobject_id",
 	LookupWhere:      `COALESCE(testobject.id::"varchar",'')`,
 	LookupReturnCols: []string{"id", "testobject_id"},
@@ -140,7 +37,7 @@ var testObjectWithPKHelper = ExpectationHelper{
 }
 
 var testChildObjectHelper = ExpectationHelper{
-	FixtureType:      ChildTestObject{},
+	FixtureType:      testdata.ChildTestObject{},
 	LookupSelect:     "childtest.id, childtest.name as childtest_name, childtest.parent_id as childtest_parent_id",
 	LookupWhere:      `COALESCE(childtest.name::"varchar",'') || '|' || COALESCE(childtest.parent_id::"varchar",'')`,
 	LookupReturnCols: []string{"id", "childtest_name", "childtest_parent_id"},
@@ -148,7 +45,7 @@ var testChildObjectHelper = ExpectationHelper{
 }
 
 var testChildObjectWithLookupHelper = ExpectationHelper{
-	FixtureType:      ChildTestObject{},
+	FixtureType:      testdata.ChildTestObject{},
 	LookupFrom:       "childtest JOIN testobject as t1 on t1.id = parent_id",
 	LookupSelect:     "childtest.id, childtest.name as childtest_name, t1.name as t1_name, t1.nullable_lookup as t1_nullable_lookup",
 	LookupWhere:      `COALESCE(childtest.name::"varchar",'') || '|' || COALESCE(t1.name::"varchar",'') || '|' || COALESCE(t1.nullable_lookup::"varchar",'')`,
@@ -170,7 +67,7 @@ func TestSerializeJSONBColumns(t *testing.T) {
 				"column_one",
 			},
 			giveObject: map[string]interface{}{
-				"column_one": TestSerializedObject{
+				"column_one": testdata.TestSerializedObject{
 					Name:               "Matt",
 					Active:             true,
 					NonSerializedField: "is this the real life?",
@@ -224,7 +121,7 @@ func TestDeployments(t *testing.T) {
 		{
 			"Single Import with Primary Key with Nothing Existing",
 			[]string{"SimpleWithPrimaryKey"},
-			TestObject{},
+			testdata.TestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
 				helper := testObjectWithPKHelper
@@ -253,7 +150,7 @@ func TestDeployments(t *testing.T) {
 		{
 			"Single Import with Primary Key That Already Exists",
 			[]string{"SimpleWithPrimaryKey"},
-			TestObject{},
+			testdata.TestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
 				helper := testObjectWithPKHelper
@@ -277,7 +174,7 @@ func TestDeployments(t *testing.T) {
 		{
 			"Single Import with Nothing Existing",
 			[]string{"Simple"},
-			TestObject{},
+			testdata.TestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
 				helper := testObjectHelper
@@ -305,7 +202,7 @@ func TestDeployments(t *testing.T) {
 		{
 			"Single Import with That Already Exists",
 			[]string{"Simple"},
-			TestObject{},
+			testdata.TestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
 				helper := testObjectHelper
@@ -330,7 +227,7 @@ func TestDeployments(t *testing.T) {
 		{
 			"Single Import Missing Required Field",
 			[]string{"Empty"},
-			TestObject{},
+			testdata.TestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {},
 			"Key: 'TestObject.Name' Error:Field validation for 'Name' failed on the 'required' tag",
@@ -338,7 +235,7 @@ func TestDeployments(t *testing.T) {
 		{
 			"Single Import with Null Matches Existing value with a Null lookup",
 			[]string{"Simple"},
-			TestObject{},
+			testdata.TestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
 				helper := testObjectHelper
@@ -369,7 +266,7 @@ func TestDeployments(t *testing.T) {
 		{
 			"Multiple Import with Nothing Existing",
 			[]string{"Simple", "Simple2"},
-			TestObject{},
+			testdata.TestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
 				helper := testObjectHelper
@@ -410,7 +307,7 @@ func TestDeployments(t *testing.T) {
 		{
 			"Multiple Import with Both Already Exist",
 			[]string{"Simple", "Simple2"},
-			TestObject{},
+			testdata.TestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
 				helper := testObjectHelper
@@ -442,12 +339,12 @@ func TestDeployments(t *testing.T) {
 		{
 			"Multiple Import with One Already Exists",
 			[]string{"Simple", "Simple2"},
-			TestObject{},
+			testdata.TestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				helper := testObjectHelper
-				fixtures := fixturesAbstract.([]TestObject)
-				returnData := GetReturnDataForLookup(helper, []TestObject{
+				fixtures := fixturesAbstract.([]testdata.TestObject)
+				returnData := GetReturnDataForLookup(helper, []testdata.TestObject{
 					fixtures[0],
 				})
 				lookupKeys := GetLookupKeys(helper, fixtures)
@@ -485,10 +382,10 @@ func TestDeployments(t *testing.T) {
 		{
 			"Single Import with GrandChildren All Inserts",
 			[]string{"SimpleWithGrandChildren"},
-			ParentTestObject{},
+			testdata.ParentTestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				fixtures := fixturesAbstract.([]ParentTestObject)
+				fixtures := fixturesAbstract.([]testdata.ParentTestObject)
 				insertRows := ExpectInsert(mock, parentObjectHelper, parentObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
 						sampleOrgID,
@@ -496,7 +393,7 @@ func TestDeployments(t *testing.T) {
 					},
 				})
 
-				testObjects := []TestObject{}
+				testObjects := []testdata.TestObject{}
 				for index, fixture := range fixtures {
 					for _, testObject := range fixture.Children {
 						testObject.ParentID = insertRows[index][0].(string)
@@ -524,7 +421,7 @@ func TestDeployments(t *testing.T) {
 					},
 				})
 
-				childObjects := []ChildTestObject{}
+				childObjects := []testdata.ChildTestObject{}
 				for index, fixture := range fixtures {
 					for _, childObject := range fixture.Children[0].Children {
 						childObject.ParentID = childInsertRows[index][0].(string)
@@ -550,10 +447,10 @@ func TestDeployments(t *testing.T) {
 		{
 			"Single Import with Children Insert New Parent",
 			[]string{"SimpleWithChildren"},
-			TestObject{},
+			testdata.TestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				fixtures := fixturesAbstract.([]TestObject)
+				fixtures := fixturesAbstract.([]testdata.TestObject)
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
 				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
 				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
@@ -573,7 +470,7 @@ func TestDeployments(t *testing.T) {
 					},
 				})
 
-				childObjects := []ChildTestObject{}
+				childObjects := []testdata.ChildTestObject{}
 				for index, fixture := range fixtures {
 					for _, childObject := range fixture.Children {
 						childObject.ParentID = insertRows[index][0].(string)
@@ -606,10 +503,10 @@ func TestDeployments(t *testing.T) {
 		{
 			"Single Import with Children Insert New Parent Small Batch Size",
 			[]string{"SimpleWithChildren"},
-			TestObject{},
+			testdata.TestObject{},
 			1,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				fixtures := fixturesAbstract.([]TestObject)
+				fixtures := fixturesAbstract.([]testdata.TestObject)
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
 				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
 				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
@@ -629,7 +526,7 @@ func TestDeployments(t *testing.T) {
 					},
 				})
 
-				childObjects := []ChildTestObject{}
+				childObjects := []testdata.ChildTestObject{}
 				for index, fixture := range fixtures {
 					for _, childObject := range fixture.Children {
 						childObject.ParentID = insertRows[index][0].(string)
@@ -638,7 +535,7 @@ func TestDeployments(t *testing.T) {
 				}
 
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
-				childLookupKeysBatch1 := GetLookupKeys(testChildObjectHelper, []ChildTestObject{
+				childLookupKeysBatch1 := GetLookupKeys(testChildObjectHelper, []testdata.ChildTestObject{
 					childObjects[0],
 				})
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeysBatch1, childReturnData)
@@ -651,7 +548,7 @@ func TestDeployments(t *testing.T) {
 						nil,
 					},
 				})
-				childLookupKeysBatch2 := GetLookupKeys(testChildObjectHelper, []ChildTestObject{
+				childLookupKeysBatch2 := GetLookupKeys(testChildObjectHelper, []testdata.ChildTestObject{
 					childObjects[1],
 				})
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeysBatch2, childReturnData)
@@ -670,10 +567,10 @@ func TestDeployments(t *testing.T) {
 		{
 			"Single Import with Children Insert New Parent And Orphans",
 			[]string{"SimpleWithChildren"},
-			TestObjectWithOrphans{},
+			testdata.TestObjectWithOrphans{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				fixtures := fixturesAbstract.([]TestObjectWithOrphans)
+				fixtures := fixturesAbstract.([]testdata.TestObjectWithOrphans)
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
 				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
 				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
@@ -693,7 +590,7 @@ func TestDeployments(t *testing.T) {
 					},
 				})
 
-				childObjects := []ChildTestObject{}
+				childObjects := []testdata.ChildTestObject{}
 				for index, fixture := range fixtures {
 					for _, childObject := range fixture.Children {
 						childObject.ParentID = insertRows[index][0].(string)
@@ -726,10 +623,10 @@ func TestDeployments(t *testing.T) {
 		{
 			"Single Import with ChildrenMap Insert New Parent",
 			[]string{"SimpleWithChildrenMap"},
-			TestObject{},
+			testdata.TestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				fixtures := fixturesAbstract.([]TestObject)
+				fixtures := fixturesAbstract.([]testdata.TestObject)
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
 				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
 				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
@@ -748,7 +645,7 @@ func TestDeployments(t *testing.T) {
 						sqlmock.AnyArg(),
 					},
 				})
-				childObjects := []ChildTestObject{}
+				childObjects := []testdata.ChildTestObject{}
 				for index, fixture := range fixtures {
 					for _, childObject := range fixture.ChildrenMap {
 						childObject.ParentID = insertRows[index][0].(string)
@@ -777,11 +674,11 @@ func TestDeployments(t *testing.T) {
 		{
 			"Single Import with Children Existing Parent",
 			[]string{"SimpleWithChildren"},
-			TestObject{},
+			testdata.TestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				helper := testObjectHelper
-				fixtures := fixturesAbstract.([]TestObject)
+				fixtures := fixturesAbstract.([]testdata.TestObject)
 				returnData := GetReturnDataForLookup(helper, fixtures)
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
@@ -796,7 +693,7 @@ func TestDeployments(t *testing.T) {
 					},
 				}, returnData)
 
-				childObjects := []ChildTestObject{}
+				childObjects := []testdata.ChildTestObject{}
 				for index, fixture := range fixtures {
 					for _, childObject := range fixture.Children {
 						childObject.ParentID = returnData[index][0].(string)
@@ -829,11 +726,11 @@ func TestDeployments(t *testing.T) {
 		{
 			"Single Import with Children Existing Parent With Orphans",
 			[]string{"SimpleWithChildren"},
-			TestObjectWithOrphans{},
+			testdata.TestObjectWithOrphans{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				helper := testObjectHelper
-				fixtures := fixturesAbstract.([]TestObjectWithOrphans)
+				fixtures := fixturesAbstract.([]testdata.TestObjectWithOrphans)
 				returnData := GetReturnDataForLookup(helper, fixtures)
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
@@ -849,7 +746,7 @@ func TestDeployments(t *testing.T) {
 				}, returnData)
 
 				parentIDs := []string{}
-				childObjects := []ChildTestObject{}
+				childObjects := []testdata.ChildTestObject{}
 				for index, fixture := range fixtures {
 					parentID := returnData[index][0].(string)
 					parentIDs = append(parentIDs, parentID)
@@ -882,10 +779,20 @@ func TestDeployments(t *testing.T) {
 				})
 
 				// Expect the lookup to find orphans to delete for the first child field
-				ExpectQuery(mock, "^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id FROM childtest WHERE \\(\\(childtest.organization_id = \\$1 AND childtest.parent_id = \\$2\\)\\)$").
+				ExpectQuery(mock, testdata.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE ((t0.organization_id = $1 AND t0.parent_id = $2))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id"}).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001").
 							AddRow("Orphan2", "00000000-0000-0000-0000-000000000002"),
 					)
@@ -897,11 +804,11 @@ func TestDeployments(t *testing.T) {
 		{
 			"Single Import with Children Existing Parent With Orphans And Empty Children Map",
 			[]string{"SimpleWithChildrenAndChildrenMap"},
-			TestObjectWithOrphans{},
+			testdata.TestObjectWithOrphans{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				helper := testObjectHelper
-				fixtures := fixturesAbstract.([]TestObjectWithOrphans)
+				fixtures := fixturesAbstract.([]testdata.TestObjectWithOrphans)
 				returnData := GetReturnDataForLookup(helper, fixtures)
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
@@ -917,7 +824,7 @@ func TestDeployments(t *testing.T) {
 				}, returnData)
 
 				parentIDs := []string{}
-				childObjects := []ChildTestObject{}
+				childObjects := []testdata.ChildTestObject{}
 				for index, fixture := range fixtures {
 					parentID := returnData[index][0].(string)
 					parentIDs = append(parentIDs, parentID)
@@ -949,10 +856,20 @@ func TestDeployments(t *testing.T) {
 				})
 
 				// Expect the lookup to find orphans to delete for the first child field
-				ExpectQuery(mock, "^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id FROM childtest WHERE \\(\\(childtest.organization_id = \\$1 AND childtest.parent_id = \\$2\\)\\)$").
+				ExpectQuery(mock, testdata.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE ((t0.organization_id = $1 AND t0.parent_id = $2))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id"}).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001").
 							AddRow("Orphan2", "00000000-0000-0000-0000-000000000002"),
 					)
@@ -960,13 +877,24 @@ func TestDeployments(t *testing.T) {
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"})
 
 				// Expect the lookup to find orphans to delete for the second child field
-				ExpectQuery(mock, "^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id FROM childtest WHERE \\(\\(childtest.organization_id = \\$1 AND childtest.parent_id = \\$2\\)\\)$").
+				ExpectQuery(mock, testdata.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE ((t0.organization_id = $1 AND t0.parent_id = $2))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id"}).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001").
 							AddRow("Orphan2", "00000000-0000-0000-0000-000000000002"),
 					)
+
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"})
 			},
 			"",
@@ -974,11 +902,11 @@ func TestDeployments(t *testing.T) {
 		{
 			"Single Import with Children Existing Parent and Existing Child",
 			[]string{"SimpleWithChildren"},
-			TestObject{},
+			testdata.TestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				helper := testObjectHelper
-				fixtures := fixturesAbstract.([]TestObject)
+				fixtures := fixturesAbstract.([]testdata.TestObject)
 				returnData := GetReturnDataForLookup(helper, fixtures)
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
@@ -993,7 +921,7 @@ func TestDeployments(t *testing.T) {
 					},
 				}, returnData)
 
-				childObjects := []ChildTestObject{}
+				childObjects := []testdata.ChildTestObject{}
 				for index, fixture := range fixtures {
 					for _, childObject := range fixture.Children {
 						childObject.ParentID = returnData[index][0].(string)
@@ -1023,11 +951,11 @@ func TestDeployments(t *testing.T) {
 		{
 			"Single Import with Children Existing Parent and Existing Child With Orphans",
 			[]string{"SimpleWithChildrenAndChildrenMap"},
-			TestObjectWithOrphans{},
+			testdata.TestObjectWithOrphans{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				helper := testObjectHelper
-				fixtures := fixturesAbstract.([]TestObjectWithOrphans)
+				fixtures := fixturesAbstract.([]testdata.TestObjectWithOrphans)
 				returnData := GetReturnDataForLookup(helper, fixtures)
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
@@ -1043,7 +971,7 @@ func TestDeployments(t *testing.T) {
 				}, returnData)
 
 				parentIDs := []string{}
-				childObjects := []ChildTestObject{}
+				childObjects := []testdata.ChildTestObject{}
 				for index, fixture := range fixtures {
 					parentID := returnData[index][0].(string)
 					parentIDs = append(parentIDs, parentID)
@@ -1073,24 +1001,45 @@ func TestDeployments(t *testing.T) {
 				}, childReturnData)
 
 				// Expect the lookup to find orphans to delete for the first child field
-				ExpectQuery(mock, "^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id FROM childtest WHERE \\(\\(childtest.organization_id = \\$1 AND childtest.parent_id = \\$2\\)\\)$").
+				ExpectQuery(mock, testdata.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE ((t0.organization_id = $1 AND t0.parent_id = $2))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("ChildRecord", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000002", parentIDs[0]),
 					)
 
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000002"})
 
-				// Expect the lookup to find orphans to delete for the second child field
-				ExpectQuery(mock, "^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id FROM childtest WHERE \\(\\(childtest.organization_id = \\$1 AND childtest.parent_id = \\$2\\)\\)$").
+				ExpectQuery(mock, testdata.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE ((t0.organization_id = $1 AND t0.parent_id = $2))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
 							AddRow("Orphan2", "00000000-0000-0000-0000-000000000002", parentIDs[0]),
 					)
+
+				// Expect the lookup to find orphans to delete for the second child field
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"})
 			},
 			"",
@@ -1098,11 +1047,11 @@ func TestDeployments(t *testing.T) {
 		{
 			"Multiple Import with Children Existing Parent and Existing Child With Orphans",
 			[]string{"SimpleWithChildrenAndChildrenMap", "SimpleWithChildren2"},
-			TestObjectWithOrphans{},
+			testdata.TestObjectWithOrphans{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				helper := testObjectHelper
-				fixtures := fixturesAbstract.([]TestObjectWithOrphans)
+				fixtures := fixturesAbstract.([]testdata.TestObjectWithOrphans)
 				returnData := GetReturnDataForLookup(helper, fixtures)
 				lookupKeys := GetLookupKeys(helper, fixtures)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
@@ -1125,7 +1074,7 @@ func TestDeployments(t *testing.T) {
 				}, returnData)
 
 				parentIDs := []string{}
-				childObjects := []ChildTestObject{}
+				childObjects := []testdata.ChildTestObject{}
 				for index, fixture := range fixtures {
 					parentID := returnData[index][0].(string)
 					parentIDs = append(parentIDs, parentID)
@@ -1165,13 +1114,22 @@ func TestDeployments(t *testing.T) {
 				}, childReturnData)
 
 				// Expect the lookup to find orphans to delete for the first child field
-				ExpectQuery(mock, `
-								^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id
-								FROM childtest
-								WHERE \(\(childtest.organization_id = \$1 AND childtest.parent_id = \$2\) OR \(childtest.organization_id = \$3 AND childtest.parent_id = \$4\)\)$`).
+				ExpectQuery(mock, testdata.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE
+							((t0.organization_id = $1 AND t0.parent_id = $2) OR
+							(t0.organization_id = $3 AND t0.parent_id = $4))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[0], sampleOrgID, parentIDs[1]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("ChildRecord", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
 							AddRow("ChildRecord2", "00000000-0000-0000-0000-000000000002", parentIDs[0]).
 							AddRow("ChildRecord3", "00000000-0000-0000-0000-000000000003", parentIDs[1]).
@@ -1184,16 +1142,25 @@ func TestDeployments(t *testing.T) {
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000004", "00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000006"})
 
 				// Expect the lookup to find orphans to delete for the second child field
-				ExpectQuery(mock, `
-							^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id
-							FROM childtest
-							WHERE \(\(childtest.organization_id = \$1 AND childtest.parent_id = \$2\)\)$`).
+				ExpectQuery(mock, testdata.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE
+							((t0.organization_id = $1 AND t0.parent_id = $2))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
 							AddRow("Orphan2", "00000000-0000-0000-0000-000000000002", parentIDs[0]),
 					)
+
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"})
 			},
 			"",
@@ -1201,15 +1168,15 @@ func TestDeployments(t *testing.T) {
 		{
 			"Multiple Import with Children Existing Parent and Existing Child With Orphans Small Batch",
 			[]string{"SimpleWithChildrenAndChildrenMap", "SimpleWithChildren2"},
-			TestObjectWithOrphans{},
+			testdata.TestObjectWithOrphans{},
 			1,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				helper := testObjectHelper
-				fixtures := fixturesAbstract.([]TestObjectWithOrphans)
-				batch1Fixtures := []TestObjectWithOrphans{
+				fixtures := fixturesAbstract.([]testdata.TestObjectWithOrphans)
+				batch1Fixtures := []testdata.TestObjectWithOrphans{
 					fixtures[0],
 				}
-				batch2Fixtures := []TestObjectWithOrphans{
+				batch2Fixtures := []testdata.TestObjectWithOrphans{
 					fixtures[1],
 				}
 				batch1ReturnData := GetReturnDataForLookup(helper, batch1Fixtures)
@@ -1218,7 +1185,7 @@ func TestDeployments(t *testing.T) {
 				batch2LookupKeys := GetLookupKeys(helper, batch2Fixtures)
 
 				parentIDs := []string{}
-				childObjects := []ChildTestObject{}
+				childObjects := []testdata.ChildTestObject{}
 
 				ExpectLookup(mock, helper, batch1LookupKeys, batch1ReturnData)
 				ExpectUpdate(mock, helper, [][]string{
@@ -1241,10 +1208,10 @@ func TestDeployments(t *testing.T) {
 					}
 				}
 
-				batch1ChildFixtures := []ChildTestObject{
+				batch1ChildFixtures := []testdata.ChildTestObject{
 					childObjects[0],
 				}
-				batch2ChildFixtures := []ChildTestObject{
+				batch2ChildFixtures := []testdata.ChildTestObject{
 					childObjects[1],
 				}
 
@@ -1278,13 +1245,21 @@ func TestDeployments(t *testing.T) {
 				}, childReturnDataBatch2)
 
 				// Expect the lookup to find orphans to delete for the first child field
-				ExpectQuery(mock, `
-								^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id
-								FROM childtest
-								WHERE \(\(childtest.organization_id = \$1 AND childtest.parent_id = \$2\)\)$`).
+				ExpectQuery(mock, testdata.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE
+							((t0.organization_id = $1 AND t0.parent_id = $2))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("ChildRecord", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
 							AddRow("ChildRecord2", "00000000-0000-0000-0000-000000000002", parentIDs[0]).
 							// Match on name, but not parent id, still should delete
@@ -1296,16 +1271,25 @@ func TestDeployments(t *testing.T) {
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000004", "00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000006"})
 
 				// Expect the lookup to find orphans to delete for the second child field
-				ExpectQuery(mock, `
-							^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id
-							FROM childtest
-							WHERE \(\(childtest.organization_id = \$1 AND childtest.parent_id = \$2\)\)$`).
+				ExpectQuery(mock, testdata.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE
+							((t0.organization_id = $1 AND t0.parent_id = $2))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
 							AddRow("Orphan2", "00000000-0000-0000-0000-000000000002", parentIDs[0]),
 					)
+
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"})
 
 				ExpectLookup(mock, helper, batch2LookupKeys, batch2ReturnData)
@@ -1329,10 +1313,10 @@ func TestDeployments(t *testing.T) {
 					}
 				}
 
-				batch3ChildFixtures := []ChildTestObject{
+				batch3ChildFixtures := []testdata.ChildTestObject{
 					childObjects[2],
 				}
-				batch4ChildFixtures := []ChildTestObject{
+				batch4ChildFixtures := []testdata.ChildTestObject{
 					childObjects[3],
 				}
 
@@ -1366,17 +1350,24 @@ func TestDeployments(t *testing.T) {
 				}, childReturnDataBatch4)
 
 				// Expect the lookup to find orphans to delete for the first child field
-				ExpectQuery(mock, `
-								^SELECT childtest.id, childtest.organization_id, childtest.name, childtest.other_info, childtest.parent_id, childtest.optional_parent_id
-								FROM childtest
-								WHERE \(\(childtest.organization_id = \$1 AND childtest.parent_id = \$2\)\)$`).
+				ExpectQuery(mock, testdata.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id"
+						FROM childtest AS t0
+						WHERE
+							((t0.organization_id = $1 AND t0.parent_id = $2))
+					`)).
 					WithArgs(sampleOrgID, parentIDs[1]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"name", "id", "parent_id"}).
+						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("ChildRecord3", "00000000-0000-0000-0000-000000000003", parentIDs[1]).
 							AddRow("ChildRecord7", "00000000-0000-0000-0000-000000000007", parentIDs[1]),
 					)
-
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000007"})
 			},
 			"",
@@ -1384,12 +1375,12 @@ func TestDeployments(t *testing.T) {
 		{
 			"Import Existing Child with Reference to Parent Name",
 			[]string{"ChildWithParentLookup"},
-			ChildTestObject{},
+			testdata.ChildTestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				childUUID := uuid.NewV4().String()
 				parentUUID := uuid.NewV4().String()
-				fixtures := fixturesAbstract.([]ChildTestObject)
+				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
 				returnData := [][]driver.Value{
 					[]driver.Value{
 						childUUID,
@@ -1427,17 +1418,17 @@ func TestDeployments(t *testing.T) {
 		{
 			"Import New Child with Reference to Parent Name",
 			[]string{"ChildWithParentLookup"},
-			ChildTestObject{},
+			testdata.ChildTestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				parentUUID := uuid.NewV4().String()
-				fixtures := fixturesAbstract.([]ChildTestObject)
+				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
 				lookupKeys := []string{"ChildItem|Simple|"}
 				returnData := [][]driver.Value{}
 
-				childObjects := []ChildTestObject{}
+				childObjects := []testdata.ChildTestObject{}
 				for _, fixture := range fixtures {
-					childObjects = append(childObjects, ChildTestObject{
+					childObjects = append(childObjects, testdata.ChildTestObject{
 						Name:     fixture.Name,
 						ParentID: parentUUID,
 					})
@@ -1469,17 +1460,17 @@ func TestDeployments(t *testing.T) {
 		{
 			"Import New Child with Reference to Parent Name Using Key Map",
 			[]string{"ChildWithParentLookupAndKeyMap"},
-			ChildTestObjectWithKeyMap{},
+			testdata.ChildTestObjectWithKeyMap{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				parentUUID := uuid.NewV4().String()
-				fixtures := fixturesAbstract.([]ChildTestObjectWithKeyMap)
+				fixtures := fixturesAbstract.([]testdata.ChildTestObjectWithKeyMap)
 				lookupKeys := []string{"ChildItem|Simple"}
 				returnData := [][]driver.Value{}
 
-				childObjects := []ChildTestObjectWithKeyMap{}
+				childObjects := []testdata.ChildTestObjectWithKeyMap{}
 				for _, fixture := range fixtures {
-					childObjects = append(childObjects, ChildTestObjectWithKeyMap{
+					childObjects = append(childObjects, testdata.ChildTestObjectWithKeyMap{
 						Name:     fixture.Name,
 						ParentID: parentUUID,
 					})
@@ -1511,18 +1502,18 @@ func TestDeployments(t *testing.T) {
 		{
 			"Import New Child with Reference to Parent Name And Optional Parent",
 			[]string{"ChildWithParentLookupAndOptionalLookup"},
-			ChildTestObject{},
+			testdata.ChildTestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				parentUUID := uuid.NewV4().String()
 				optionalParentUUID := uuid.NewV4().String()
-				fixtures := fixturesAbstract.([]ChildTestObject)
+				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
 				lookupKeys := []string{"ChildItem|Simple|"}
 				returnData := [][]driver.Value{}
 
-				childObjects := []ChildTestObject{}
+				childObjects := []testdata.ChildTestObject{}
 				for _, fixture := range fixtures {
-					childObjects = append(childObjects, ChildTestObject{
+					childObjects = append(childObjects, testdata.ChildTestObject{
 						Name:             fixture.Name,
 						ParentID:         parentUUID,
 						OptionalParentID: optionalParentUUID,
@@ -1564,17 +1555,17 @@ func TestDeployments(t *testing.T) {
 		{
 			"Import New Child with Bad Reference to Parent Name",
 			[]string{"ChildWithParentLookup"},
-			ChildTestObject{},
+			testdata.ChildTestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				parentUUID := uuid.NewV4().String()
-				fixtures := fixturesAbstract.([]ChildTestObject)
+				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
 				lookupKeys := []string{"ChildItem|Simple|"}
 				returnData := [][]driver.Value{}
 
-				childObjects := []ChildTestObject{}
+				childObjects := []testdata.ChildTestObject{}
 				for _, fixture := range fixtures {
-					childObjects = append(childObjects, ChildTestObject{
+					childObjects = append(childObjects, testdata.ChildTestObject{
 						Name:     fixture.Name,
 						ParentID: parentUUID,
 					})
@@ -1614,291 +1605,6 @@ func TestDeployments(t *testing.T) {
 			} else {
 				assert.Error(t, err)
 				assert.EqualError(t, err, c.WantErr)
-			}
-		})
-	}
-}
-
-func TestGenerateWhereClausesFromModel(t *testing.T) {
-
-	testMultitenancyValue := "00000000-0000-0000-0000-000000000001"
-	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
-
-	testCases := []struct {
-		description      string
-		filterModelValue reflect.Value
-		zeroFields       []string
-		wantWhereClauses []squirrel.Sqlizer
-		wantJoinClauses  []string
-		wantErr          string
-	}{
-		{
-			"Filter object with no values should add multitenancy key",
-			reflect.ValueOf(struct {
-				Metadata metadata.Metadata `picard:"tablename=test_table"`
-				OrgID    string            `picard:"multitenancy_key,column=organization_id"`
-			}{}),
-			nil,
-			[]squirrel.Sqlizer{
-				squirrel.Eq{
-					"test_table.organization_id": testMultitenancyValue,
-				},
-			},
-			[]string{},
-			"",
-		},
-		{
-			"Filter object with no values and different multitenancy column should add multitenancy key",
-			reflect.ValueOf(struct {
-				Metadata               metadata.Metadata `picard:"tablename=test_table"`
-				TestMultitenancyColumn string            `picard:"multitenancy_key,column=test_multitenancy_column"`
-			}{}),
-			nil,
-			[]squirrel.Sqlizer{
-				squirrel.Eq{
-					"test_table.test_multitenancy_column": testMultitenancyValue,
-				},
-			},
-			[]string{},
-			"",
-		},
-		{
-			"Filter object with value for multitenancy column should be overwritten with picard multitenancy value",
-			reflect.ValueOf(struct {
-				Metadata               metadata.Metadata `picard:"tablename=test_table"`
-				TestMultitenancyColumn string            `picard:"multitenancy_key,column=test_multitenancy_column"`
-			}{
-				TestMultitenancyColumn: "this value should be ignored",
-			}),
-			nil,
-			[]squirrel.Sqlizer{
-				squirrel.Eq{
-					"test_table.test_multitenancy_column": testMultitenancyValue,
-				},
-			},
-			[]string{},
-			"",
-		},
-		{
-			"Filter object with one value and multitenancy column should add both where clauses",
-			reflect.ValueOf(struct {
-				Metadata               metadata.Metadata `picard:"tablename=test_table"`
-				TestMultitenancyColumn string            `picard:"multitenancy_key,column=test_multitenancy_column"`
-				TestField              string            `picard:"column=test_column_one"`
-			}{
-				TestField: "first test value",
-			}),
-			nil,
-			[]squirrel.Sqlizer{
-				squirrel.Eq{
-					"test_table.test_multitenancy_column": testMultitenancyValue,
-				},
-				squirrel.Eq{
-					"test_table.test_column_one": "first test value",
-				},
-			},
-			[]string{},
-			"",
-		},
-		{
-			"Filter object with two values and multitenancy column should add all where clauses",
-			reflect.ValueOf(struct {
-				Metadata               metadata.Metadata `picard:"tablename=test_table"`
-				TestMultitenancyColumn string            `picard:"multitenancy_key,column=test_multitenancy_column"`
-				TestFieldOne           string            `picard:"column=test_column_one"`
-				TestFieldTwo           string            `picard:"column=test_column_two"`
-			}{
-				TestFieldOne: "first test value",
-				TestFieldTwo: "second test value",
-			}),
-			nil,
-			[]squirrel.Sqlizer{
-				squirrel.Eq{
-					"test_table.test_multitenancy_column": testMultitenancyValue,
-				},
-				squirrel.Eq{
-					"test_table.test_column_one": "first test value",
-				},
-				squirrel.Eq{
-					"test_table.test_column_two": "second test value",
-				},
-			},
-			[]string{},
-			"",
-		},
-		{
-			"Filter object with two values and only one is picard column should add only one where clause",
-			reflect.ValueOf(struct {
-				Metadata     metadata.Metadata `picard:"tablename=test_table"`
-				TestFieldOne string            `picard:"column=test_column_one"`
-				TestFieldTwo string
-			}{
-				TestFieldOne: "first test value",
-				TestFieldTwo: "second test value",
-			}),
-			nil,
-			[]squirrel.Sqlizer{
-				squirrel.Eq{
-					"test_table.test_column_one": "first test value",
-				},
-			},
-			[]string{},
-			"",
-		},
-		{
-			"Filter object with two values and one is zero value should add only one where clause",
-			reflect.ValueOf(struct {
-				Metadata     metadata.Metadata `picard:"tablename=test_table"`
-				TestFieldOne string            `picard:"column=test_column_one"`
-				TestFieldTwo string            `picard:"column=test_column_two"`
-			}{
-				TestFieldOne: "first test value",
-			}),
-			nil,
-			[]squirrel.Sqlizer{
-				squirrel.Eq{
-					"test_table.test_column_one": "first test value",
-				},
-			},
-			[]string{},
-			"",
-		},
-		{
-			"Filter object with two values and one is zero value and in zeroFields list should add both where clauses",
-			reflect.ValueOf(struct {
-				Metadata     metadata.Metadata `picard:"tablename=test_table"`
-				TestFieldOne string            `picard:"column=test_column_one"`
-				TestFieldTwo string            `picard:"column=test_column_two"`
-			}{
-				TestFieldOne: "first test value",
-			}),
-			[]string{"TestFieldTwo"},
-			[]squirrel.Sqlizer{
-				squirrel.Eq{
-					"test_table.test_column_one": "first test value",
-				},
-				squirrel.Eq{
-					"test_table.test_column_two": "",
-				},
-			},
-			[]string{},
-			"",
-		},
-		{
-			"Filter object with value for encrypted field should return error",
-			reflect.ValueOf(struct {
-				Metadata               metadata.Metadata `picard:"tablename=test_table"`
-				TestMultitenancyColumn string            `picard:"multitenancy_key,column=test_multitenancy_column"`
-				TestField              string            `picard:"encrypted,column=test_column_one"`
-			}{
-				TestField: "first test value",
-			}),
-			nil,
-			nil,
-			[]string{},
-			"cannot perform queries with where clauses on encrypted fields",
-		},
-		{
-			"Filter object with parent values",
-			reflect.ValueOf(ChildTestObject{
-				Parent: TestObject{
-					Name: "blah",
-				},
-			}),
-			nil,
-			[]squirrel.Sqlizer{
-				squirrel.Eq{
-					"childtest.organization_id": testMultitenancyValue,
-				},
-				squirrel.Eq{
-					"t1.organization_id": testMultitenancyValue,
-				},
-				squirrel.Eq{
-					"t1.name": "blah",
-				},
-			},
-			[]string{"testobject as t1 on t1.id = parent_id"},
-			"",
-		},
-		{
-			"Filter object with grandparent values",
-			reflect.ValueOf(ChildTestObject{
-				Parent: TestObject{
-					Parent: ParentTestObject{
-						Name: "ugh",
-					},
-				},
-			}),
-			nil,
-			[]squirrel.Sqlizer{
-				squirrel.Eq{
-					"childtest.organization_id": testMultitenancyValue,
-				},
-				squirrel.Eq{
-					"t1.organization_id": testMultitenancyValue,
-				},
-				squirrel.Eq{
-					"t2.organization_id": testMultitenancyValue,
-				},
-				squirrel.Eq{
-					"t2.name": "ugh",
-				},
-			},
-			[]string{"testobject as t1 on t1.id = parent_id", "parenttest as t2 on t2.id = t1.parent_id"},
-			"",
-		},
-		{
-			"Filter object with multiple parent values",
-			reflect.ValueOf(ChildTestObject{
-				Parent: TestObject{
-					Name: "blah",
-				},
-				OptionalParent: TestObject{
-					Name: "woo",
-				},
-			}),
-			nil,
-			[]squirrel.Sqlizer{
-				squirrel.Eq{
-					"childtest.organization_id": testMultitenancyValue,
-				},
-				squirrel.Eq{
-					"t1.organization_id": testMultitenancyValue,
-				},
-				squirrel.Eq{
-					"t1.name": "blah",
-				},
-				squirrel.Eq{
-					"t2.organization_id": testMultitenancyValue,
-				},
-				squirrel.Eq{
-					"t2.name": "woo",
-				},
-			},
-			[]string{
-				"testobject as t1 on t1.id = parent_id",
-				"testobject as t2 on t2.id = optional_parent_id",
-			},
-			"",
-		},
-	}
-
-	// Create the Picard instance
-	p := New(testMultitenancyValue, testPerformedByValue).(PersistenceORM)
-
-	for _, tc := range testCases {
-		t.Run(tc.description, func(t *testing.T) {
-			filterModelType := tc.filterModelValue.Type()
-			tableMetadata := tags.TableMetadataFromType(filterModelType)
-			whereClauses, joinClauses, err := p.generateWhereClausesFromModel(tc.filterModelValue, tc.zeroFields, tableMetadata)
-
-			if tc.wantErr != "" {
-				assert.Error(t, err)
-				assert.EqualError(t, err, tc.wantErr)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.wantWhereClauses, whereClauses)
-				assert.Equal(t, tc.wantJoinClauses, joinClauses)
 			}
 		})
 	}

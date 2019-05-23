@@ -16,6 +16,7 @@ import (
 	"github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
 	jsoniter "github.com/plusplusben/json-iterator-go"
+	"github.com/skuid/picard/crypto"
 	"github.com/skuid/picard/dbchange"
 	"github.com/skuid/picard/decoding"
 	"github.com/skuid/picard/metadata"
@@ -251,7 +252,7 @@ func (p PersistenceORM) performUpdates(updates []dbchange.Change, tableMetadata 
 
 		tableName := tableMetadata.GetTableName()
 
-		columnNames := tableMetadata.GetColumnNamesWithoutPrimaryKey()
+		columnNames := deDup(tableMetadata.GetColumnNamesWithoutPrimaryKey())
 
 		primaryKeyColumnName := tableMetadata.GetPrimaryKeyColumnName()
 		multitenancyKeyColumnName := tableMetadata.GetMultitenancyKeyColumnName()
@@ -285,6 +286,19 @@ func (p PersistenceORM) performUpdates(updates []dbchange.Change, tableMetadata 
 	return nil
 }
 
+func deDup(values []string) []string {
+	r := make([]string, 0, len(values))
+	seen := make(map[string]bool)
+	for _, val := range values {
+		if !seen[val] {
+			r = append(r, val)
+			seen[val] = true
+		}
+	}
+
+	return r
+}
+
 func (p PersistenceORM) performInserts(inserts []dbchange.Change, insertsHavePrimaryKey bool, tableMetadata *tags.TableMetadata) error {
 	if len(inserts) > 0 {
 
@@ -301,6 +315,8 @@ func (p PersistenceORM) performInserts(inserts []dbchange.Change, insertsHavePri
 		} else {
 			columnNames = tableMetadata.GetColumnNamesWithoutPrimaryKey()
 		}
+
+		columnNames = deDup(columnNames)
 
 		insertQuery := psql.Insert(tableName)
 		insertQuery = insertQuery.Columns(columnNames...)
@@ -747,6 +763,7 @@ func (p PersistenceORM) generateChanges(
 
 	for i := 0; i < s.Len(); i++ {
 		value := s.Index(i)
+
 		objectKey := getObjectKeyReflect(value, lookups)
 
 		object := lookupResults[objectKey]
@@ -940,7 +957,7 @@ func (p PersistenceORM) processObject(
 		}
 
 		// Do encryption over bytes
-		encryptedValue, err := EncryptBytes(valueAsBytes)
+		encryptedValue, err := crypto.EncryptBytes(valueAsBytes)
 		if err != nil {
 			return dbchange.Change{}, err
 		}
@@ -1115,122 +1132,4 @@ func getColumnValues(columnNames []string, data map[string]interface{}) []interf
 		}
 	}
 	return columnValues
-}
-
-func (p PersistenceORM) getFilterLookups(filterModelValue reflect.Value, zeroFields []string, parentTableMetadata *tags.TableMetadata, baseJoinKey string, joinKey string, tableAliasCache map[string]string) ([]tags.Lookup, error) {
-	filterModelType := filterModelValue.Type()
-	tableName := parentTableMetadata.GetTableName()
-	primaryKeyColumnName := parentTableMetadata.GetPrimaryKeyColumnName()
-	lookups := []tags.Lookup{}
-
-	fullJoinKey := getJoinKey(baseJoinKey, joinKey)
-
-	for i := 0; i < filterModelType.NumField(); i++ {
-		field := filterModelType.Field(i)
-		fieldValue := filterModelValue.FieldByName(field.Name)
-
-		picardTags := tags.GetStructTagsMap(field, "picard")
-		column, hasColumn := picardTags["column"]
-		_, isMultitenancyColumn := picardTags["multitenancy_key"]
-		_, isChild := picardTags["child"]
-
-		isZeroField := reflectutil.IsZeroValue(fieldValue)
-
-		kind := fieldValue.Kind()
-
-		isZeroColumn := false
-		for _, zeroField := range zeroFields {
-			if field.Name == zeroField {
-				isZeroColumn = true
-			}
-		}
-
-		switch {
-		case hasColumn && isMultitenancyColumn:
-			lookups = append(lookups, tags.Lookup{
-				MatchDBColumn:       column,
-				MatchObjectProperty: field.Name,
-				TableName:           tableName,
-				JoinKey:             fullJoinKey,
-				Value:               p.multitenancyValue,
-			})
-		case hasColumn && !isZeroField:
-			_, isEncrypted := picardTags["encrypted"]
-			if isEncrypted {
-				return nil, errors.New("cannot perform queries with where clauses on encrypted fields")
-			}
-
-			lookups = append(lookups, tags.Lookup{
-				MatchDBColumn:       column,
-				MatchObjectProperty: field.Name,
-				TableName:           tableName,
-				JoinKey:             fullJoinKey,
-				Value:               fieldValue.Interface(),
-			})
-
-		case isZeroColumn:
-			lookups = append(lookups, tags.Lookup{
-				MatchDBColumn:       column,
-				MatchObjectProperty: field.Name,
-				TableName:           tableName,
-				JoinKey:             fullJoinKey,
-				Value:               reflect.Zero(field.Type).Interface(),
-			})
-		case kind == reflect.Struct && !isZeroField:
-			foreignKeyValue := ""
-			for _, foreignKey := range parentTableMetadata.GetForeignKeys() {
-				if foreignKey.RelatedFieldName == field.Name {
-					foreignKeyValue = foreignKey.KeyColumn
-					break
-				}
-			}
-
-			if foreignKeyValue == "" {
-				return nil, errors.New("No Foreign Key Value Found in Struct Tags")
-			}
-			relatedPicardTags := tags.TableMetadataFromType(fieldValue.Type())
-			tableAlias := getTableAlias(tableName, fullJoinKey, tableAliasCache)
-			if tableAlias == tableName {
-				tableAlias = ""
-			}
-			relatedLookups, err := p.getFilterLookups(fieldValue, []string{}, relatedPicardTags, tableAlias, foreignKeyValue, tableAliasCache)
-			if err != nil {
-				return nil, err
-			}
-			lookups = append(lookups, relatedLookups...)
-		case kind == reflect.Slice && isChild && !isZeroField:
-			foreignKeyField := picardTags["foreign_key"]
-
-			for i := 0; i < fieldValue.Len(); i++ {
-				item := fieldValue.Index(i)
-				relatedPicardTags := tags.TableMetadataFromType(item.Type())
-				subQueryLookups, err := p.getFilterLookups(item, []string{}, relatedPicardTags, "", "", tableAliasCache)
-				if err != nil {
-					return nil, err
-				}
-				lookups = append(lookups, tags.Lookup{
-					MatchDBColumn:      primaryKeyColumnName,
-					TableName:          tableName,
-					SubQuery:           subQueryLookups,
-					SubQueryForeignKey: foreignKeyField,
-					SubQueryMetadata:   relatedPicardTags,
-				})
-			}
-		}
-	}
-	return lookups, nil
-}
-
-func (p PersistenceORM) generateWhereClausesFromModel(filterModelValue reflect.Value, zeroFields []string, tableMetadata *tags.TableMetadata) ([]squirrel.Sqlizer, []string, error) {
-
-	tableAliasCache := map[string]string{}
-
-	lookups, err := p.getFilterLookups(filterModelValue, zeroFields, tableMetadata, "", "", tableAliasCache)
-	if err != nil {
-		return nil, nil, err
-	}
-	_, joins, whereFields := getQueryParts(tableMetadata, lookups, tableAliasCache)
-
-	return whereFields, joins, nil
-
 }

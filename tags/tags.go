@@ -60,6 +60,8 @@ type FieldMetadata struct {
 	isMultitenancyKey bool
 	isJSONB           bool
 	isEncrypted       bool
+	isFK              bool
+	relatedField      reflect.StructField
 	columnName        string
 	audit             string
 	fieldType         reflect.Type
@@ -85,6 +87,11 @@ func (fm FieldMetadata) IsPrimaryKey() bool {
 	return fm.isPrimaryKey
 }
 
+// IsReference function
+func (fm FieldMetadata) IsFK() bool {
+	return fm.isFK
+}
+
 // GetName function
 func (fm FieldMetadata) GetName() string {
 	return fm.name
@@ -98,6 +105,14 @@ func (fm FieldMetadata) GetColumnName() string {
 // GetFieldType function
 func (fm FieldMetadata) GetFieldType() reflect.Type {
 	return fm.fieldType
+}
+
+func (fm FieldMetadata) GetRelatedType() reflect.Type {
+	return fm.relatedField.Type
+}
+
+func (fm FieldMetadata) GetRelatedName() string {
+	return fm.relatedField.Name
 }
 
 // TableMetadata structure
@@ -324,6 +339,7 @@ func TableMetadataFromType(t reflect.Type) *TableMetadata {
 		_, isChild := tagsMap["child"]
 		_, isRequired := tagsMap["required"]
 		_, isForeignKey := tagsMap["foreign_key"]
+		// _, isReference := tagsMap["reference"]
 		_, isEncrypted := tagsMap["encrypted"]
 		_, isJSONB := tagsMap["jsonb"]
 		auditType, _ := tagsMap["audit"]
@@ -335,6 +351,10 @@ func TableMetadataFromType(t reflect.Type) *TableMetadata {
 		}
 
 		if hasColumnName {
+			var relatedField reflect.StructField
+			if isForeignKey {
+				relatedField, _ = t.FieldByName(tagsMap["related"])
+			}
 
 			tableMetadata.fields[field.Name] = FieldMetadata{
 				name:              field.Name,
@@ -342,6 +362,8 @@ func TableMetadataFromType(t reflect.Type) *TableMetadata {
 				isJSONB:           isJSONB,
 				isMultitenancyKey: isMultitenancyKey,
 				isPrimaryKey:      isPrimaryKey,
+				isFK:              isForeignKey,
+				relatedField:      relatedField,
 				columnName:        columnName,
 				audit:             auditType,
 				fieldType:         field.Type,

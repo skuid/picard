@@ -1,4 +1,4 @@
-package picard
+package crypto
 
 import (
 	"crypto/aes"
