@@ -37,9 +37,14 @@ func TestDeleteModel(t *testing.T) {
 				mock.ExpectBegin()
 				mock.ExpectExec(testdata.FmtSQLRegex(`
 					DELETE FROM test_tablename AS t0
-					WHERE t0.primary_key_column = $1 AND t0.multitenancy_key_column = $2
+					WHERE
+						t0.multitenancy_key_column = $1 AND
+						t0.primary_key_column = $2
 				`)).
-					WithArgs("00000000-0000-0000-0000-000000000555", "00000000-0000-0000-0000-000000000001").
+					WithArgs(
+						"00000000-0000-0000-0000-000000000001",
+							"00000000-0000-0000-0000-000000000555",
+						).
 					WillReturnResult(sqlmock.NewResult(0, 1))
 				mock.ExpectCommit()
 			},
@@ -73,10 +78,10 @@ func TestDeleteModel(t *testing.T) {
 						t1.organization_id AS "t1.organization_id",
 						t1.name AS "t1.name"
 					FROM testobject AS t0
-					LEFT JOIN parenttest AS t1 ON t1.id = t0.parent_id
+					LEFT JOIN parenttest AS t1 ON
+						(t1.id = t0.parent_id AND t1.organization_id = $1)
 					WHERE
-						t0.organization_id = $1 AND
-						t1.organization_id = $2 AND
+						t0.organization_id = $2 AND
 						t1.name = $3
 				`)).
 					WithArgs(

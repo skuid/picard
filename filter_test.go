@@ -149,13 +149,13 @@ func TestFilterModelAssociations(t *testing.T) {
 						t1.name AS "t1.name",
 						t1.age AS "t1.age" 
 					FROM parentmodel AS t0
-					LEFT JOIN grandparentmodel AS t1 ON t1.id = t0.parent_id
+					LEFT JOIN grandparentmodel AS t1 ON
+						(t1.id = t0.parent_id AND t1.organization_id = $1)
 					WHERE
-						t0.organization_id = $1 AND
-						t0.name = $2 AND
-						t1.organization_id = $3	
+						t0.organization_id = $2 AND
+						t0.name = $3
 				`)).
-					WithArgs(orgID, "pops", orgID).
+					WithArgs(orgID, orgID, "pops").
 					WillReturnRows(
 						sqlmock.NewRows([]string{
 							"t0.id",
@@ -585,7 +585,7 @@ func TestFilterModels(t *testing.T) {
 						t0.name AS "t0.name",
 						t0.parent_id AS "t0.parent_id"
 					FROM toymodel AS t0
-					WHERE ((t0.organization_id = $1 AND t0.parent_id = $2))
+					WHERE t0.organization_id = $1 AND ((t0.parent_id = $2))
 				`)).
 					WithArgs(orgID, "00000000-0000-0000-0000-000000000002").
 					WillReturnRows(
@@ -648,16 +648,15 @@ func TestFilterModels(t *testing.T) {
 						t0.parent_id AS "t0.parent_id"
 					FROM toymodel AS t0
 					WHERE
-						((t0.organization_id = $1 AND t0.parent_id = $2) OR
-						(t0.organization_id = $3 AND t0.parent_id = $4) OR
-						(t0.organization_id = $5 AND t0.parent_id = $6))
+						t0.organization_id = $1 AND
+						((t0.parent_id = $2) OR
+						(t0.parent_id = $3) OR
+						(t0.parent_id = $4))
 				`)).
 					WithArgs(
 						orgID,
 						"00000000-0000-0000-0000-000000000002",
-						orgID,
 						"00000000-0000-0000-0000-000000000003",
-						orgID,
 						"00000000-0000-0000-0000-000000000004",
 					).
 					WillReturnRows(

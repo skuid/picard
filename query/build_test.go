@@ -62,15 +62,16 @@ func TestQueryBuilder(t *testing.T) {
 					t1.organization_id AS "t1.organization_id",
 					t1.reference_field_id AS "t1.reference_field_id"
 				FROM field AS t0
-				LEFT JOIN reference_to AS t1 ON t1.id = t0.reference_id
+				LEFT JOIN reference_to AS t1 ON
+					(t1.id = t0.reference_id AND t1.organization_id = $1)
 				WHERE
-					t0.organization_id = $1 AND
-					t0.name = $2 AND t1.organization_id = $3
+					t0.organization_id = $2 AND
+					t0.name = $3
 			`),
 			[]interface{}{
 				orgID,
-				"a_field",
 				orgID,
+				"a_field",
 			},
 		},
 		{
@@ -111,22 +112,22 @@ func TestQueryBuilder(t *testing.T) {
 					t3.organization_id AS "t3.organization_id",
 					t3.name AS "t3.name"
 				FROM field AS t0
-				LEFT JOIN reference_to AS t1 ON t1.id = t0.reference_id
-				LEFT JOIN field AS t2 ON t2.id = t1.reference_field_id
-				LEFT JOIN object AS t3 ON t3.id = t2.reference_object_id
+				LEFT JOIN reference_to AS t1 ON
+					(t1.id = t0.reference_id AND t1.organization_id = $1)
+				LEFT JOIN field AS t2 ON
+					(t2.id = t1.reference_field_id AND t2.organization_id = $2)
+				LEFT JOIN object AS t3 ON
+					(t3.id = t2.reference_object_id AND t3.organization_id = $3)
 				WHERE
-					t0.organization_id = $1 AND
-					t0.name = $2 AND
-					t1.organization_id = $3 AND
-					t2.organization_id = $4 AND
-					t3.organization_id = $5
+					t0.organization_id = $4 AND
+					t0.name = $5
 			`),
 			[]interface{}{
 				orgID,
+				orgID,
+				orgID,
+				orgID,
 				"a_field",
-				orgID,
-				orgID,
-				orgID,
 			},
 		},
 	}

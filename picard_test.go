@@ -788,7 +788,7 @@ func TestDeployments(t *testing.T) {
 							t0.parent_id AS "t0.parent_id",
 							t0.optional_parent_id AS "t0.optional_parent_id"
 						FROM childtest AS t0
-						WHERE ((t0.organization_id = $1 AND t0.parent_id = $2))
+						WHERE t0.organization_id = $1 AND ((t0.parent_id = $2))
 					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
@@ -867,7 +867,7 @@ func TestDeployments(t *testing.T) {
 							t0.parent_id AS "t0.parent_id",
 							t0.optional_parent_id AS "t0.optional_parent_id"
 						FROM childtest AS t0
-						WHERE ((t0.organization_id = $1 AND t0.parent_id = $2))
+						WHERE t0.organization_id = $1 AND ((t0.parent_id = $2))
 					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
@@ -888,7 +888,7 @@ func TestDeployments(t *testing.T) {
 							t0.parent_id AS "t0.parent_id",
 							t0.optional_parent_id AS "t0.optional_parent_id"
 						FROM childtest AS t0
-						WHERE ((t0.organization_id = $1 AND t0.parent_id = $2))
+						WHERE t0.organization_id = $1 AND ((t0.parent_id = $2))
 					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
@@ -1012,7 +1012,7 @@ func TestDeployments(t *testing.T) {
 							t0.parent_id AS "t0.parent_id",
 							t0.optional_parent_id AS "t0.optional_parent_id"
 						FROM childtest AS t0
-						WHERE ((t0.organization_id = $1 AND t0.parent_id = $2))
+						WHERE t0.organization_id = $1 AND ((t0.parent_id = $2))
 					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
@@ -1032,7 +1032,7 @@ func TestDeployments(t *testing.T) {
 							t0.parent_id AS "t0.parent_id",
 							t0.optional_parent_id AS "t0.optional_parent_id"
 						FROM childtest AS t0
-						WHERE ((t0.organization_id = $1 AND t0.parent_id = $2))
+						WHERE t0.organization_id = $1 AND ((t0.parent_id = $2))
 					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
@@ -1126,10 +1126,10 @@ func TestDeployments(t *testing.T) {
 							t0.optional_parent_id AS "t0.optional_parent_id"
 						FROM childtest AS t0
 						WHERE
-							((t0.organization_id = $1 AND t0.parent_id = $2) OR
-							(t0.organization_id = $3 AND t0.parent_id = $4))
+							t0.organization_id = $1 AND
+							((t0.parent_id = $2) OR (t0.parent_id = $3))
 					`)).
-					WithArgs(sampleOrgID, parentIDs[0], sampleOrgID, parentIDs[1]).
+					WithArgs(sampleOrgID, parentIDs[0], parentIDs[1]).
 					WillReturnRows(
 						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("ChildRecord", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
@@ -1154,7 +1154,7 @@ func TestDeployments(t *testing.T) {
 							t0.optional_parent_id AS "t0.optional_parent_id"
 						FROM childtest AS t0
 						WHERE
-							((t0.organization_id = $1 AND t0.parent_id = $2))
+							t0.organization_id = $1 AND ((t0.parent_id = $2))
 					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
@@ -1257,7 +1257,7 @@ func TestDeployments(t *testing.T) {
 							t0.optional_parent_id AS "t0.optional_parent_id"
 						FROM childtest AS t0
 						WHERE
-							((t0.organization_id = $1 AND t0.parent_id = $2))
+							t0.organization_id = $1 AND ((t0.parent_id = $2))
 					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
@@ -1283,7 +1283,7 @@ func TestDeployments(t *testing.T) {
 							t0.optional_parent_id AS "t0.optional_parent_id"
 						FROM childtest AS t0
 						WHERE
-							((t0.organization_id = $1 AND t0.parent_id = $2))
+							t0.organization_id = $1 AND ((t0.parent_id = $2))
 					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
@@ -1362,7 +1362,7 @@ func TestDeployments(t *testing.T) {
 							t0.optional_parent_id AS "t0.optional_parent_id"
 						FROM childtest AS t0
 						WHERE
-							((t0.organization_id = $1 AND t0.parent_id = $2))
+							t0.organization_id = $1 AND ((t0.parent_id = $2))
 					`)).
 					WithArgs(sampleOrgID, parentIDs[1]).
 					WillReturnRows(
