@@ -792,9 +792,11 @@ func TestDeployments(t *testing.T) {
 					`)).
 					WithArgs(sampleOrgID, parentIDs[0]).
 					WillReturnRows(
-						sqlmock.NewRows([]string{"t0.name", "t0.id"}).
-							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001").
-							AddRow("Orphan2", "00000000-0000-0000-0000-000000000002"),
+						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
+							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
+							AddRow("Orphan2", "00000000-0000-0000-0000-000000000002", parentIDs[0]).
+							AddRow("ChildRecord", "00000000-0000-0000-0000-000000000003", parentIDs[0]).
+							AddRow("ChildRecord2", "00000000-0000-0000-0000-000000000004", parentIDs[0]),
 					)
 
 				ExpectDelete(mock, testChildObjectHelper, []string{"00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"})
