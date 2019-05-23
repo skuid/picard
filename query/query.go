@@ -14,8 +14,7 @@ import (
 const (
 	aliasedField string = "%[1]v.%[2]v"
 	aliasedCol   string = "%[1]v.%[2]v AS \"%[1]v.%[2]v\""
-	aliasedJoin  string = "%[2]v AS %[1]v ON %[3]v = %[4]v"
-	coalesce     string = "COALESCE(%[1]v.%[2]v::\"varchar\",'')"
+	aliasedJoin  string = "%[2]v AS %[1]v ON"
 )
 
 /*
@@ -32,6 +31,7 @@ type Table struct {
 	lookups map[string]interface{}
 	Joins   []Join
 	Wheres  []Where
+	MultiTenancy Where
 }
 
 /*
@@ -89,6 +89,13 @@ func (t *Table) AddWhere(field string, val interface{}) {
 		Field: field,
 		Val:   val,
 	})
+}
+
+func (t *Table) AddMultitenancyWhere(field string, val interface{}) {
+	t.MultiTenancy = Where{
+		Field: field,
+		Val: val,
+	}
 }
 
 /*
@@ -182,8 +189,6 @@ func (j *Join) Build(parentAlias string) string {
 		aliasedJoin,
 		j.Table.Alias,
 		j.Table.Name,
-		fmt.Sprintf(aliasedField, j.Table.Alias, j.JoinField),
-		fmt.Sprintf(aliasedField, parentAlias, j.ParentField),
 	)
 }
 
@@ -238,6 +243,15 @@ func (t *Table) BuildSQL() sql.SelectBuilder {
 		PlaceholderFormat(sql.Dollar).
 		From(fmt.Sprintf("%s AS %s", t.Name, t.Alias))
 
+	if t.MultiTenancy != (Where{}) {
+		bld = bld.Where(
+			sql.Eq{
+				fmt.Sprintf(aliasedField, t.Alias, t.MultiTenancy.Field):
+				t.MultiTenancy.Val,
+			},
+		)
+	}
+
 	for _, where := range t.Wheres {
 		bld = bld.Where(sql.Eq{fmt.Sprintf(aliasedField, t.Alias, where.Field): where.Val})
 	}
@@ -257,6 +271,15 @@ func (t *Table) DeleteSQL() sql.DeleteBuilder {
 	bld := sql.Delete(fmt.Sprintf("%s AS %s", t.Name, t.Alias)).
 		PlaceholderFormat(sql.Dollar)
 
+	if t.MultiTenancy != (Where{}) {
+		bld = bld.Where(
+			sql.Eq{
+				fmt.Sprintf(aliasedField, t.Alias, t.MultiTenancy.Field):
+				t.MultiTenancy.Val,
+			},
+		)
+	}
+
 	for _, where := range t.Wheres {
 		bld = bld.Where(sql.Eq{fmt.Sprintf(aliasedField, t.Alias, where.Field): where.Val})
 	}
@@ -268,6 +291,18 @@ func sqlizeJoin(bld sql.SelectBuilder, join Join) sql.SelectBuilder {
 
 	bld = bld.Columns(join.Columns()...)
 
+	jc := sql.Sqlizer(sql.Expr(fmt.Sprintf(aliasedField, join.Table.Alias, join.JoinField) + " = " + fmt.Sprintf(aliasedField, join.Parent.Alias, join.ParentField)))
+	if join.Table.MultiTenancy != (Where{}) {
+		where := join.Table.MultiTenancy
+		jc = sql.And{
+			jc,
+			sql.Eq{
+				fmt.Sprintf(aliasedField, join.Table.Alias, where.Field):
+				where.Val,
+			},
+		}
+	}
+
 	switch strings.ToLower(join.Type) {
 	case "right":
 		bld = bld.RightJoin(join.Build(join.Parent.Alias))
@@ -277,6 +312,8 @@ func sqlizeJoin(bld sql.SelectBuilder, join Join) sql.SelectBuilder {
 		bld = bld.Join(join.Build(join.Parent.Alias))
 
 	}
+	bld = bld.JoinClause(jc)
+
 
 	for _, where := range join.Table.Wheres {
 		bld = bld.Where(sql.Eq{fmt.Sprintf(aliasedField, join.Table.Alias, where.Field): where.Val})

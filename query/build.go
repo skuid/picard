@@ -219,7 +219,7 @@ func buildQuery(
 				cols = append(cols, column)
 				seen[column] = true
 			}
-			tbl.AddWhere(column, multitenancyVal)
+			tbl.AddMultitenancyWhere(column, multitenancyVal)
 		case isFk:
 			// refTypName := field.Name
 			relatedName := ptags["related"]

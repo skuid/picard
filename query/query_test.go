@@ -165,6 +165,7 @@ type joinTest struct {
 	jType       string
 	cols        []string
 	wheres      []whereTest
+	joinMt 		whereTest
 	joins       []joinTest
 }
 
@@ -174,6 +175,7 @@ func TestQueryJoins(t *testing.T) {
 		desc         string
 		cols         []string
 		joins        []joinTest
+		tblMt        whereTest
 		wheres       []whereTest
 		expected     string
 		expectedArgs []interface{}
@@ -191,8 +193,16 @@ func TestQueryJoins(t *testing.T) {
 					tbl:         "table_b",
 					joinField:   "my_id",
 					parentField: "col_two",
+					joinMt: whereTest{
+						field: "col_mt",
+						val: "12345",
+					},
 					jType:       "",
 				},
+			},
+			whereTest{
+				field: "tbl_mt",
+				val: "12345",
 			},
 			nil,
 			testdata.FmtSQL(`
@@ -200,9 +210,13 @@ func TestQueryJoins(t *testing.T) {
 					t0.col_two AS "t0.col_two",
 					t0.col_three AS "t0.col_three"
 				FROM foo AS t0
-				JOIN table_b AS t1 ON t1.my_id = t0.col_two
+				JOIN table_b AS t1 ON (t1.my_id = t0.col_two AND t1.col_mt = $1)
+				WHERE t0.tbl_mt = $2
 			`),
-			nil,
+			[]interface{}{
+				"12345",
+				"12345",
+			},
 		},
 		{
 			"should create the proper SQL for a simple table select with columns and multiple joins",
@@ -226,6 +240,7 @@ func TestQueryJoins(t *testing.T) {
 					jType:       "right",
 				},
 			},
+			whereTest{},
 			[]whereTest{
 				{
 					field: "col_four",
@@ -281,6 +296,7 @@ func TestQueryJoins(t *testing.T) {
 					},
 				},
 			},
+			whereTest{},
 			[]whereTest{
 				{
 					field: "col_four",
@@ -354,6 +370,7 @@ func TestQueryJoins(t *testing.T) {
 					},
 				},
 			},
+			whereTest{},
 			[]whereTest{
 				{
 					field: "col_four",
@@ -391,6 +408,10 @@ func TestQueryJoins(t *testing.T) {
 			tbl := New("foo")
 			tbl.AddColumns(tc.cols)
 
+			if tc.tblMt != (whereTest{}) {
+				tbl.AddMultitenancyWhere(tc.tblMt.field, tc.tblMt.val)
+			}
+
 			for _, jt := range tc.joins {
 				appendTestJoin(tbl, jt)
 			}
@@ -416,6 +437,9 @@ func TestQueryJoins(t *testing.T) {
 
 func appendTestJoin(tbl *Table, jt joinTest) {
 	joinTbl := tbl.AppendJoin(jt.tbl, jt.joinField, jt.parentField, jt.jType)
+	if jt.joinMt != (whereTest{}) {
+		joinTbl.AddMultitenancyWhere(jt.joinMt.field, jt.joinMt.val)
+	}
 	joinTbl.AddColumns(jt.cols)
 	for _, where := range jt.wheres {
 		joinTbl.AddWhere(where.field, where.val)
