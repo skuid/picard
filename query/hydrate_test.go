@@ -1,14 +1,23 @@
 package query
 
 import (
+	"encoding/base64"
+	"github.com/skuid/picard/crypto"
 	"testing"
 
-	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/DATA-DOG/go-sqlmock"
 	sql "github.com/Masterminds/squirrel"
 	"github.com/stretchr/testify/assert"
 )
 
+
 func TestHydrate(t *testing.T) {
+	unencryptedSecret := []byte("This is a secret!")
+	cryptoKey := []byte("the-key-has-to-be-32-bytes-long!")
+	crypto.SetEncryptionKey(cryptoKey)
+	encryptedSecret, _ := crypto.EncryptBytes(unencryptedSecret)
+	hashedSecret := base64.StdEncoding.EncodeToString(encryptedSecret)
+
 	orgID := "00000000-0000-0000-0000-000000000001"
 	testCases := []struct {
 		desc     string
@@ -54,6 +63,103 @@ func TestHydrate(t *testing.T) {
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
 					Name:           "pops",
+				},
+			},
+		},
+		{
+			"should hydrate a table with nulls in the results",
+			field{
+				Name: "pops",
+			},
+			map[string]FieldDescriptor{
+				"t0.id": {
+					Alias: "t0",
+					Table: "field",
+					Field: "id",
+				},
+				"t0.organization_id": {
+					Alias: "t0",
+					Table: "field",
+					Field: "organization_id",
+				},
+				"t0.name": {
+					Alias: "t0",
+					Table: "field",
+					Field: "name",
+				},
+			},
+			sqlmock.NewRows([]string{
+				"t0.id",
+				"t0.organization_id",
+				"t0.name",
+			}).
+				AddRow(
+					"00000000-0000-0000-0000-000000000002",
+					orgID,
+					"pops",
+				).
+				AddRow(
+					"00000000-0000-0000-0000-000000000003",
+					orgID,
+					nil,
+				),
+			[]interface{}{
+				field{
+					ID:             "00000000-0000-0000-0000-000000000002",
+					OrganizationID: orgID,
+					Name:           "pops",
+				},
+				field{
+					ID:             "00000000-0000-0000-0000-000000000003",
+					OrganizationID: orgID,
+				},
+			},
+		},
+		{
+			"should hydrate a table with encrypted fields",
+			field{
+				Name: "pops",
+			},
+			map[string]FieldDescriptor{
+				"t0.id": {
+					Alias: "t0",
+					Table: "field",
+					Field: "id",
+				},
+				"t0.organization_id": {
+					Alias: "t0",
+					Table: "field",
+					Field: "organization_id",
+				},
+				"t0.name": {
+					Alias: "t0",
+					Table: "field",
+					Field: "name",
+				},
+				"t0.secret": {
+					Alias: "t0",
+					Table: "field",
+					Field: "secret",
+				},
+			},
+			sqlmock.NewRows([]string{
+				"t0.id",
+				"t0.organization_id",
+				"t0.name",
+				"t0.secret",
+			}).
+				AddRow(
+					"00000000-0000-0000-0000-000000000002",
+					orgID,
+					"pops",
+					hashedSecret,
+				),
+			[]interface{}{
+				field{
+					ID:             "00000000-0000-0000-0000-000000000002",
+					OrganizationID: orgID,
+					Name:           "pops",
+					Secret:         string(unencryptedSecret),
 				},
 			},
 		},
@@ -201,7 +307,7 @@ func TestHydrate(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases[1:2] {
+	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			assert := assert.New(t)
 
@@ -226,6 +332,7 @@ func TestHydrate(t *testing.T) {
 
 			// Testing our Hydrate function
 			actuals, err := Hydrate(tc.model, tc.aliasMap, rows)
+			assert.NoError(err)
 			for i, actual := range actuals {
 				assert.Equal(tc.expected[i], actual.Interface().(field))
 			}
