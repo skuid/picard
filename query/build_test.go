@@ -56,6 +56,7 @@ func TestQueryBuilder(t *testing.T) {
 					t0.id AS "t0.id",
 					t0.organization_id AS "t0.organization_id",
 					t0.name AS "t0.name",
+					t0.secret AS "t0.secret",
 					t0.object_id AS "t0.object_id",
 					t0.reference_id AS "t0.reference_id",
 					t1.id AS "t1.id",
@@ -99,6 +100,7 @@ func TestQueryBuilder(t *testing.T) {
 					t0.id AS "t0.id",
 					t0.organization_id AS "t0.organization_id",
 					t0.name AS "t0.name",
+					t0.secret AS "t0.secret",
 					t0.object_id AS "t0.object_id",
 					t0.reference_id AS "t0.reference_id",
 					t1.id AS "t1.id",
@@ -128,6 +130,35 @@ func TestQueryBuilder(t *testing.T) {
 				orgID,
 				orgID,
 				"a_field",
+			},
+		},
+		{
+			"should join any referenced tables without the selected fields if it is not asked for in associations",
+			testdata.ChildModel{
+				Parent: testdata.ParentModel{
+					Name: "my parent",
+				},
+			},
+			nil,
+			testdata.FmtSQL(`
+				SELECT
+					t0.id AS "t0.id",
+					t0.organization_id AS "t0.organization_id",
+					t0.name AS "t0.name",
+					t0.parent_id AS "t0.parent_id",
+					t1.id AS "t1.id",
+					t1.name AS "t1.name"
+				FROM childmodel AS t0
+				JOIN parentmodel AS t1 ON
+					(t1.id = t0.parent_id AND t1.organization_id = $1)
+				WHERE
+					t0.organization_id = $2 AND
+					t1.name = $3
+			`),
+			[]interface{}{
+				orgID,
+				orgID,
+				"my parent",
 			},
 		},
 	}

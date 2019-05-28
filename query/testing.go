@@ -19,7 +19,7 @@ type field struct {
 	ID             string            `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
 	Name           string            `json:"name" picard:"lookup,column=name"`
-	// old way
+	Secret         string `json:"secret" picard:"encrypted,column=secret"`
 	ObjectID    string      `picard:"foreign_key,lookup,required,related=Object,column=object_id"`
 	Object      object      `json:"object" validate:"-"`
 	ReferenceID string      `picard:"foreign_key,lookup,required,related=ReferenceTo,column=reference_id"`
