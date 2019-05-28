@@ -164,7 +164,7 @@ func buildQuery(
 	modelType reflect.Type,
 	modelVal *reflect.Value,
 	associations []tags.Association,
-	onlyLookups bool,
+	onlyJoin bool,
 	counter int,
 ) (*Table, error) {
 	// Inspect current reflected value, and add select/where clauses
@@ -187,30 +187,17 @@ func buildQuery(
 		ptags := tags.GetStructTagsMap(field, "picard")
 		column, hasColumn := ptags["column"]
 		_, isMultitenancyColumn := ptags["multitenancy_key"]
-		_, isLookup := ptags["lookup"]
 		_, isFk := ptags["foreign_key"]
-		_, isRequired := ptags["required"]
 		_, isPrimaryKey := ptags["primary_key"]
 
 		addCol := true
 
-		if onlyLookups && !isLookup && !isPrimaryKey {
+		if onlyJoin && !isPrimaryKey {
 			addCol = false
 		}
 
 		if !hasColumn {
 			continue
-		}
-
-		if onlyLookups && isLookup {
-			var lval interface{}
-
-			if notZero {
-				lval = val.Interface()
-			} else {
-				lval = ""
-			}
-			tbl.lookups[column] = lval
 		}
 
 		switch {
@@ -221,7 +208,6 @@ func buildQuery(
 			}
 			tbl.AddMultitenancyWhere(column, multitenancyVal)
 		case isFk:
-			// refTypName := field.Name
 			relatedName := ptags["related"]
 			relatedVal := modelVal.FieldByName(relatedName)
 
@@ -235,12 +221,16 @@ func buildQuery(
 			if notZero {
 				tbl.AddWhere(column, val.Interface())
 			}
+			
+			// If the association wasn't asked for, but there is a value in the related structure, just join but don't
+			// add the fields to the select.
+			childOnlyJoin := !ok && !reflectutil.IsZeroValue(relatedVal)
 
-			if (onlyLookups && isRequired) || ok {
+			if ok || childOnlyJoin{
 				// Get type, load it as a model so we can build it out
 				refTyp := relatedVal.Type()
 
-				refTbl, err := buildQuery(multitenancyVal, refTyp, &relatedVal, association.Associations, onlyLookups, counter+1)
+				refTbl, err := buildQuery(multitenancyVal, refTyp, &relatedVal, association.Associations, childOnlyJoin, counter+1)
 				if err != nil {
 					return nil, err
 				}
@@ -248,7 +238,7 @@ func buildQuery(
 				joinField := ptags["column"]
 
 				direction := "left"
-				if onlyLookups {
+				if childOnlyJoin {
 					direction = ""
 				}
 				tbl.AppendJoinTable(refTbl, pkName, joinField, direction)
@@ -263,9 +253,7 @@ func buildQuery(
 				cols = append(cols, column)
 				seen[column] = true
 			}
-			if !onlyLookups {
-				tbl.AddWhere(column, val.Interface())
-			}
+			tbl.AddWhere(column, val.Interface())
 		default:
 			if addCol && !seen[column] {
 				cols = append(cols, column)

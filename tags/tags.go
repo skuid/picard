@@ -115,6 +115,10 @@ func (fm FieldMetadata) GetRelatedName() string {
 	return fm.relatedField.Name
 }
 
+func (fm FieldMetadata) IsEncrypted() bool {
+	return fm.isEncrypted
+}
+
 // TableMetadata structure
 type TableMetadata struct {
 	tableName            string

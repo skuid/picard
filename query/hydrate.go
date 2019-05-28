@@ -2,10 +2,13 @@ package query
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 
+	"github.com/skuid/picard/crypto"
 	"github.com/skuid/picard/stringutil"
 	"github.com/skuid/picard/tags"
 )
@@ -53,7 +56,11 @@ func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter
 
 	for _, field := range meta.GetFields() {
 		fieldVal := mappedFields[field.GetColumnName()]
-		setFieldValue(&model, field, fieldVal)
+		err := setFieldValue(&model, field, fieldVal)
+		if err != nil {
+			return nil, err
+		}
+		
 		if field.IsFK() {
 			refTyp := field.GetRelatedType()
 			// Recursively hydrate this reference field
@@ -70,7 +77,7 @@ func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter
 	return &hydratedModel, nil
 }
 
-func setFieldValue(model *reflect.Value, field tags.FieldMetadata, value interface{}) {
+func setFieldValue(model *reflect.Value, field tags.FieldMetadata, value interface{}) error {
 	reflectedValue := reflect.ValueOf(value)
 
 	if reflectedValue.IsValid() {
@@ -85,12 +92,34 @@ func setFieldValue(model *reflect.Value, field tags.FieldMetadata, value interfa
 			model.FieldByName(field.GetName()).Set(rval)
 		}
 
-		if reflectedValue.Type().ConvertibleTo(field.GetFieldType()) {
+		if field.IsEncrypted() {
+			if value == nil || value == "" {
+				return nil
+			}
+
+			valueAsString, ok := value.(string)
+			if !ok {
+				return errors.New("can only decrypt values which are stored as base64 strings")
+			}
+
+			valueAsBytes, err := base64.StdEncoding.DecodeString(valueAsString)
+			if err != nil {
+				return errors.New("base64 decoding of value failed")
+			}
+
+			decryptedValue, err := crypto.DecryptBytes(valueAsBytes)
+			if err != nil {
+				return err
+			}
+			model.FieldByName(field.GetName()).Set(reflect.ValueOf(string(decryptedValue)))
+		} else if reflectedValue.Type().ConvertibleTo(field.GetFieldType()) {
 			reflectedValue = reflectedValue.Convert(field.GetFieldType())
 			value = reflectedValue.Interface()
 			model.FieldByName(field.GetName()).Set(reflect.ValueOf(value))
 		}
 	}
+	
+	return nil
 }
 
 /*
@@ -153,12 +182,13 @@ func mapRows2Cols(meta *tags.TableMetadata, aliasMap map[string]FieldDescriptor,
 			}
 
 			val := columns[i]
-			reflectValue := reflect.ValueOf(val)
-			reflectTyp := reflectValue.Type()
-			if reflectValue.IsValid() && reflectTyp == reflect.TypeOf([]byte(nil)) && reflectValue.Len() == 36 {
-				result[aliasedTbl][tmap.Field] = string(val.([]uint8))
-			} else {
-				result[aliasedTbl][tmap.Field] = val
+			if reflectValue := reflect.ValueOf(val); reflectValue.IsValid() {
+				reflectTyp := reflectValue.Type()
+				if reflectTyp == reflect.TypeOf([]byte(nil)) && reflectValue.Len() == 36 {
+					result[aliasedTbl][tmap.Field] = string(val.([]uint8))
+				} else {
+					result[aliasedTbl][tmap.Field] = val
+				}
 			}
 		}
 
