@@ -206,7 +206,7 @@ func TestFilterModelAssociations(t *testing.T) {
 					Name:           "pops",
 					ParentID:       "00000000-0000-0000-0000-000000000004",
 					Children: []testdata.ChildModel{
-						testdata.ChildModel{
+						{
 							ID:             "00000000-0000-0000-0000-000000000011",
 							OrganizationID: orgID,
 							Name:           "kiddo",
@@ -220,7 +220,7 @@ func TestFilterModelAssociations(t *testing.T) {
 								},
 							},
 						},
-						testdata.ChildModel{
+						{
 							ID:             "00000000-0000-0000-0000-000000000012",
 							OrganizationID: orgID,
 							Name:           "another_kid",
@@ -230,7 +230,7 @@ func TestFilterModelAssociations(t *testing.T) {
 									ID:             "00000000-0000-0000-0000-000000000023",
 									OrganizationID: orgID,
 									Name:           "Woody",
-									ParentID:       "00000000-0000-0000-0000-000000000011",
+									ParentID:       "00000000-0000-0000-0000-000000000012",
 								},
 							},
 						},
@@ -253,14 +253,14 @@ func TestFilterModelAssociations(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(testdata.FmtSQLRegex(`
-					SELECT
-						t0.id AS "t0.id",
-						t0.organization_id AS "t0.organization_id",
-						t0.name AS "t0.name",
-						t0.parent_id AS "t0.parent_id"
-					FROM parentmodel AS t0
-					WHERE t0.organization_id = $1 AND t0.name = $2
-				`)).
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.parent_id AS "t0.parent_id"
+						FROM parentmodel AS t0
+						WHERE t0.organization_id = $1 AND t0.name = $2
+					`)).
 					WithArgs(orgID, "pops").
 					WillReturnRows(
 						sqlmock.NewRows([]string{
@@ -279,15 +279,15 @@ func TestFilterModelAssociations(t *testing.T) {
 
 				// parent is vtestdata.ParentModel
 				mock.ExpectQuery(testdata.FmtSQLRegex(`
-					SELECT
-						t0.id AS "t0.id",
-						t0.organization_id AS "t0.organization_id",
-						t0.name AS "t0.name",
-						t0.parent_id AS "t0.parent_id"
-					FROM childmodel AS t0
-					WHERE 
-						t0.organization_id = $1 AND t0.parent_id = $2
-				`)).
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.parent_id AS "t0.parent_id"
+						FROM childmodel AS t0
+						WHERE
+							t0.organization_id = $1 AND ((t0.parent_id = $2))
+					`)).
 					WithArgs(orgID, "00000000-0000-0000-0000-000000000002").
 					WillReturnRows(
 						sqlmock.NewRows([]string{
@@ -310,7 +310,7 @@ func TestFilterModelAssociations(t *testing.T) {
 							),
 					)
 
-				tmSQL := testdata.FmtSQLRegex(`
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
 					SELECT
 						t0.id AS "t0.id",
 						t0.organization_id AS "t0.organization_id",
@@ -318,11 +318,9 @@ func TestFilterModelAssociations(t *testing.T) {
 						t0.parent_id AS "t0.parent_id"
 					FROM toymodel AS t0
 					WHERE
-						t0.organization_id = $1 AND t0.parent_id = $2
-				`)
-
-				mock.ExpectQuery(tmSQL).
-					WithArgs(orgID, "00000000-0000-0000-0000-000000000011").
+						t0.organization_id = $1 AND ((t0.parent_id = $2) OR (t0.parent_id = $3))
+				`)).
+					WithArgs(orgID, "00000000-0000-0000-0000-000000000011", "00000000-0000-0000-0000-000000000012").
 					WillReturnRows(
 						sqlmock.NewRows([]string{
 							"t0.id",
@@ -335,36 +333,25 @@ func TestFilterModelAssociations(t *testing.T) {
 								orgID,
 								"lego",
 								"00000000-0000-0000-0000-000000000011",
-							),
-					)
-
-				mock.ExpectQuery(tmSQL).
-					WithArgs(orgID, "00000000-0000-0000-0000-000000000012").
-					WillReturnRows(
-						sqlmock.NewRows([]string{
-							"t0.id",
-							"t0.organization_id",
-							"t0.name",
-							"t0.parent_id",
-						}).
+							).
 							AddRow(
 								"00000000-0000-0000-0000-000000000023",
 								orgID,
 								"Woody",
-								"00000000-0000-0000-0000-000000000011",
+								"00000000-0000-0000-0000-000000000012",
 							),
 					)
 
 				mock.ExpectQuery(testdata.FmtSQLRegex(`
-					SELECT
-						t0.id AS "t0.id",
-						t0.organization_id AS "t0.organization_id",
-						t0.name AS "t0.name",
-						t0.parent_id AS "t0.parent_id"
-					FROM petmodel AS t0
-					WHERE
-						t0.organization_id = $1 AND t0.parent_id = $2
-				`)).
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.parent_id AS "t0.parent_id"
+						FROM petmodel AS t0
+						WHERE
+							t0.organization_id = $1 AND ((t0.parent_id = $2))
+					`)).
 					WithArgs(orgID, "00000000-0000-0000-0000-000000000002").
 					WillReturnRows(
 						sqlmock.NewRows([]string{
@@ -431,14 +418,14 @@ func TestFilterModelAssociations(t *testing.T) {
 			},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(testdata.FmtSQLRegex(`
-					SELECT
-						t0.id AS "t0.id",
-						t0.organization_id AS "t0.organization_id",
-						t0.name AS "t0.name",
-						t0.parent_id AS "t0.parent_id"
-					FROM parentmodel AS t0
-					WHERE t0.organization_id = $1 AND t0.name = $2
-				`)).
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.parent_id AS "t0.parent_id"
+						FROM parentmodel AS t0
+						WHERE t0.organization_id = $1 AND t0.name = $2
+					`)).
 					WithArgs(orgID, "pops").
 					WillReturnRows(
 						sqlmock.NewRows([]string{
@@ -461,19 +448,17 @@ func TestFilterModelAssociations(t *testing.T) {
 							),
 					)
 
-				msql := testdata.FmtSQLRegex(`
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
 					SELECT
 						t0.id AS "t0.id",
 						t0.organization_id AS "t0.organization_id",
 						t0.name AS "t0.name",
 						t0.parent_id AS "t0.parent_id"
 					FROM childmodel AS t0
-					WHERE 
-						t0.organization_id = $1 AND t0.parent_id = $2
-				`)
-
-				mock.ExpectQuery(msql).
-					WithArgs(orgID, "00000000-0000-0000-0000-000000000002").
+					WHERE
+						t0.organization_id = $1 AND ((t0.parent_id = $2) OR (t0.parent_id = $3))
+				`)).
+					WithArgs(orgID, "00000000-0000-0000-0000-000000000002", "00000000-0000-0000-0000-000000000003").
 					WillReturnRows(
 						sqlmock.NewRows([]string{
 							"t0.id",
@@ -486,11 +471,68 @@ func TestFilterModelAssociations(t *testing.T) {
 								orgID,
 								"kiddo",
 								"00000000-0000-0000-0000-000000000002",
+							).
+							AddRow(
+								"00000000-0000-0000-0000-000000000022",
+								orgID,
+								"coz",
+								"00000000-0000-0000-0000-000000000003",
 							),
 					)
-
-				mock.ExpectQuery(msql).
-					WithArgs(orgID, "00000000-0000-0000-0000-000000000003").
+			},
+			nil,
+		},
+		{
+			"happy path for filtering nested results for multiple parents for eager loading with grouping criteria",
+			testdata.ParentModel{
+				Name: "pops",
+			},
+			[]tags.Association{
+				{
+					Name: "ChildrenWithGrouping",
+				},
+			},
+			[]interface{}{
+				testdata.ParentModel{
+					ID:             "00000000-0000-0000-0000-000000000002",
+					OrganizationID: orgID,
+					Name:           "pops",
+					ParentID:       "00000000-0000-0000-0000-000000000011",
+					ChildrenWithGrouping: []testdata.ChildModel{
+						{
+							ID:             "00000000-0000-0000-0000-000000000021",
+							OrganizationID: orgID,
+							Name:           "kiddo",
+							ParentID:       "00000000-0000-0000-0000-000000000002",
+						},
+					},
+				},
+				testdata.ParentModel{
+					ID:             "00000000-0000-0000-0000-000000000003",
+					OrganizationID: orgID,
+					Name:           "uncle",
+					ParentID:       "00000000-0000-0000-0000-000000000011",
+					ChildrenWithGrouping: []testdata.ChildModel{
+						{
+							ID:             "00000000-0000-0000-0000-000000000022",
+							OrganizationID: orgID,
+							Name:           "coz",
+							ParentID:       "00000000-0000-0000-0000-000000000003",
+						},
+					},
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
+									SELECT
+										t0.id AS "t0.id",
+										t0.organization_id AS "t0.organization_id",
+										t0.name AS "t0.name",
+										t0.parent_id AS "t0.parent_id"
+									FROM parentmodel AS t0
+									WHERE t0.organization_id = $1 AND t0.name = $2
+								`)).
+					WithArgs(orgID, "pops").
 					WillReturnRows(
 						sqlmock.NewRows([]string{
 							"t0.id",
@@ -499,9 +541,179 @@ func TestFilterModelAssociations(t *testing.T) {
 							"t0.parent_id",
 						}).
 							AddRow(
+								"00000000-0000-0000-0000-000000000002",
+								orgID,
+								"pops",
+								"00000000-0000-0000-0000-000000000011",
+							).
+							AddRow(
+								"00000000-0000-0000-0000-000000000003",
+								orgID,
+								"uncle",
+								"00000000-0000-0000-0000-000000000011",
+							),
+					)
+
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
+								SELECT
+									t0.id AS "t0.id",
+									t0.organization_id AS "t0.organization_id",
+									t0.name AS "t0.name",
+									t0.parent_id AS "t0.parent_id"
+								FROM childmodel AS t0
+								WHERE
+									t0.organization_id = $1 AND ((t0.parent_id = $2) OR (t0.parent_id = $3))
+							`)).
+					WithArgs(orgID, "00000000-0000-0000-0000-000000000002", "00000000-0000-0000-0000-000000000003").
+					WillReturnRows(
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+						}).
+							AddRow(
+								"00000000-0000-0000-0000-000000000021",
+								orgID,
+								"kiddo",
+								"00000000-0000-0000-0000-000000000002",
+							).
+							AddRow(
 								"00000000-0000-0000-0000-000000000022",
 								orgID,
 								"coz",
+								"00000000-0000-0000-0000-000000000003",
+							),
+					)
+			},
+			nil,
+		},
+		{
+			"happy path for filtering nested results for multiple parents for eager loading with complex grouping criteria",
+			testdata.ParentModel{
+				Name: "pops",
+			},
+			[]tags.Association{
+				{
+					Name: "ToysWithGrouping",
+					Associations: []tags.Association{
+						{
+							Name: "Parent",
+						},
+					},
+				},
+			},
+			[]interface{}{
+				testdata.ParentModel{
+					ID:             "00000000-0000-0000-0000-000000000002",
+					OrganizationID: orgID,
+					Name:           "pops",
+					ParentID:       "00000000-0000-0000-0000-000000000011",
+					ToysWithGrouping: []testdata.ToyModel{
+						{
+							ID:             "00000000-0000-0000-0000-000000000021",
+							OrganizationID: orgID,
+							Name:           "robot",
+							ParentID:       "00000000-0000-0000-0000-000000000005",
+							Parent: testdata.ChildModel{
+								ID:       "00000000-0000-0000-0000-000000000005",
+								ParentID: "00000000-0000-0000-0000-000000000002",
+							},
+						},
+					},
+				},
+				testdata.ParentModel{
+					ID:             "00000000-0000-0000-0000-000000000003",
+					OrganizationID: orgID,
+					Name:           "uncle",
+					ParentID:       "00000000-0000-0000-0000-000000000011",
+					ToysWithGrouping: []testdata.ToyModel{
+						{
+							ID:             "00000000-0000-0000-0000-000000000022",
+							OrganizationID: orgID,
+							Name:           "yoyo",
+							ParentID:       "00000000-0000-0000-0000-000000000006",
+							Parent: testdata.ChildModel{
+								ID:       "00000000-0000-0000-0000-000000000006",
+								ParentID: "00000000-0000-0000-0000-000000000003",
+							},
+						},
+					},
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
+							SELECT
+								t0.id AS "t0.id",
+								t0.organization_id AS "t0.organization_id",
+								t0.name AS "t0.name",
+								t0.parent_id AS "t0.parent_id"
+							FROM parentmodel AS t0
+							WHERE t0.organization_id = $1 AND t0.name = $2
+						`)).
+					WithArgs(orgID, "pops").
+					WillReturnRows(
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+						}).
+							AddRow(
+								"00000000-0000-0000-0000-000000000002",
+								orgID,
+								"pops",
+								"00000000-0000-0000-0000-000000000011",
+							).
+							AddRow(
+								"00000000-0000-0000-0000-000000000003",
+								orgID,
+								"uncle",
+								"00000000-0000-0000-0000-000000000011",
+							),
+					)
+
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.parent_id AS "t0.parent_id",
+							t1.id AS "t1.id",
+							t1.organization_id AS "t1.organization_id",
+							t1.name AS "t1.name",
+							t1.parent_id AS "t1.parent_id"
+						FROM toymodel AS t0
+						LEFT JOIN childmodel AS t1 ON
+							(t1.id = t0.parent_id AND t1.organization_id = $1)
+						WHERE
+							t0.organization_id = $2 AND
+							((t1.parent_id = $3) OR (t1.parent_id = $4))
+					`)).
+					WithArgs(orgID, orgID, "00000000-0000-0000-0000-000000000002", "00000000-0000-0000-0000-000000000003").
+					WillReturnRows(
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+							"t1.id",
+							"t1.parent_id",
+						}).
+							AddRow(
+								"00000000-0000-0000-0000-000000000021",
+								orgID,
+								"robot",
+								"00000000-0000-0000-0000-000000000005",
+								"00000000-0000-0000-0000-000000000005",
+								"00000000-0000-0000-0000-000000000002",
+							).
+							AddRow(
+								"00000000-0000-0000-0000-000000000022",
+								orgID,
+								"yoyo",
+								"00000000-0000-0000-0000-000000000006",
+								"00000000-0000-0000-0000-000000000006",
 								"00000000-0000-0000-0000-000000000003",
 							),
 					)

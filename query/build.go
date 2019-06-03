@@ -1,9 +1,7 @@
 package query
 
 import (
-	"database/sql"
 	"errors"
-	"fmt"
 	"reflect"
 
 	"github.com/skuid/picard/reflectutil"
@@ -30,107 +28,6 @@ func Build(multitenancyVal, model interface{}, associations []tags.Association) 
 	}
 
 	return tbl, nil
-}
-
-/*
-FindChildren will call all child tables recursively and load them into the
-appropriate place in the object's hierarchy
-*/
-func FindChildren(db *sql.DB, mtk string, val *reflect.Value, associations []tags.Association) error {
-	typ := val.Type()
-
-	for _, association := range associations {
-		field := val.FieldByName(association.Name)
-
-		if !field.IsValid() {
-			return fmt.Errorf("The association '%s' was requested, but was not found in the struct of type '%v'", association.Name, typ.Name())
-		}
-
-		if structField, ok := typ.FieldByName(association.Name); ok {
-			ptags := tags.GetStructTagsMap(structField, "picard")
-
-			if _, yes := ptags["child"]; yes {
-				fk, ok := ptags["foreign_key"]
-
-				if structField.Type.Kind() != reflect.Slice && structField.Type.Kind() != reflect.Map {
-					return fmt.Errorf("Child type for the field '%v' on type '%v' must be a map or slice. Found '%v' instead", structField.Name, typ.Name(), structField.Type.Kind())
-				}
-
-				if !ok {
-					return fmt.Errorf("Missing 'foreign_key' tag on child '%s' of type '%v'", association.Name, typ.Name())
-				}
-
-				filterModel := reflect.Indirect(reflect.New(structField.Type.Elem()))
-
-				pkval, ok := reflectutil.GetPK(*val)
-				if !ok {
-					return fmt.Errorf("Missing 'primary_key' tag on type '%v'", val.Type().Name())
-				}
-
-				if fmf := filterModel.FieldByName(fk); fmf.CanSet() {
-					fmf.Set(*pkval)
-				} else {
-					return fmt.Errorf("'foreign_key' field '%s' on 'child' type '%v' is not settable", fk, filterModel.Type())
-				}
-
-				tbl, err := Build(mtk, filterModel.Interface(), association.Associations)
-				if err != nil {
-					return err
-				}
-
-				rows, err := tbl.BuildSQL().RunWith(db).Query()
-				if err != nil {
-					return err
-				}
-
-				aliasMap := tbl.FieldAliases()
-				childResults, err := Hydrate(filterModel.Interface(), aliasMap, rows)
-				if err != nil {
-					return err
-				}
-
-				if field.Kind() == reflect.Slice {
-					field.Set(reflect.MakeSlice(field.Type(), len(childResults), len(childResults)))
-
-					for i, cr := range childResults {
-						field.Index(i).Set(*cr)
-						cf := field.Index(i)
-						err = FindChildren(db, mtk, &cf, association.Associations)
-						if err != nil {
-							return err
-						}
-					}
-				} else if field.Kind() == reflect.Map {
-					field.Set(reflect.MakeMap(field.Type()))
-
-					for _, cr := range childResults {
-						keyField, ok := ptags["key_mapping"]
-						if !ok {
-							return fmt.Errorf("Missing 'key_mapping' in the picard tags for the child field type '%v'", cr.Type().Name())
-						}
-
-						key := cr.FieldByName(keyField)
-
-						if !key.IsValid() {
-							return fmt.Errorf("Key field '%s' in type %v does not hold a value on the results and can't be used as a map key", keyField, cr.Type())
-						}
-
-						field.SetMapIndex(key, *cr)
-						err = FindChildren(db, mtk, cr, association.Associations)
-						if err != nil {
-							return err
-						}
-					}
-
-				} else {
-					return fmt.Errorf("Expected a slice or map for %s, but got kind: %v", association.Name, field.Kind())
-				}
-
-			}
-		}
-	}
-
-	return nil
 }
 
 /*
@@ -221,12 +118,12 @@ func buildQuery(
 			if notZero {
 				tbl.AddWhere(column, val.Interface())
 			}
-			
+
 			// If the association wasn't asked for, but there is a value in the related structure, just join but don't
 			// add the fields to the select.
 			childOnlyJoin := !ok && !reflectutil.IsZeroValue(relatedVal)
 
-			if ok || childOnlyJoin{
+			if ok || childOnlyJoin {
 				// Get type, load it as a model so we can build it out
 				refTyp := relatedVal.Type()
 
