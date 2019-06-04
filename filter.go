@@ -93,7 +93,7 @@ func (p PersistenceORM) getFilterResults(filterModel interface{}, associations [
 	} else if modelKind == reflect.Ptr {
 		return p.getFilterResults(modelVal.Elem().Interface(), associations, tx)
 	}
-	return nil, fmt.Errorf("Filter must be a struct or a slice of structs")
+	return nil, fmt.Errorf("Filter must be a struct, a slice of structs, or a pointer to a struct or slice of structs")
 }
 
 // FilterModel returns models that match the provided struct, ignoring zero values.
@@ -162,8 +162,6 @@ func (p PersistenceORM) FilterModelAssociations(filterModel interface{}, associa
 
 					newFilterList = reflect.Append(newFilterList, newFilter)
 				}
-				// This is dumb, just go get everything
-				//newFilterList = reflect.Indirect(reflect.New(childType))
 			} else {
 				return nil, fmt.Errorf("Missing 'foreign_key' tag or 'grouping_criteria' on child '%s' of type '%v'", association.Name, childType.Name())
 			}
@@ -173,6 +171,8 @@ func (p PersistenceORM) FilterModelAssociations(filterModel interface{}, associa
 				return nil, err
 			}
 			populateChildResults(results, childResults, child, filterMetadata)
+		} else {
+			return nil, fmt.Errorf("No child association named '%s' found", association.Name)
 		}
 	}
 
