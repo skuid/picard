@@ -23,15 +23,17 @@ type GrandParentModel struct {
 }
 
 type ParentModel struct {
-	Metadata       metadata.Metadata     `picard:"tablename=parentmodel"`
-	ID             string                `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string                `picard:"multitenancy_key,column=organization_id"`
-	Name           string                `json:"name" picard:"lookup,column=name"`
-	ParentID       string                `picard:"foreign_key,lookup,required,related=GrandParent,column=parent_id"`
-	GrandParent    GrandParentModel      `json:"parent" validate:"-"`
-	Children       []ChildModel          `json:"children" picard:"child,foreign_key=ParentID"`
-	Animals        []PetModel            `json:"animals" picard:"child,foreign_key=ParentID"`
-	ChildrenMap    map[string]ChildModel `picard:"child,foreign_key=ParentID,key_mapping=Name"`
+	Metadata             metadata.Metadata     `picard:"tablename=parentmodel"`
+	ID                   string                `json:"id" picard:"primary_key,column=id"`
+	OrganizationID       string                `picard:"multitenancy_key,column=organization_id"`
+	Name                 string                `json:"name" picard:"lookup,column=name"`
+	ParentID             string                `picard:"foreign_key,lookup,required,related=GrandParent,column=parent_id"`
+	GrandParent          GrandParentModel      `json:"parent" validate:"-"`
+	Children             []ChildModel          `json:"children" picard:"child,foreign_key=ParentID"`
+	Animals              []PetModel            `json:"animals" picard:"child,foreign_key=ParentID"`
+	ChildrenMap          map[string]ChildModel `picard:"child,foreign_key=ParentID,key_mapping=Name"`
+	ChildrenWithGrouping []ChildModel          `picard:"child,grouping_criteria=ParentID->ID"`
+	ToysWithGrouping     []ToyModel            `picard:"child,grouping_criteria=Parent.ParentID->ID"`
 }
 
 type ChildModel struct {

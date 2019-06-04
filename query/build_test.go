@@ -1,11 +1,8 @@
 package query
 
 import (
-	"errors"
-	"reflect"
 	"testing"
 
-	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	"github.com/skuid/picard/metadata"
 	"github.com/skuid/picard/tags"
 	"github.com/skuid/picard/testdata"
@@ -196,77 +193,4 @@ type childNotSlice struct {
 	ID             string              `json:"id" picard:"primary_key,column=id"`
 	OrganizationID string              `picard:"multitenancy_key,column=organization_id"`
 	Children       testdata.ChildModel `json:"children" picard:"child,foreign_key=parent_id"`
-}
-
-func TestFindChildrenErrors(t *testing.T) {
-	orgID := "00000000-0000-0000-0000-000000000001"
-	testCases := []struct {
-		desc     string
-		fixture  interface{}
-		assoc    []tags.Association
-		expected error
-	}{
-		{
-			"should throw an error if an association is requested that doens't exist on the struct",
-			testdata.ParentModel{
-				ID: "1",
-			},
-			[]tags.Association{
-				tags.Association{
-					Name: "NotChildren",
-				},
-			},
-			errors.New("The association 'NotChildren' was requested, but was not found in the struct of type: 'parentModel'"),
-		},
-		{
-			"should throw an error if a 'child' property is missing the 'foreign_key' tag",
-			noForeignKey{
-				ID: "1",
-			},
-			[]tags.Association{
-				tags.Association{
-					Name: "Children",
-				},
-			},
-			errors.New("Missing 'foreign_key' tag on child 'Children' of type 'noForeignKey'"),
-		},
-		{
-			"should throw an error if the parent doesn't have a primary key for the child table's join",
-			noPrimaryKey{},
-			[]tags.Association{
-				tags.Association{
-					Name: "Children",
-				},
-			},
-			errors.New("Missing 'primary_key' tag on type 'noPrimaryKey'"),
-		},
-		{
-			"should throw an error if the child's type is not a slice or map",
-			childNotSlice{},
-			[]tags.Association{
-				tags.Association{
-					Name: "Children",
-				},
-			},
-			errors.New("Child type for the field 'Children' on type 'childNotSlice' must be a map or slice. Found 'struct' instead"),
-		},
-	}
-
-	for _, tc := range testCases[len(testCases)-1:] {
-		t.Run(tc.desc, func(t *testing.T) {
-			assert := assert.New(t)
-
-			db, mock, err := sqlmock.New()
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			mock.ExpectQuery("^SELECT")
-
-			fixture := reflect.ValueOf(tc.fixture)
-
-			err = FindChildren(db, orgID, &fixture, tc.assoc)
-			assert.Equal(tc.expected, err)
-		})
-	}
 }
