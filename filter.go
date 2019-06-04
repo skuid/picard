@@ -171,8 +171,6 @@ func (p PersistenceORM) FilterModelAssociations(filterModel interface{}, associa
 				return nil, err
 			}
 			populateChildResults(results, childResults, child, filterMetadata)
-		} else {
-			return nil, fmt.Errorf("No child association named '%s' found", association.Name)
 		}
 	}
 
