@@ -508,6 +508,14 @@ func TestFieldAliases(t *testing.T) {
 							"col_c",
 							"col_d",
 						},
+						joins: []fieldAliasFixture{
+							{
+								table: "table_d",
+								cols: []string {
+									"col_d_a",
+								},
+							},
+						},
 					},
 					{
 						table: "table_c",
@@ -518,28 +526,33 @@ func TestFieldAliases(t *testing.T) {
 				},
 			},
 			map[string]FieldDescriptor{
-				"t0.col_a": FieldDescriptor{
+				"t0.col_a": {
 					Alias: "t0",
 					Table: "table_a",
 					Field: "col_a",
 				},
-				"t0.col_b": FieldDescriptor{
+				"t0.col_b": {
 					Alias: "t0",
 					Table: "table_a",
 					Field: "col_b",
 				},
-				"t1.col_c": FieldDescriptor{
+				"t1.col_c": {
 					Alias: "t1",
 					Table: "table_b",
 					Field: "col_c",
 				},
-				"t1.col_d": FieldDescriptor{
+				"t1.col_d": {
 					Alias: "t1",
 					Table: "table_b",
 					Field: "col_d",
 				},
-				"t2.col_e": FieldDescriptor{
+				"t2.col_d_a": {
 					Alias: "t2",
+					Table: "table_d",
+					Field: "col_d_a",
+				},
+				"t3.col_e": {
+					Alias: "t3",
 					Table: "table_c",
 					Field: "col_e",
 				},
@@ -554,14 +567,18 @@ func TestFieldAliases(t *testing.T) {
 			tbl := New(tc.fixture.table)
 			tbl.AddColumns(tc.fixture.cols)
 
-			for _, join := range tc.fixture.joins {
-				joinTbl := tbl.AppendJoin(join.table, "foo", "bar", "")
-				joinTbl.AddColumns(join.cols)
-			}
-
+			appendTestAliasJoin(tbl, tc.fixture.joins)
 			actual := tbl.FieldAliases()
 
 			assert.Equal(tc.expected, actual, "Expected the resulting SQL to match expected")
 		})
+	}
+}
+
+func appendTestAliasJoin(tbl *Table, joins []fieldAliasFixture) {
+	for _, join := range joins {
+		joinTbl := tbl.AppendJoin(join.table, "foo", "bar", "")
+		joinTbl.AddColumns(join.cols)
+		appendTestAliasJoin(tbl, join.joins)
 	}
 }

@@ -215,12 +215,9 @@ func (t *Table) FieldAliases() map[string]FieldDescriptor {
 	}
 
 	for _, join := range t.Joins {
-		for _, col := range join.Table.columns {
-			aliasMap[fmt.Sprintf(aliasedField, join.Table.Alias, col)] = FieldDescriptor{
-				Alias: join.Table.Alias,
-				Table: join.Table.Name,
-				Field: col,
-			}
+		jmap := join.Table.FieldAliases()
+		for key, val := range jmap {
+			aliasMap[key] = val
 		}
 	}
 
