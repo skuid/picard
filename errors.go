@@ -3,6 +3,9 @@ package picard
 import (
 	"errors"
 	"fmt"
+	"strings"
+
+	multierror "github.com/hashicorp/go-multierror"
 )
 
 // ModelNotFoundError is returned when functions that expect to return an
@@ -18,25 +21,44 @@ func (err Error) Error() string {
 
 // ForeignKeyError has extra information about which lookup failed
 type ForeignKeyError struct {
-	Err   error
-	Table string
-	Key   string
+	Err       error
+	Table     string
+	Key       string
+	KeyColumn string
+}
+
+func multiErrorOutputter(errs []error) string {
+	errorStrings := []string{}
+	for _, err := range errs {
+		errorStrings = append(errorStrings, err.Error())
+	}
+	return strings.Join(errorStrings, " - ")
+}
+
+func SquashErrors(errs []error) error {
+	var squashedError *multierror.Error
+	for _, err := range errs {
+		squashedError = multierror.Append(squashedError, err)
+	}
+	squashedError.ErrorFormat = multiErrorOutputter
+	return squashedError
 }
 
 /*
 NewForeignKeyError returns a new ForeignKeyError object, populated with
 extra information about which lookup failed
 */
-func NewForeignKeyError(reason, table, key string) *ForeignKeyError {
+func NewForeignKeyError(reason, table, key, keyColumn string) *ForeignKeyError {
 	return &ForeignKeyError{
-		Err:   errors.New(reason),
-		Table: table,
-		Key:   key,
+		Err:       errors.New(reason),
+		Table:     table,
+		Key:       key,
+		KeyColumn: keyColumn,
 	}
 }
 
 func (e *ForeignKeyError) Error() string {
-	return fmt.Sprintf("%s: Table '%s', Foreign Key '%s'", e.Err, e.Table, e.Key)
+	return fmt.Sprintf("%s: Table '%s', Foreign Key '%s', Key '%s'", e.Err, e.Table, e.KeyColumn, e.Key)
 }
 
 // QueryError holds additional information about an SQL query failure

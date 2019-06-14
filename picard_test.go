@@ -1588,7 +1588,7 @@ func TestDeployments(t *testing.T) {
 					},
 				})
 			},
-			"Missing Required Foreign Key Lookup: Table 'childtest', Foreign Key 'parent_id'",
+			"Missing Required Foreign Key Lookup: Table 'childtest', Foreign Key 'parent_id', Key 'Simple|'",
 		},
 	}
 

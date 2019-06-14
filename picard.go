@@ -761,6 +761,8 @@ func (p PersistenceORM) generateChanges(
 
 	s := reflect.ValueOf(data)
 
+	processingErrors := []error{}
+
 	for i := 0; i < s.Len(); i++ {
 		value := s.Index(i)
 
@@ -796,7 +798,8 @@ func (p PersistenceORM) generateChanges(
 		dbChange, err := p.processObject(value, existingObj, foreignKeys, tableMetadata)
 
 		if err != nil {
-			return nil, err
+			processingErrors = append(processingErrors, err)
+			continue
 		}
 
 		if dbChange.Changes == nil {
@@ -816,6 +819,10 @@ func (p PersistenceORM) generateChanges(
 			}
 			inserts = append(inserts, dbChange)
 		}
+	}
+
+	if len(processingErrors) > 0 {
+		return nil, SquashErrors(processingErrors)
 	}
 
 	return &dbchange.ChangeSet{
@@ -991,6 +998,7 @@ func (p PersistenceORM) processObject(
 				return dbchange.Change{}, NewForeignKeyError(
 					"Missing Required Foreign Key Lookup",
 					tableMetadata.GetTableName(),
+					key,
 					foreignKey.KeyColumn,
 				)
 			}
