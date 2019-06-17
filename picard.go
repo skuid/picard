@@ -560,6 +560,7 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tags.TableMetadata, fo
 
 func getLookupObjectKeys(data interface{}, lookupsToUse []tags.Lookup, foreignKey *tags.ForeignKey) []string {
 	keys := []string{}
+	keyMap := map[string]bool{}
 	s := reflect.ValueOf(data)
 	emptyKeyLength := len(separator) * len(lookupsToUse)
 	for i := 0; i < s.Len(); i++ {
@@ -577,8 +578,13 @@ func getLookupObjectKeys(data interface{}, lookupsToUse []tags.Lookup, foreignKe
 		if len(objectKey) == emptyKeyLength-1 {
 			continue
 		}
-		// Determine the where values that we need for this lookup
-		keys = append(keys, objectKey)
+
+		// Make sure our keys are unique
+		if _, ok := keyMap[objectKey]; !ok {
+			keyMap[objectKey] = true
+			// Determine the where values that we need for this lookup
+			keys = append(keys, objectKey)
+		}
 	}
 	return keys
 }
@@ -761,6 +767,8 @@ func (p PersistenceORM) generateChanges(
 
 	s := reflect.ValueOf(data)
 
+	processingErrors := []error{}
+
 	for i := 0; i < s.Len(); i++ {
 		value := s.Index(i)
 
@@ -796,7 +804,8 @@ func (p PersistenceORM) generateChanges(
 		dbChange, err := p.processObject(value, existingObj, foreignKeys, tableMetadata)
 
 		if err != nil {
-			return nil, err
+			processingErrors = append(processingErrors, err)
+			continue
 		}
 
 		if dbChange.Changes == nil {
@@ -816,6 +825,10 @@ func (p PersistenceORM) generateChanges(
 			}
 			inserts = append(inserts, dbChange)
 		}
+	}
+
+	if len(processingErrors) > 0 {
+		return nil, SquashErrors(processingErrors)
 	}
 
 	return &dbchange.ChangeSet{
@@ -991,6 +1004,7 @@ func (p PersistenceORM) processObject(
 				return dbchange.Change{}, NewForeignKeyError(
 					"Missing Required Foreign Key Lookup",
 					tableMetadata.GetTableName(),
+					key,
 					foreignKey.KeyColumn,
 				)
 			}

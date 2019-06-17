@@ -1577,18 +1577,62 @@ func TestDeployments(t *testing.T) {
 
 				// Expect the foreign key lookup next
 				ExpectLookup(mock, testObjectHelper, []string{"Simple|"}, [][]driver.Value{})
-
-				ExpectInsert(mock, testChildObjectWithLookupHelper, testChildObjectWithLookupHelper.GetInsertDBColumns(false), [][]driver.Value{
-					[]driver.Value{
-						sampleOrgID,
-						testChildObjectWithLookupHelper.GetFixtureValue(childObjects, 0, "Name"),
-						nil,
-						parentUUID,
-						nil,
-					},
-				})
 			},
-			"Missing Required Foreign Key Lookup: Table 'childtest', Foreign Key 'parent_id'",
+			"Missing Required Foreign Key Lookup: Table 'childtest', Foreign Key 'parent_id', Key 'Simple|'",
+		},
+
+		{
+			"Import New Children with Bad References to Parent Name",
+			[]string{"ChildWithParentLookup", "ChildWithParentLookup2"},
+			testdata.ChildTestObject{},
+			100,
+			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+				parentUUID := uuid.NewV4().String()
+				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
+				lookupKeys := []string{"ChildItem|Simple|", "ChildItem2|Simple2|"}
+				returnData := [][]driver.Value{}
+
+				childObjects := []testdata.ChildTestObject{}
+				for _, fixture := range fixtures {
+					childObjects = append(childObjects, testdata.ChildTestObject{
+						Name:     fixture.Name,
+						ParentID: parentUUID,
+					})
+				}
+
+				ExpectLookup(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
+
+				// Expect the foreign key lookup next
+				ExpectLookup(mock, testObjectHelper, []string{"Simple|", "Simple2|"}, [][]driver.Value{})
+			},
+			"Missing Required Foreign Key Lookup: Table 'childtest', Foreign Key 'parent_id', Key 'Simple|' - Missing Required Foreign Key Lookup: Table 'childtest', Foreign Key 'parent_id', Key 'Simple2|'",
+		},
+
+		{
+			"Import New Children with Bad References to same Parent Name",
+			[]string{"ChildWithParentLookup", "ChildWithParentLookup"},
+			testdata.ChildTestObject{},
+			100,
+			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+				parentUUID := uuid.NewV4().String()
+				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
+				lookupKeys := []string{"ChildItem|Simple|"}
+				returnData := [][]driver.Value{}
+
+				childObjects := []testdata.ChildTestObject{}
+				for _, fixture := range fixtures {
+					childObjects = append(childObjects, testdata.ChildTestObject{
+						Name:     fixture.Name,
+						ParentID: parentUUID,
+					})
+				}
+
+				ExpectLookup(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
+
+				// Expect the foreign key lookup next
+				ExpectLookup(mock, testObjectHelper, []string{"Simple|"}, [][]driver.Value{})
+			},
+			"Missing Required Foreign Key Lookup: Table 'childtest', Foreign Key 'parent_id', Key 'Simple|'",
 		},
 	}
 
