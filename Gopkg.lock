@@ -2,7 +2,7 @@
 
 
 [[projects]]
-  digest = "1:618c9f6e1879c9d6d50a27c1233900e27c87400c56f9578273c961d8fbbc7b9e"
+  digest = "1:4014584c076f25aaf35d9de36c79ae2d208bba32c780f405e3395dad79292e22"
   name = "github.com/DATA-DOG/go-sqlmock"
   packages = ["."]
   pruneopts = ""
@@ -11,7 +11,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:4e7bd066921c6d76d99791d04738949705ceb23d7a052fac4e28739d3e4ab272"
+  digest = "1:6b250e53b3b7b9abd7e62f55875c234d2f8b77b846bff200fecafa2dc09af09a"
   name = "github.com/MakeNowJust/heredoc"
   packages = ["."]
   pruneopts = ""
@@ -26,7 +26,7 @@
   version = "v1.0"
 
 [[projects]]
-  digest = "1:0a39ec8bf5629610a4bc7873a92039ee509246da3cef1a0ea60f1ed7e5f9cea5"
+  digest = "1:56c130d885a4aacae1dd9c7b71cfe39912c7ebc1ff7d2b46083c8812996dc43b"
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   pruneopts = ""
@@ -34,7 +34,7 @@
   version = "v1.1.0"
 
 [[projects]]
-  digest = "1:83eaa43b760e8bd279dada5b42014a526a45b235790bbe7dddecf0f609af4752"
+  digest = "1:68d892747cfa2f0638a70b8193bc12c83d9474d93c78f41e4b45a305b2f21e24"
   name = "github.com/go-playground/locales"
   packages = [
     ".",
@@ -45,12 +45,28 @@
   version = "v0.11.2"
 
 [[projects]]
-  digest = "1:3f6d859c5053f210544af6a33d6a41033e35ebf35c1abe5e8eb9dba105fd40ea"
+  digest = "1:7ca0f6f2a364f603e843763d35c979b595d71159982791de27f9ec40d532876b"
   name = "github.com/go-playground/universal-translator"
   packages = ["."]
   pruneopts = ""
   revision = "b32fa301c9fe55953584134cb6853a13c87ec0a1"
   version = "v0.16.0"
+
+[[projects]]
+  digest = "1:8e3bd93036b4a925fe2250d3e4f38f21cadb8ef623561cd80c3c50c114b13201"
+  name = "github.com/hashicorp/errwrap"
+  packages = ["."]
+  pruneopts = ""
+  revision = "8a6fb523712970c966eefc6b39ed2c5e74880354"
+  version = "v1.0.0"
+
+[[projects]]
+  digest = "1:72308fdd6d5ef61106a95be7ca72349a5565809042b6426a3cfb61d99483b824"
+  name = "github.com/hashicorp/go-multierror"
+  packages = ["."]
+  pruneopts = ""
+  revision = "886a7fbe3eb1c874d46f623bfa70af45f425b3d1"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
@@ -70,7 +86,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:ada2b83c3f1a382f0bf2d8b56a0e2f39f324a5c4a20eb1b3574697fa2ae67c1a"
+  digest = "1:3b5167b89f2203a949b71e29783418a0532531238ad36eb8610ec12e9c7b997f"
   name = "github.com/lib/pq"
   packages = [
     ".",
@@ -104,7 +120,7 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:5d69af9ecfa4e2c3b0a4f4be234469f96ce2190dc35b848ab90ce4b7e6c88e15"
+  digest = "1:efdd8a779b6d1eba5bd94b1daa200d1566ef8568c8afc9cb84588f45e6bf4d56"
   name = "github.com/plusplusben/json-iterator-go"
   packages = ["."]
   pruneopts = ""
@@ -128,7 +144,7 @@
   version = "v1.1.0"
 
 [[projects]]
-  digest = "1:897c96c441e46acc493440a9f85e42450922ba2b99fa0721dbe5303ee6d7b8c6"
+  digest = "1:2d0dc026c4aef5e2f3a0e06a4dabe268b840d8f63190cf6894e02134a03f52c5"
   name = "github.com/stretchr/testify"
   packages = ["assert"]
   pruneopts = ""
@@ -136,7 +152,7 @@
   version = "v1.2.0"
 
 [[projects]]
-  digest = "1:abfbb587b49d26d6bf1159cb40841ab305f897048aae897b08191ae8bfa86e42"
+  digest = "1:cae65c1f3471b1f456a9d8a160440f4824ad50c718a15da4144490fbc3b12e49"
   name = "github.com/tinylib/msgp"
   packages = ["msgp"]
   pruneopts = ""
@@ -145,14 +161,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:8a11a523f2229e7d6349c54e3156fad9f742bdedf81732916d143e9381c0afd9"
+  digest = "1:dad137c4b24778e11782675f4ef8a00e9625dfe8cf063cb7d104d370c303c6cb"
   name = "golang.org/x/sys"
   packages = ["windows"]
   pruneopts = ""
   revision = "c2ed4eda69e7f62900806e4cd6e45f0429f859fa"
 
 [[projects]]
-  digest = "1:bbe50005cd424701f27d5fed16e13bea28391aae0ce58a5c54e116ca3e6162a2"
+  digest = "1:be560af8c72c59788a6748eae60b8e1fe136fefdf049b7dfb6f5b591ea337984"
   name = "gopkg.in/DataDog/dd-trace-go.v1"
   packages = [
     "contrib/database/sql",
@@ -167,7 +183,7 @@
   version = "v1.3.0"
 
 [[projects]]
-  digest = "1:1cf4df84b33250f400a322745ed2e90dd1bad46cdbaa993333ecf57f44dbedcc"
+  digest = "1:ff079e6ffd8ee0e5f39d98d357fef55fd460304c3eece24cb8f5e62318e9747a"
   name = "gopkg.in/go-playground/validator.v9"
   packages = ["."]
   pruneopts = ""
@@ -181,6 +197,7 @@
     "github.com/DATA-DOG/go-sqlmock",
     "github.com/MakeNowJust/heredoc",
     "github.com/Masterminds/squirrel",
+    "github.com/hashicorp/go-multierror",
     "github.com/lib/pq",
     "github.com/modern-go/reflect2",
     "github.com/plusplusben/json-iterator-go",
