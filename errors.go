@@ -35,10 +35,17 @@ func multiErrorOutputter(errs []error) string {
 	return strings.Join(errorStrings, " - ")
 }
 
+// SquashErrors turns a slice of errors into a single error
 func SquashErrors(errs []error) error {
 	var squashedError *multierror.Error
+	errorMap := map[string]bool{}
 	for _, err := range errs {
-		squashedError = multierror.Append(squashedError, err)
+		errorString := err.Error()
+		// Make sure our keys are unique
+		if _, ok := errorMap[errorString]; !ok {
+			errorMap[errorString] = true
+			squashedError = multierror.Append(squashedError, err)
+		}
 	}
 	squashedError.ErrorFormat = multiErrorOutputter
 	return squashedError

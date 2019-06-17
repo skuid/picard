@@ -560,6 +560,7 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tags.TableMetadata, fo
 
 func getLookupObjectKeys(data interface{}, lookupsToUse []tags.Lookup, foreignKey *tags.ForeignKey) []string {
 	keys := []string{}
+	keyMap := map[string]bool{}
 	s := reflect.ValueOf(data)
 	emptyKeyLength := len(separator) * len(lookupsToUse)
 	for i := 0; i < s.Len(); i++ {
@@ -577,8 +578,13 @@ func getLookupObjectKeys(data interface{}, lookupsToUse []tags.Lookup, foreignKe
 		if len(objectKey) == emptyKeyLength-1 {
 			continue
 		}
-		// Determine the where values that we need for this lookup
-		keys = append(keys, objectKey)
+
+		// Make sure our keys are unique
+		if _, ok := keyMap[objectKey]; !ok {
+			keyMap[objectKey] = true
+			// Determine the where values that we need for this lookup
+			keys = append(keys, objectKey)
+		}
 	}
 	return keys
 }
