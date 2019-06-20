@@ -53,6 +53,40 @@ var testChildObjectWithLookupHelper = ExpectationHelper{
 	LookupFields:     []string{"Name", "ParentID"},
 }
 
+var siblingJunctionHelper = ExpectationHelper{
+	FixtureType:      testdata.SiblingJunctionModel{},
+	LookupFrom:       "siblingjunction JOIN personmodel as t1 on t1.id = child_id JOIN personmodel as t2 on t2.id = sibling_id",
+	LookupSelect:     "siblingjunction.id, t1.name as t1_name, t2.name as t2_name",
+	LookupWhere:      `COALESCE(t1.name::"varchar",'') || '|' || COALESCE(t2.name::"varchar",'')`,
+	LookupReturnCols: []string{"id", "t1_name", "t2_name"},
+	LookupFields:     []string{"ChildID", "SiblingID"},
+}
+
+var siblingJunctionHelperWithChildKey = ExpectationHelper{
+	FixtureType:      testdata.SiblingJunctionModel{},
+	LookupFrom:       "siblingjunction JOIN personmodel as t1 on t1.id = sibling_id",
+	LookupSelect:     "siblingjunction.id, siblingjunction.child_id as siblingjunction_child_id, t1.name as t1_name",
+	LookupWhere:      `COALESCE(siblingjunction.child_id::"varchar",'') || '|' || COALESCE(t1.name::"varchar",'')`,
+	LookupReturnCols: []string{"id", "child_id", "t1_name"},
+	LookupFields:     []string{"ChildID", "SiblingID"},
+}
+
+var personModelHelper = ExpectationHelper{
+	FixtureType:      testdata.PersonModel{},
+	LookupSelect:     "personmodel.id, personmodel.name as personmodel_name",
+	LookupWhere:      `COALESCE(personmodel.name::"varchar",'')`,
+	LookupReturnCols: []string{"id", "personmodel_name"},
+	LookupFields:     []string{"Name"},
+}
+
+var personModelWithIDHelper = ExpectationHelper{
+	FixtureType:      testdata.PersonModel{},
+	LookupSelect:     "personmodel.id, personmodel.id as personmodel_id",
+	LookupWhere:      `COALESCE(personmodel.id::"varchar",'')`,
+	LookupReturnCols: []string{"id", "personmodel_id"},
+	LookupFields:     []string{"ID"},
+}
+
 func TestSerializeJSONBColumns(t *testing.T) {
 	testCases := []struct {
 		testDescription string
@@ -1633,6 +1667,117 @@ func TestDeployments(t *testing.T) {
 				ExpectLookup(mock, testObjectHelper, []string{"Simple|"}, [][]driver.Value{})
 			},
 			"Missing Required Foreign Key Lookup: Table 'childtest', Foreign Key 'parent_id', Key 'Simple|'",
+		},
+		{
+			"Single Import with Multiple Foreign Key Lookups",
+			[]string{"Sibling"},
+			testdata.SiblingJunctionModel{},
+			100,
+			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
+				junctionHelper := siblingJunctionHelper
+				personHelper := personModelHelper
+				junctionReturnData := GetReturnDataForLookup(junctionHelper, nil)
+				personReturnData1 := GetReturnDataForLookup(personHelper, []testdata.PersonModel{
+					{
+						Name: "George",
+					},
+				})
+				personReturnData2 := GetReturnDataForLookup(personHelper, []testdata.PersonModel{
+					{
+						Name: "Fred",
+					},
+				})
+				junctionLookupKeys := []string{"George|Fred"}
+
+				ExpectLookup(mock, junctionHelper, junctionLookupKeys, junctionReturnData)
+
+				ExpectLookup(mock, personHelper, []string{"George"}, personReturnData1)
+				ExpectLookup(mock, personHelper, []string{"Fred"}, personReturnData2)
+
+				ExpectInsert(mock, junctionHelper, junctionHelper.GetInsertDBColumns(false), [][]driver.Value{
+					[]driver.Value{
+						sampleOrgID,
+						personReturnData1[0][0],
+						personReturnData2[0][0],
+					},
+				})
+			},
+			"",
+		},
+
+		{
+			"Single Import with Multiple Foreign Key Lookups One has key provided nested",
+			[]string{"SiblingWithChildNestedKeyProvided"},
+			testdata.SiblingJunctionModel{},
+			100,
+			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
+				junctionHelper := siblingJunctionHelper
+				personHelper := personModelHelper
+				personWithPKHelper := personModelWithIDHelper
+				junctionReturnData := GetReturnDataForLookup(junctionHelper, nil)
+
+				personReturnData1 := [][]driver.Value{
+					[]driver.Value{
+						"00000000-0000-0000-0000-000000C0FFEE",
+						"00000000-0000-0000-0000-000000C0FFEE",
+					},
+				}
+
+				personReturnData2 := GetReturnDataForLookup(personHelper, []testdata.PersonModel{
+					{
+						Name: "Fred",
+					},
+				})
+				junctionLookupKeys := []string{"|Fred"}
+
+				ExpectLookup(mock, junctionHelper, junctionLookupKeys, junctionReturnData)
+
+				ExpectLookup(mock, personWithPKHelper, []string{"00000000-0000-0000-0000-000000C0FFEE"}, personReturnData1)
+				ExpectLookup(mock, personHelper, []string{"Fred"}, personReturnData2)
+
+				ExpectInsert(mock, junctionHelper, junctionHelper.GetInsertDBColumns(false), [][]driver.Value{
+					[]driver.Value{
+						sampleOrgID,
+						personReturnData1[0][0],
+						personReturnData2[0][0],
+					},
+				})
+			},
+			"",
+		},
+
+		{
+			"Single Import with Multiple Foreign Key Lookups One has key provided not nested",
+			[]string{"SiblingWithChildKeyProvided"},
+			testdata.SiblingJunctionModel{},
+			100,
+			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
+				junctionHelper := siblingJunctionHelperWithChildKey
+				personHelper := personModelHelper
+				junctionReturnData := GetReturnDataForLookup(junctionHelper, nil)
+
+				personReturnData1 := GetReturnDataForLookup(personHelper, []testdata.PersonModel{
+					{
+						Name: "Fred",
+					},
+				})
+
+				junctionLookupKeys := []string{"00000000-0000-0000-0000-000000C0FFEE|Fred"}
+
+				ExpectLookup(mock, junctionHelper, junctionLookupKeys, junctionReturnData)
+
+				ExpectLookup(mock, personHelper, []string{"Fred"}, personReturnData1)
+
+				ExpectInsert(mock, junctionHelper, junctionHelper.GetInsertDBColumns(false), [][]driver.Value{
+					[]driver.Value{
+						sampleOrgID,
+						"00000000-0000-0000-0000-000000C0FFEE",
+						personReturnData1[0][0],
+					},
+				})
+
+			},
+			"",
 		},
 	}
 

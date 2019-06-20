@@ -534,13 +534,7 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tags.TableMetadata, fo
 			foreignKeyToCheck := foreignKeysToCheck[i]
 			fkValue := item.FieldByName(foreignKeyToCheck.FieldName)
 			if fkValue.IsValid() && fkValue.String() != "" && foreignKeyToCheck.NeedsLookup {
-				// Remove this foreign key from the list of foreign keys to check
-				if i == 0 {
-					foreignKeysToCheck = foreignKeysToCheck[:0]
-				} else {
-					foreignKeysToCheck = append(foreignKeysToCheck[:i], foreignKeysToCheck[i-1:]...)
-				}
-
+				foreignKeysToCheck = append(foreignKeysToCheck[:i], foreignKeysToCheck[i+1:]...)
 				lookupsToUse = append(lookupsToUse, tags.Lookup{
 					MatchDBColumn:       foreignKeyToCheck.KeyColumn,
 					MatchObjectProperty: foreignKeyToCheck.FieldName,

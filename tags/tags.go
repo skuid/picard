@@ -143,7 +143,13 @@ func (tm TableMetadata) GetLookups() []Lookup {
 
 // GetForeignKeys function
 func (tm TableMetadata) GetForeignKeys() []ForeignKey {
-	return tm.foreignKeys
+	// Clone the foreign keys, don't just return a reference
+	// We wouldn't want code elsewhere to mutate it
+	keys := []ForeignKey{}
+	for _, key := range tm.foreignKeys {
+		keys = append(keys, key)
+	}
+	return keys
 }
 
 // GetTableName gets the name of the table
