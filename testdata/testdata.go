@@ -47,6 +47,24 @@ type ChildModel struct {
 	Toys           []ToyModel  `json:"children" picard:"child,foreign_key=ParentID"`
 }
 
+type PersonModel struct {
+	Metadata       metadata.Metadata `picard:"tablename=personmodel"`
+	ID             string            `json:"id" picard:"primary_key,column=id"`
+	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
+	Name           string            `json:"name" picard:"lookup,column=name"`
+}
+
+type SiblingJunctionModel struct {
+	Metadata metadata.Metadata `picard:"tablename=siblingjunction"`
+
+	ID             string      `json:"id" picard:"primary_key,column=id"`
+	OrganizationID string      `picard:"multitenancy_key,column=organization_id"`
+	ChildID        string      `json:"child_id" picard:"foreign_key,lookup,required,related=Child,column=child_id"`
+	Child          PersonModel `json:"child" validate:"-"`
+	SiblingID      string      `picard:"foreign_key,lookup,required,related=Sibling,column=sibling_id"`
+	Sibling        PersonModel `json:"sibling" validate:"-"`
+}
+
 type ToyModel struct {
 	Metadata metadata.Metadata `picard:"tablename=toymodel"`
 
