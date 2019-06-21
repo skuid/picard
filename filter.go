@@ -1,6 +1,7 @@
 package picard
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -11,12 +12,45 @@ import (
 	"github.com/skuid/picard/tags"
 )
 
-func (p PersistenceORM) getSingleFilterResults(filterModel interface{}, associations []tags.Association, tx sq.BaseRunner) ([]*reflect.Value, error) {
-	tbl, err := query.Build(p.multitenancyValue, filterModel, associations)
+// FilterRequest holds information about a request to filter on a model
+type FilterRequest struct {
+	FilterModel  interface{}
+	Associations []tags.Association
+	OrderBy      []OrderByRequest
+	Runner       sq.BaseRunner
+	// Fields       []string // For use later when we implement selecting specific columns
+}
+
+// OrderByRequest holds information about a request to order by a field
+type OrderByRequest struct {
+	Field      string
+	Descending bool
+}
+
+func addOrderBy(builder sq.SelectBuilder, orderBy []OrderByRequest, filterMetadata *tags.TableMetadata) sq.SelectBuilder {
+	orderStatements := []string{}
+	for _, order := range orderBy {
+		columnName := filterMetadata.GetField(order.Field).GetColumnName()
+		if columnName != "" {
+			orderStatement := columnName
+			if order.Descending {
+				orderStatement += " DESC"
+			}
+			orderStatements = append(orderStatements, orderStatement)
+		}
+	}
+	return builder.OrderBy(orderStatements...)
+}
+
+func (p PersistenceORM) getSingleFilterResults(request FilterRequest, filterMetadata *tags.TableMetadata) ([]*reflect.Value, error) {
+	filterModel := request.FilterModel
+	tbl, err := query.Build(p.multitenancyValue, filterModel, request.Associations)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := tbl.BuildSQL().RunWith(tx).Query()
+	sql := tbl.BuildSQL()
+	sql = addOrderBy(sql, request.OrderBy, filterMetadata)
+	rows, err := sql.RunWith(request.Runner).Query()
 	if err != nil {
 		return nil, err
 	}
@@ -24,7 +58,8 @@ func (p PersistenceORM) getSingleFilterResults(filterModel interface{}, associat
 	return query.Hydrate(filterModel, aliasMap, rows)
 }
 
-func (p PersistenceORM) getMultiFilterResults(modelVal reflect.Value, associations []tags.Association, tx sq.BaseRunner) ([]*reflect.Value, error) {
+func (p PersistenceORM) getMultiFilterResults(request FilterRequest, filterMetadata *tags.TableMetadata) ([]*reflect.Value, error) {
+	modelVal := reflect.ValueOf(request.FilterModel)
 	mtVal := p.multitenancyValue
 	if modelVal.Len() <= 0 {
 		return []*reflect.Value{}, nil
@@ -37,7 +72,7 @@ func (p PersistenceORM) getMultiFilterResults(modelVal reflect.Value, associatio
 	for i := 0; i < modelVal.Len(); i++ {
 		val := modelVal.Index(i)
 
-		ftbl, err := query.Build(mtVal, val.Interface(), associations)
+		ftbl, err := query.Build(mtVal, val.Interface(), request.Associations)
 		if err != nil {
 			return nil, err
 		}
@@ -75,7 +110,8 @@ func (p PersistenceORM) getMultiFilterResults(modelVal reflect.Value, associatio
 
 	sql := tbl.BuildSQL()
 	sql = sql.Where(ors)
-	rows, err := sql.RunWith(tx).Query()
+	sql = addOrderBy(sql, request.OrderBy, filterMetadata)
+	rows, err := sql.RunWith(request.Runner).Query()
 	if err != nil {
 		return nil, err
 	}
@@ -83,31 +119,27 @@ func (p PersistenceORM) getMultiFilterResults(modelVal reflect.Value, associatio
 	return query.Hydrate(filterModel, aliasMap, rows)
 }
 
-func (p PersistenceORM) getFilterResults(filterModel interface{}, associations []tags.Association, tx sq.BaseRunner) ([]*reflect.Value, error) {
+func (p PersistenceORM) getFilterResults(request FilterRequest, filterMetadata *tags.TableMetadata) ([]*reflect.Value, error) {
+	filterModel := request.FilterModel
 	modelVal := reflect.ValueOf(filterModel)
 	modelKind := modelVal.Kind()
 	if modelKind == reflect.Struct {
-		return p.getSingleFilterResults(filterModel, associations, tx)
+		return p.getSingleFilterResults(request, filterMetadata)
 	} else if modelKind == reflect.Slice {
-		return p.getMultiFilterResults(modelVal, associations, tx)
+		return p.getMultiFilterResults(request, filterMetadata)
 	} else if modelKind == reflect.Ptr {
-		return p.getFilterResults(modelVal.Elem().Interface(), associations, tx)
+		request.FilterModel = modelVal.Elem().Interface()
+		return p.getFilterResults(request, filterMetadata)
 	}
 	return nil, fmt.Errorf("Filter must be a struct, a slice of structs, or a pointer to a struct or slice of structs")
 }
 
 // FilterModel returns models that match the provided struct, ignoring zero values.
-func (p PersistenceORM) FilterModel(filterModel interface{}) ([]interface{}, error) {
-	return p.FilterModelAssociations(filterModel, nil)
-}
-
-// FilterModelAssociations returns models that match the provide struct and also
-// return the requested associated models
-func (p PersistenceORM) FilterModelAssociations(filterModel interface{}, associations []tags.Association) ([]interface{}, error) {
-
-	results, err := p.getFilterResults(filterModel, associations, GetConnection())
-	if err != nil {
-		return nil, err
+func (p PersistenceORM) FilterModel(request FilterRequest) ([]interface{}, error) {
+	filterModel := request.FilterModel
+	associations := request.Associations
+	if request.Runner == nil {
+		request.Runner = GetConnection()
 	}
 
 	filterModelType, err := stringutil.GetFilterType(filterModel)
@@ -115,7 +147,16 @@ func (p PersistenceORM) FilterModelAssociations(filterModel interface{}, associa
 		return nil, err
 	}
 
+	if filterModelType.Kind() != reflect.Struct {
+		return nil, errors.New("Filter Type is not a struct")
+	}
+
 	filterMetadata := tags.TableMetadataFromType(filterModelType)
+
+	results, err := p.getFilterResults(request, filterMetadata)
+	if err != nil {
+		return nil, err
+	}
 
 	for _, association := range associations {
 		child := filterMetadata.GetChildField(association.Name)
@@ -166,28 +207,15 @@ func (p PersistenceORM) FilterModelAssociations(filterModel interface{}, associa
 				return nil, fmt.Errorf("Missing 'foreign_key' tag or 'grouping_criteria' on child '%s' of type '%v'", association.Name, childType.Name())
 			}
 
-			childResults, err := p.FilterModelAssociations(newFilterList.Interface(), association.Associations)
+			childResults, err := p.FilterModel(FilterRequest{
+				FilterModel:  newFilterList.Interface(),
+				Associations: association.Associations,
+			})
 			if err != nil {
 				return nil, err
 			}
 			populateChildResults(results, childResults, child, filterMetadata)
 		}
-	}
-
-	ir := make([]interface{}, 0, len(results))
-	for _, r := range results {
-		ir = append(ir, r.Interface())
-	}
-
-	return ir, nil
-}
-
-// FilterModels returns models that match the provided struct,
-// multiple models can be provided
-func (p PersistenceORM) FilterModels(models interface{}, tx sq.BaseRunner) ([]interface{}, error) {
-	results, err := p.getFilterResults(models, nil, tx)
-	if err != nil {
-		return nil, err
 	}
 
 	ir := make([]interface{}, 0, len(results))

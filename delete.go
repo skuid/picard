@@ -31,7 +31,10 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 	lookupPks := make([]interface{}, 0)
 	if len(associations) > 0 {
 		_, pk := reflectutil.ReflectTableInfo(reflect.TypeOf(model))
-		results, err := porm.FilterModelAssociations(model, associations)
+		results, err := porm.FilterModel(FilterRequest{
+			FilterModel:  model,
+			Associations: associations,
+		})
 		if err != nil {
 			return 0, err
 		}

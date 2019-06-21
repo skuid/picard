@@ -56,7 +56,9 @@ func doLookup() {
 		Name: "foo"
 	}
 
-	results, err := picardORM.FilterModel(filterModel)
+	results, err := picardORM.FilterModel(picard.FilterRequest{
+		FilterModel: filterModel,
+	})
 	// test err and results array for length
 	tbl := results[0].(tableA)
 }
@@ -65,7 +67,10 @@ func doEagerLoadLookUp() {
 		Name: "foo"
 	}
 	// association 'allthebs.allthecs'
-	results, err := picardORM.FilterModelAssociations(filterModel, []string{"AllTheBs.AllTheCs"}))
+	results, err := picardORM.FilterModel(picard.FilterRequest{
+		FilterModel: filterModel, 
+		Associations: []string{"AllTheBs.AllTheCs"}),
+	})
 }
 ```
 
