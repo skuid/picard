@@ -201,5 +201,5 @@ func FmtSQLRegex(sql string) string {
 	str = strings.Replace(str, "$", "\\$", -1)
 	str = strings.Replace(str, "(", "\\(", -1)
 	str = strings.Replace(str, ")", "\\)", -1)
-	return fmt.Sprintf("^%s", str)
+	return fmt.Sprintf("^%s$", str)
 }

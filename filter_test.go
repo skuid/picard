@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestFilterModelAssociations(t *testing.T) {
+func TestFilterModelWithAssociations(t *testing.T) {
 	orgID := "00000000-0000-0000-0000-000000000001"
 	testCases := []struct {
 		description          string
@@ -737,7 +737,10 @@ func TestFilterModelAssociations(t *testing.T) {
 				multitenancyValue: orgID,
 			}
 
-			results, err := p.FilterModelAssociations(tc.filterModel, tc.associations)
+			results, err := p.FilterModel(FilterRequest{
+				FilterModel:  tc.filterModel,
+				Associations: tc.associations,
+			})
 
 			if tc.wantErr != nil {
 				assert.Error(t, err)
@@ -766,7 +769,7 @@ func TestFilterModels(t *testing.T) {
 	}{
 		{
 			"should return an empty object if an empty slice is passed in",
-			[]interface{}{},
+			[]testdata.ToyModel{},
 			[]interface{}{},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
@@ -775,7 +778,7 @@ func TestFilterModels(t *testing.T) {
 		},
 		{
 			"should return a single object for a filter with one filter model",
-			[]interface{}{
+			[]testdata.ToyModel{
 				testdata.ToyModel{
 					ParentID: "00000000-0000-0000-0000-000000000002",
 				},
@@ -819,7 +822,7 @@ func TestFilterModels(t *testing.T) {
 		},
 		{
 			"should return a multiple objects for a filter with multiple filter models",
-			[]interface{}{
+			[]testdata.ToyModel{
 				testdata.ToyModel{
 					ParentID: "00000000-0000-0000-0000-000000000002",
 				},
@@ -922,7 +925,10 @@ func TestFilterModels(t *testing.T) {
 				multitenancyValue: orgID,
 			}
 
-			results, err := p.FilterModels(tc.filterModels, tx)
+			results, err := p.FilterModel(FilterRequest{
+				FilterModel: tc.filterModels,
+				Runner:      tx,
+			})
 
 			tx.Commit()
 
@@ -1069,7 +1075,9 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 				performedBy:       testPerformedByValue,
 			}
 
-			results, err := p.FilterModelAssociations(tc.filterModelType, nil)
+			results, err := p.FilterModel(FilterRequest{
+				FilterModel: tc.filterModelType,
+			})
 
 			if tc.wantErr != nil {
 				assert.Error(t, err)
@@ -1083,6 +1091,239 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 				}
 			}
 
+		})
+	}
+}
+
+func TestFilterModel(t *testing.T) {
+	orgID := "00000000-0000-0000-0000-000000000001"
+	testCases := []struct {
+		description          string
+		filterRequest        FilterRequest
+		wantReturnInterfaces []interface{}
+		expectationFunction  func(sqlmock.Sqlmock)
+	}{
+		{
+			"basic filter",
+			FilterRequest{
+				FilterModel: testdata.ToyModel{
+					ParentID: "00000000-0000-0000-0000-000000000002",
+				},
+			},
+			[]interface{}{
+				testdata.ToyModel{
+					ID:             "00000000-0000-0000-0000-000000000011",
+					OrganizationID: orgID,
+					Name:           "lego",
+					ParentID:       "00000000-0000-0000-0000-000000000002",
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
+					SELECT
+						t0.id AS "t0.id",
+						t0.organization_id AS "t0.organization_id",
+						t0.name AS "t0.name",
+						t0.parent_id AS "t0.parent_id"
+					FROM toymodel AS t0
+					WHERE t0.organization_id = $1 AND t0.parent_id = $2
+				`)).
+					WithArgs(orgID, "00000000-0000-0000-0000-000000000002").
+					WillReturnRows(
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+						}).
+							AddRow(
+								"00000000-0000-0000-0000-000000000011",
+								orgID,
+								"lego",
+								"00000000-0000-0000-0000-000000000002",
+							),
+					)
+				mock.ExpectCommit()
+			},
+		},
+		{
+			"basic filter with no returns",
+			FilterRequest{
+				FilterModel: testdata.ToyModel{
+					ParentID: "00000000-0000-0000-0000-000000000002",
+				},
+			},
+			[]interface{}{},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
+					SELECT
+						t0.id AS "t0.id",
+						t0.organization_id AS "t0.organization_id",
+						t0.name AS "t0.name",
+						t0.parent_id AS "t0.parent_id"
+					FROM toymodel AS t0
+					WHERE t0.organization_id = $1 AND t0.parent_id = $2
+				`)).
+					WithArgs(orgID, "00000000-0000-0000-0000-000000000002").
+					WillReturnRows(
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+						}),
+					)
+				mock.ExpectCommit()
+			},
+		},
+		{
+			"basic filter with no returns with single order by",
+			FilterRequest{
+				FilterModel: testdata.ToyModel{},
+				OrderBy: []OrderByRequest{
+					{
+						Field: "Name",
+					},
+				},
+			},
+			[]interface{}{},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
+					SELECT
+						t0.id AS "t0.id",
+						t0.organization_id AS "t0.organization_id",
+						t0.name AS "t0.name",
+						t0.parent_id AS "t0.parent_id"
+					FROM toymodel AS t0
+					WHERE t0.organization_id = $1
+					ORDER BY name
+				`)).
+					WithArgs(orgID).
+					WillReturnRows(
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+						}),
+					)
+				mock.ExpectCommit()
+			},
+		},
+		{
+			"basic filter with no returns with multiple order by",
+			FilterRequest{
+				FilterModel: testdata.ToyModel{},
+				OrderBy: []OrderByRequest{
+					{
+						Field: "Name",
+					},
+					{
+						Field: "ParentID",
+					},
+				},
+			},
+			[]interface{}{},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
+					SELECT
+						t0.id AS "t0.id",
+						t0.organization_id AS "t0.organization_id",
+						t0.name AS "t0.name",
+						t0.parent_id AS "t0.parent_id"
+					FROM toymodel AS t0
+					WHERE t0.organization_id = $1
+					ORDER BY name, parent_id
+				`)).
+					WithArgs(orgID).
+					WillReturnRows(
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+						}),
+					)
+				mock.ExpectCommit()
+			},
+		},
+		{
+			"basic filter with no returns with multiple order by and descending",
+			FilterRequest{
+				FilterModel: testdata.ToyModel{},
+				OrderBy: []OrderByRequest{
+					{
+						Field:      "Name",
+						Descending: true,
+					},
+					{
+						Field: "ParentID",
+					},
+				},
+			},
+			[]interface{}{},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
+					SELECT
+						t0.id AS "t0.id",
+						t0.organization_id AS "t0.organization_id",
+						t0.name AS "t0.name",
+						t0.parent_id AS "t0.parent_id"
+					FROM toymodel AS t0
+					WHERE t0.organization_id = $1
+					ORDER BY name DESC, parent_id
+				`)).
+					WithArgs(orgID).
+					WillReturnRows(
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+						}),
+					)
+				mock.ExpectCommit()
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+
+			tc.expectationFunction(mock)
+
+			tx, err := db.Begin()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Create the Picard instance
+			p := PersistenceORM{
+				multitenancyValue: orgID,
+			}
+
+			tc.filterRequest.Runner = tx
+			results, err := p.FilterModel(tc.filterRequest)
+
+			tx.Commit()
+
+			assert.NoError(t, err)
+			assert.Equal(t, tc.wantReturnInterfaces, results)
+
+			// sqlmock expectations
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("there were unmet sqlmock expectations: %s", err)
+			}
 		})
 	}
 }

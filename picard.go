@@ -29,8 +29,7 @@ const separator = "|"
 
 // ORM interface describes the behavior API of any picard ORM
 type ORM interface {
-	FilterModel(interface{}) ([]interface{}, error)
-	FilterModelAssociations(interface{}, []tags.Association) ([]interface{}, error)
+	FilterModel(FilterRequest) ([]interface{}, error)
 	SaveModel(model interface{}) error
 	CreateModel(model interface{}) error
 	DeleteModel(model interface{}) (int64, error)
@@ -144,7 +143,10 @@ func (p PersistenceORM) upsert(data interface{}, deleteFilters interface{}) erro
 
 	if deleteFilters != nil {
 		deletes := []dbchange.Change{}
-		deleteResults, err := p.FilterModels(deleteFilters, p.transaction)
+		deleteResults, err := p.FilterModel(FilterRequest{
+			FilterModel: deleteFilters,
+			Runner:      p.transaction,
+		})
 		if err != nil {
 			return err
 		}
