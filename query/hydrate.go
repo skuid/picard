@@ -10,6 +10,7 @@ import (
 
 	"github.com/skuid/picard/crypto"
 	"github.com/skuid/picard/stringutil"
+	qp "github.com/skuid/picard/queryparts"
 	"github.com/skuid/picard/tags"
 )
 
@@ -17,7 +18,7 @@ import (
 Hydrate takes the rows and pops them into the correct struct, in the correct
 order. This is usually called after you've built and executed the query model.
 */
-func Hydrate(filterModel interface{}, aliasMap map[string]FieldDescriptor, rows *sql.Rows) ([]*reflect.Value, error) {
+func Hydrate(filterModel interface{}, aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows) ([]*reflect.Value, error) {
 	modelVal, err := stringutil.GetStructValue(filterModel)
 	if err != nil {
 		return nil, err
@@ -52,7 +53,7 @@ func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter
 
 	alias := fmt.Sprintf("t%d", counter)
 
-	mappedFields := mapped[fmt.Sprintf(aliasedField, alias, meta.GetTableName())]
+	mappedFields := mapped[fmt.Sprintf(qp.AliasedField, alias, meta.GetTableName())]
 
 	for _, field := range meta.GetFields() {
 		fieldVal := mappedFields[field.GetColumnName()]
@@ -149,7 +150,7 @@ This function would return something like:
 
 
 */
-func mapRows2Cols(meta *tags.TableMetadata, aliasMap map[string]FieldDescriptor, rows *sql.Rows) ([]map[string]map[string]interface{}, error) {
+func mapRows2Cols(meta *tags.TableMetadata, aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows) ([]map[string]map[string]interface{}, error) {
 	results := make([]map[string]map[string]interface{}, 0)
 
 	cols, err := rows.Columns()
@@ -175,7 +176,7 @@ func mapRows2Cols(meta *tags.TableMetadata, aliasMap map[string]FieldDescriptor,
 		// storing it in the map with the name of the column as the key.
 		for i, colName := range cols {
 			tmap := aliasMap[colName]
-			aliasedTbl := fmt.Sprintf(aliasedField, tmap.Alias, tmap.Table)
+			aliasedTbl := fmt.Sprintf(qp.AliasedField, tmap.Alias, tmap.Table)
 
 			if result[aliasedTbl] == nil {
 				result[aliasedTbl] = make(map[string]interface{})

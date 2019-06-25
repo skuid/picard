@@ -4,6 +4,7 @@ import (
 	"errors"
 	"reflect"
 
+	qp "github.com/skuid/picard/queryparts"
 	"github.com/skuid/picard/reflectutil"
 	"github.com/skuid/picard/stringutil"
 	"github.com/skuid/picard/tags"
@@ -13,7 +14,7 @@ import (
 Build takes the filter model and returns a query object. It takes the
 multitenancy value, current reflected value, and any tags
 */
-func Build(multitenancyVal, model interface{}, associations []tags.Association) (*Table, error) {
+func Build(multitenancyVal, model interface{}, associations []tags.Association) (*qp.Table, error) {
 
 	val, err := stringutil.GetStructValue(model)
 	if err != nil {
@@ -63,7 +64,7 @@ func buildQuery(
 	associations []tags.Association,
 	onlyJoin bool,
 	counter int,
-) (*Table, error) {
+) (*qp.Table, error) {
 	// Inspect current reflected value, and add select/where clauses
 
 	tableName, pkName := reflectutil.ReflectTableInfo(modelType)

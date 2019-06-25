@@ -7,6 +7,7 @@ import (
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/skuid/picard/query"
+	qp "github.com/skuid/picard/queryparts"
 	"github.com/skuid/picard/reflectutil"
 	"github.com/skuid/picard/stringutil"
 	"github.com/skuid/picard/tags"
@@ -16,18 +17,12 @@ import (
 type FilterRequest struct {
 	FilterModel  interface{}
 	Associations []tags.Association
-	OrderBy      []OrderByRequest
+	OrderBy      []qp.OrderByRequest
 	Runner       sq.BaseRunner
 	// Fields       []string // For use later when we implement selecting specific columns
 }
 
-// OrderByRequest holds information about a request to order by a field
-type OrderByRequest struct {
-	Field      string
-	Descending bool
-}
-
-func addOrderBy(builder sq.SelectBuilder, orderBy []OrderByRequest, filterMetadata *tags.TableMetadata) sq.SelectBuilder {
+func addOrderBy(builder sq.SelectBuilder, orderBy []qp.OrderByRequest, filterMetadata *tags.TableMetadata) sq.SelectBuilder {
 	orderStatements := []string{}
 	for _, order := range orderBy {
 		columnName := filterMetadata.GetField(order.Field).GetColumnName()
@@ -66,7 +61,7 @@ func (p PersistenceORM) getMultiFilterResults(request FilterRequest, filterMetad
 	}
 
 	ors := sq.Or{}
-	var tbl *query.Table
+	var tbl *qp.Table
 	var filterModel interface{}
 
 	for i := 0; i < modelVal.Len(); i++ {
@@ -102,10 +97,10 @@ func (p PersistenceORM) getMultiFilterResults(request FilterRequest, filterMetad
 
 	}
 
-	tbl.Wheres = make([]query.Where, 0)
+	tbl.Wheres = make([]qp.Where, 0)
 
 	for _, join := range tbl.Joins {
-		join.Table.Wheres = make([]query.Where, 0)
+		join.Table.Wheres = make([]qp.Where, 0)
 	}
 
 	sql := tbl.BuildSQL()

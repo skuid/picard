@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	qp "github.com/skuid/picard/queryparts"
 	"github.com/skuid/picard/tags"
 	"github.com/skuid/picard/testdata"
 	"github.com/stretchr/testify/assert"
@@ -1182,7 +1183,7 @@ func TestFilterModel(t *testing.T) {
 			"basic filter with no returns with single order by",
 			FilterRequest{
 				FilterModel: testdata.ToyModel{},
-				OrderBy: []OrderByRequest{
+				OrderBy: []qp.OrderByRequest{
 					{
 						Field: "Name",
 					},
@@ -1217,7 +1218,7 @@ func TestFilterModel(t *testing.T) {
 			"basic filter with no returns with multiple order by",
 			FilterRequest{
 				FilterModel: testdata.ToyModel{},
-				OrderBy: []OrderByRequest{
+				OrderBy: []qp.OrderByRequest{
 					{
 						Field: "Name",
 					},
@@ -1255,7 +1256,7 @@ func TestFilterModel(t *testing.T) {
 			"basic filter with no returns with multiple order by and descending",
 			FilterRequest{
 				FilterModel: testdata.ToyModel{},
-				OrderBy: []OrderByRequest{
+				OrderBy: []qp.OrderByRequest{
 					{
 						Field:      "Name",
 						Descending: true,
