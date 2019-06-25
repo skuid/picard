@@ -205,6 +205,7 @@ func (p PersistenceORM) FilterModel(request FilterRequest) ([]interface{}, error
 			childResults, err := p.FilterModel(FilterRequest{
 				FilterModel:  newFilterList.Interface(),
 				Associations: association.Associations,
+				OrderBy:      association.OrderBy,
 			})
 			if err != nil {
 				return nil, err

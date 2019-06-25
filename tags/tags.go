@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/skuid/picard/metadata"
+	qp "github.com/skuid/picard/queryparts"
 )
 
 const picardTagKey = "picard"
@@ -14,6 +15,7 @@ const picardTagKey = "picard"
 type Association struct {
 	Name         string
 	Associations []Association
+	OrderBy      []qp.OrderByRequest
 }
 
 // Lookup structure
