@@ -3,6 +3,7 @@ package query
 import (
 	"testing"
 
+	qp "github.com/skuid/picard/queryparts"
 	"github.com/skuid/picard/testdata"
 	"github.com/stretchr/testify/assert"
 )
@@ -165,7 +166,7 @@ type joinTest struct {
 	jType       string
 	cols        []string
 	wheres      []whereTest
-	joinMt 		whereTest
+	joinMt      whereTest
 	joins       []joinTest
 }
 
@@ -195,14 +196,14 @@ func TestQueryJoins(t *testing.T) {
 					parentField: "col_two",
 					joinMt: whereTest{
 						field: "col_mt",
-						val: "12345",
+						val:   "12345",
 					},
-					jType:       "",
+					jType: "",
 				},
 			},
 			whereTest{
 				field: "tbl_mt",
-				val: "12345",
+				val:   "12345",
 			},
 			nil,
 			testdata.FmtSQL(`
@@ -435,7 +436,7 @@ func TestQueryJoins(t *testing.T) {
 	}
 }
 
-func appendTestJoin(tbl *Table, jt joinTest) {
+func appendTestJoin(tbl *qp.Table, jt joinTest) {
 	joinTbl := tbl.AppendJoin(jt.tbl, jt.joinField, jt.parentField, jt.jType)
 	if jt.joinMt != (whereTest{}) {
 		joinTbl.AddMultitenancyWhere(jt.joinMt.field, jt.joinMt.val)
@@ -462,14 +463,14 @@ func TestFieldAliases(t *testing.T) {
 	testCases := []struct {
 		desc     string
 		fixture  fieldAliasFixture
-		expected map[string]FieldDescriptor
+		expected map[string]qp.FieldDescriptor
 	}{
 		{
 			"should return an empty map if there are no columns",
 			fieldAliasFixture{
 				table: "table_a",
 			},
-			map[string]FieldDescriptor{},
+			map[string]qp.FieldDescriptor{},
 		},
 		{
 			"should generate the field aliases for a single table with no joins",
@@ -480,13 +481,13 @@ func TestFieldAliases(t *testing.T) {
 					"col_b",
 				},
 			},
-			map[string]FieldDescriptor{
-				"t0.col_a": FieldDescriptor{
+			map[string]qp.FieldDescriptor{
+				"t0.col_a": qp.FieldDescriptor{
 					Alias: "t0",
 					Table: "table_a",
 					Field: "col_a",
 				},
-				"t0.col_b": FieldDescriptor{
+				"t0.col_b": qp.FieldDescriptor{
 					Alias: "t0",
 					Table: "table_a",
 					Field: "col_b",
@@ -511,7 +512,7 @@ func TestFieldAliases(t *testing.T) {
 						joins: []fieldAliasFixture{
 							{
 								table: "table_d",
-								cols: []string {
+								cols: []string{
 									"col_d_a",
 								},
 							},
@@ -525,7 +526,7 @@ func TestFieldAliases(t *testing.T) {
 					},
 				},
 			},
-			map[string]FieldDescriptor{
+			map[string]qp.FieldDescriptor{
 				"t0.col_a": {
 					Alias: "t0",
 					Table: "table_a",
@@ -575,7 +576,7 @@ func TestFieldAliases(t *testing.T) {
 	}
 }
 
-func appendTestAliasJoin(tbl *Table, joins []fieldAliasFixture) {
+func appendTestAliasJoin(tbl *qp.Table, joins []fieldAliasFixture) {
 	for _, join := range joins {
 		joinTbl := tbl.AppendJoin(join.table, "foo", "bar", "")
 		joinTbl.AddColumns(join.cols)

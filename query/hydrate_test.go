@@ -2,14 +2,15 @@ package query
 
 import (
 	"encoding/base64"
-	"github.com/skuid/picard/crypto"
 	"testing"
+
+	"github.com/skuid/picard/crypto"
+	qp "github.com/skuid/picard/queryparts"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	sql "github.com/Masterminds/squirrel"
 	"github.com/stretchr/testify/assert"
 )
-
 
 func TestHydrate(t *testing.T) {
 	unencryptedSecret := []byte("This is a secret!")
@@ -22,7 +23,7 @@ func TestHydrate(t *testing.T) {
 	testCases := []struct {
 		desc     string
 		model    interface{}
-		aliasMap map[string]FieldDescriptor
+		aliasMap map[string]qp.FieldDescriptor
 		rows     *sqlmock.Rows
 		expected []interface{}
 	}{
@@ -31,18 +32,18 @@ func TestHydrate(t *testing.T) {
 			field{
 				Name: "pops",
 			},
-			map[string]FieldDescriptor{
-				"t0.id": FieldDescriptor{
+			map[string]qp.FieldDescriptor{
+				"t0.id": qp.FieldDescriptor{
 					Alias: "t0",
 					Table: "field",
 					Field: "id",
 				},
-				"t0.organization_id": FieldDescriptor{
+				"t0.organization_id": qp.FieldDescriptor{
 					Alias: "t0",
 					Table: "field",
 					Field: "organization_id",
 				},
-				"t0.name": FieldDescriptor{
+				"t0.name": qp.FieldDescriptor{
 					Alias: "t0",
 					Table: "field",
 					Field: "name",
@@ -71,7 +72,7 @@ func TestHydrate(t *testing.T) {
 			field{
 				Name: "pops",
 			},
-			map[string]FieldDescriptor{
+			map[string]qp.FieldDescriptor{
 				"t0.id": {
 					Alias: "t0",
 					Table: "field",
@@ -120,7 +121,7 @@ func TestHydrate(t *testing.T) {
 			field{
 				Name: "pops",
 			},
-			map[string]FieldDescriptor{
+			map[string]qp.FieldDescriptor{
 				"t0.id": {
 					Alias: "t0",
 					Table: "field",
@@ -168,78 +169,78 @@ func TestHydrate(t *testing.T) {
 			field{
 				Name: "a_field",
 			},
-			map[string]FieldDescriptor{
-				"t0.id": FieldDescriptor{
+			map[string]qp.FieldDescriptor{
+				"t0.id": qp.FieldDescriptor{
 					Alias: "t0",
 					Table: "field",
 					Field: "id",
 				},
-				"t0.organization_id": FieldDescriptor{
+				"t0.organization_id": qp.FieldDescriptor{
 					Alias: "t0",
 					Table: "field",
 					Field: "organization_id",
 				},
-				"t0.name": FieldDescriptor{
+				"t0.name": qp.FieldDescriptor{
 					Alias: "t0",
 					Table: "field",
 					Field: "name",
 				},
-				"t0.object_id": FieldDescriptor{
+				"t0.object_id": qp.FieldDescriptor{
 					Alias: "t0",
 					Table: "field",
 					Field: "object_id",
 				},
-				"t0.reference_id": FieldDescriptor{
+				"t0.reference_id": qp.FieldDescriptor{
 					Alias: "t0",
 					Table: "field",
 					Field: "reference_id",
 				},
-				"t1.id": FieldDescriptor{
+				"t1.id": qp.FieldDescriptor{
 					Alias: "t1",
 					Table: "reference_to",
 					Field: "id",
 				},
-				"t1.organization_id": FieldDescriptor{
+				"t1.organization_id": qp.FieldDescriptor{
 					Alias: "t1",
 					Table: "reference_to",
 					Field: "organization_id",
 				},
-				"t1.reference_field_id": FieldDescriptor{
+				"t1.reference_field_id": qp.FieldDescriptor{
 					Alias: "t1",
 					Table: "reference_to",
 					Field: "reference_field_id",
 				},
-				"t2.id": FieldDescriptor{
+				"t2.id": qp.FieldDescriptor{
 					Alias: "t2",
 					Table: "field",
 					Field: "id",
 				},
-				"t2.organization_id": FieldDescriptor{
+				"t2.organization_id": qp.FieldDescriptor{
 					Alias: "t2",
 					Table: "field",
 					Field: "organization_id",
 				},
-				"t2.name": FieldDescriptor{
+				"t2.name": qp.FieldDescriptor{
 					Alias: "t2",
 					Table: "field",
 					Field: "name",
 				},
-				"t2.reference_object_id": FieldDescriptor{
+				"t2.reference_object_id": qp.FieldDescriptor{
 					Alias: "t2",
 					Table: "field",
 					Field: "reference_object_id",
 				},
-				"t3.id": FieldDescriptor{
+				"t3.id": qp.FieldDescriptor{
 					Alias: "t3",
 					Table: "object",
 					Field: "id",
 				},
-				"t3.organization_id": FieldDescriptor{
+				"t3.organization_id": qp.FieldDescriptor{
 					Alias: "t3",
 					Table: "object",
 					Field: "organization_id",
 				},
-				"t3.name": FieldDescriptor{
+				"t3.name": qp.FieldDescriptor{
 					Alias: "t3",
 					Table: "object",
 					Field: "name",
@@ -264,20 +265,20 @@ func TestHydrate(t *testing.T) {
 			}).
 				AddRow(
 					"00000000-0000-0000-0000-000000000002", // t0.id
-					orgID,     // t0.organization_id
-					"a_field", // t0.name
+					orgID,                                  // t0.organization_id
+					"a_field",                              // t0.name
 					"00000000-0000-0000-0000-000000000003", // t0.object_id
 					"00000000-0000-0000-0000-000000000004", // t0.reference_id
 					"00000000-0000-0000-0000-000000000004", // t1.id
-					orgID, // t1.organization_id
+					orgID,                                  // t1.organization_id
 					"00000000-0000-0000-0000-000000000005", // t1.reference_field_id
 					"00000000-0000-0000-0000-000000000005", // t2.id
 					orgID,                                  // t2.organization_id
 					"a_referenced_field",                   // t2.name
 					"00000000-0000-0000-0000-000000000006", // t2.reference_object_id
 					"00000000-0000-0000-0000-000000000006", // t3.id
-					orgID, // t3.organization_id
-					"a_referenced_object", // t3.name
+					orgID,                                  // t3.organization_id
+					"a_referenced_object",                  // t3.name
 				),
 			[]interface{}{
 				field{
