@@ -141,6 +141,17 @@ func (p PersistenceORM) upsert(data interface{}, deleteFilters interface{}) erro
 		changeSets = append(changeSets, changeSet)
 	}
 
+	combinedOperations := []dbchange.Change{}
+	for _, changeSet := range changeSets {
+		combinedOperations = append(combinedOperations, append(changeSet.Updates, changeSet.Inserts...)...)
+	}
+
+	// Perform Child Upserts
+	err = p.performChildUpserts(combinedOperations, tableMetadata)
+	if err != nil {
+		return err
+	}
+
 	if deleteFilters != nil {
 		deletes := []dbchange.Change{}
 		deleteResults, err := p.FilterModel(FilterRequest{
@@ -205,15 +216,6 @@ func (p PersistenceORM) upsertBatch(changeSet *dbchange.ChangeSet, tableMetadata
 
 	// Execute Insert Queries
 	if err := p.performInserts(changeSet.Inserts, changeSet.InsertsHavePrimaryKey, tableMetadata); err != nil {
-		return err
-	}
-
-	combinedOperations := append(changeSet.Updates, changeSet.Inserts...)
-
-	// Perform Child Upserts
-	err := p.performChildUpserts(combinedOperations, tableMetadata)
-
-	if err != nil {
 		return err
 	}
 
