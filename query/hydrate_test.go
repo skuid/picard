@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/skuid/picard/crypto"
-	"github.com/skuid/picard/queryparts"
+	qp "github.com/skuid/picard/queryparts"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	sql "github.com/Masterminds/squirrel"
@@ -23,7 +23,7 @@ func TestHydrate(t *testing.T) {
 	testCases := []struct {
 		desc     string
 		model    interface{}
-		aliasMap map[string]queryparts.FieldDescriptor
+		aliasMap map[string]qp.FieldDescriptor
 		rows     *sqlmock.Rows
 		expected []interface{}
 	}{
@@ -32,18 +32,18 @@ func TestHydrate(t *testing.T) {
 			field{
 				Name: "pops",
 			},
-			map[string]queryparts.FieldDescriptor{
-				"t0.id": queryparts.FieldDescriptor{
+			map[string]qp.FieldDescriptor{
+				"t0.id": qp.FieldDescriptor{
 					Alias: "t0",
 					Table: "field",
 					Field: "id",
 				},
-				"t0.organization_id": queryparts.FieldDescriptor{
+				"t0.organization_id": qp.FieldDescriptor{
 					Alias: "t0",
 					Table: "field",
 					Field: "organization_id",
 				},
-				"t0.name": queryparts.FieldDescriptor{
+				"t0.name": qp.FieldDescriptor{
 					Alias: "t0",
 					Table: "field",
 					Field: "name",
@@ -72,7 +72,7 @@ func TestHydrate(t *testing.T) {
 			field{
 				Name: "pops",
 			},
-			map[string]queryparts.FieldDescriptor{
+			map[string]qp.FieldDescriptor{
 				"t0.id": {
 					Alias: "t0",
 					Table: "field",
@@ -121,7 +121,7 @@ func TestHydrate(t *testing.T) {
 			field{
 				Name: "pops",
 			},
-			map[string]queryparts.FieldDescriptor{
+			map[string]qp.FieldDescriptor{
 				"t0.id": {
 					Alias: "t0",
 					Table: "field",
@@ -169,78 +169,78 @@ func TestHydrate(t *testing.T) {
 			field{
 				Name: "a_field",
 			},
-			map[string]queryparts.FieldDescriptor{
-				"t0.id": queryparts.FieldDescriptor{
+			map[string]qp.FieldDescriptor{
+				"t0.id": qp.FieldDescriptor{
 					Alias: "t0",
 					Table: "field",
 					Field: "id",
 				},
-				"t0.organization_id": queryparts.FieldDescriptor{
+				"t0.organization_id": qp.FieldDescriptor{
 					Alias: "t0",
 					Table: "field",
 					Field: "organization_id",
 				},
-				"t0.name": queryparts.FieldDescriptor{
+				"t0.name": qp.FieldDescriptor{
 					Alias: "t0",
 					Table: "field",
 					Field: "name",
 				},
-				"t0.object_id": queryparts.FieldDescriptor{
+				"t0.object_id": qp.FieldDescriptor{
 					Alias: "t0",
 					Table: "field",
 					Field: "object_id",
 				},
-				"t0.reference_id": queryparts.FieldDescriptor{
+				"t0.reference_id": qp.FieldDescriptor{
 					Alias: "t0",
 					Table: "field",
 					Field: "reference_id",
 				},
-				"t1.id": queryparts.FieldDescriptor{
+				"t1.id": qp.FieldDescriptor{
 					Alias: "t1",
 					Table: "reference_to",
 					Field: "id",
 				},
-				"t1.organization_id": queryparts.FieldDescriptor{
+				"t1.organization_id": qp.FieldDescriptor{
 					Alias: "t1",
 					Table: "reference_to",
 					Field: "organization_id",
 				},
-				"t1.reference_field_id": queryparts.FieldDescriptor{
+				"t1.reference_field_id": qp.FieldDescriptor{
 					Alias: "t1",
 					Table: "reference_to",
 					Field: "reference_field_id",
 				},
-				"t2.id": queryparts.FieldDescriptor{
+				"t2.id": qp.FieldDescriptor{
 					Alias: "t2",
 					Table: "field",
 					Field: "id",
 				},
-				"t2.organization_id": queryparts.FieldDescriptor{
+				"t2.organization_id": qp.FieldDescriptor{
 					Alias: "t2",
 					Table: "field",
 					Field: "organization_id",
 				},
-				"t2.name": queryparts.FieldDescriptor{
+				"t2.name": qp.FieldDescriptor{
 					Alias: "t2",
 					Table: "field",
 					Field: "name",
 				},
-				"t2.reference_object_id": queryparts.FieldDescriptor{
+				"t2.reference_object_id": qp.FieldDescriptor{
 					Alias: "t2",
 					Table: "field",
 					Field: "reference_object_id",
 				},
-				"t3.id": queryparts.FieldDescriptor{
+				"t3.id": qp.FieldDescriptor{
 					Alias: "t3",
 					Table: "object",
 					Field: "id",
 				},
-				"t3.organization_id": queryparts.FieldDescriptor{
+				"t3.organization_id": qp.FieldDescriptor{
 					Alias: "t3",
 					Table: "object",
 					Field: "organization_id",
 				},
-				"t3.name": queryparts.FieldDescriptor{
+				"t3.name": qp.FieldDescriptor{
 					Alias: "t3",
 					Table: "object",
 					Field: "name",
