@@ -1201,7 +1201,7 @@ func TestFilterModel(t *testing.T) {
 						t0.parent_id AS "t0.parent_id"
 					FROM toymodel AS t0
 					WHERE t0.organization_id = $1
-					ORDER BY name
+					ORDER BY t0.name
 				`)).
 					WithArgs(orgID).
 					WillReturnRows(
@@ -1239,7 +1239,7 @@ func TestFilterModel(t *testing.T) {
 						t0.parent_id AS "t0.parent_id"
 					FROM toymodel AS t0
 					WHERE t0.organization_id = $1
-					ORDER BY name, parent_id
+					ORDER BY t0.name, t0.parent_id
 				`)).
 					WithArgs(orgID).
 					WillReturnRows(
@@ -1278,7 +1278,7 @@ func TestFilterModel(t *testing.T) {
 						t0.parent_id AS "t0.parent_id"
 					FROM toymodel AS t0
 					WHERE t0.organization_id = $1
-					ORDER BY name DESC, parent_id
+					ORDER BY t0.name DESC, t0.parent_id
 				`)).
 					WithArgs(orgID).
 					WillReturnRows(
@@ -1368,7 +1368,7 @@ func TestFilterModel(t *testing.T) {
 						t0.parent_id AS "t0.parent_id"
 					FROM parentmodel AS t0
 					WHERE t0.organization_id = $1
-					ORDER BY name
+					ORDER BY t0.name
 				`)).
 					WithArgs(orgID).
 					WillReturnRows(
@@ -1393,7 +1393,7 @@ func TestFilterModel(t *testing.T) {
 							t0.parent_id AS "t0.parent_id"
 						FROM childmodel AS t0
 						WHERE t0.organization_id = $1 AND ((t0.parent_id = $2))
-						ORDER BY name DESC
+						ORDER BY t0.name DESC
 					`)).
 					WithArgs(orgID, parentId).
 					WillReturnRows(
@@ -1425,7 +1425,7 @@ func TestFilterModel(t *testing.T) {
 							t0.parent_id AS "t0.parent_id"
 						FROM petmodel AS t0
 						WHERE t0.organization_id = $1 AND ((t0.parent_id = $2))
-						ORDER BY name
+						ORDER BY t0.name
 					`)).
 					WithArgs(orgID, parentId).
 					WillReturnRows(

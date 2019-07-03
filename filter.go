@@ -22,12 +22,12 @@ type FilterRequest struct {
 	// Fields       []string // For use later when we implement selecting specific columns
 }
 
-func addOrderBy(builder sq.SelectBuilder, orderBy []qp.OrderByRequest, filterMetadata *tags.TableMetadata) sq.SelectBuilder {
+func addOrderBy(builder sq.SelectBuilder, orderBy []qp.OrderByRequest, filterMetadata *tags.TableMetadata, tableAlias string) sq.SelectBuilder {
 	orderStatements := []string{}
 	for _, order := range orderBy {
 		columnName := filterMetadata.GetField(order.Field).GetColumnName()
 		if columnName != "" {
-			orderStatement := columnName
+			orderStatement := tableAlias + "." + columnName
 			if order.Descending {
 				orderStatement += " DESC"
 			}
@@ -44,7 +44,7 @@ func (p PersistenceORM) getSingleFilterResults(request FilterRequest, filterMeta
 		return nil, err
 	}
 	sql := tbl.BuildSQL()
-	sql = addOrderBy(sql, request.OrderBy, filterMetadata)
+	sql = addOrderBy(sql, request.OrderBy, filterMetadata, tbl.Alias)
 	rows, err := sql.RunWith(request.Runner).Query()
 	if err != nil {
 		return nil, err
@@ -105,7 +105,7 @@ func (p PersistenceORM) getMultiFilterResults(request FilterRequest, filterMetad
 
 	sql := tbl.BuildSQL()
 	sql = sql.Where(ors)
-	sql = addOrderBy(sql, request.OrderBy, filterMetadata)
+	sql = addOrderBy(sql, request.OrderBy, filterMetadata, tbl.Alias)
 	rows, err := sql.RunWith(request.Runner).Query()
 	if err != nil {
 		return nil, err
