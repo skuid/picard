@@ -25,6 +25,7 @@ type Table struct {
 	Joins   []Join
 	Wheres  []Where
 	MultiTenancy Where
+	WhereIns []WhereIn
 }
 
 /*
@@ -61,6 +62,13 @@ func (t *Table) AddWhere(field string, val interface{}) {
 	t.Wheres = append(t.Wheres, Where{
 		Field: field,
 		Val:   val,
+	})
+}
+
+func (t *Table) AddWhereIn(field string, val [] interface{}) {
+	t.WhereIns = append(t.WhereIns, WhereIn{
+		Field: field,
+		Val: val,
 	})
 }
 
@@ -196,6 +204,15 @@ func (t *Table) BuildSQL() sql.SelectBuilder {
 
 	for _, where := range t.Wheres {
 		bld = bld.Where(sql.Eq{fmt.Sprintf(AliasedField, t.Alias, where.Field): where.Val})
+	}
+
+	for _, whereIn := range t.WhereIns {
+		placeholders := make([]string, len(whereIn.Val))
+		for i, _ := range whereIn.Val {
+			placeholders[i] = "?"
+		}
+		parens := "(" + strings.Join(placeholders, ",") + ")"
+		bld = bld.Where(whereIn.Field + " IN " + parens, whereIn.Val...)
 	}
 
 	for _, join := range t.Joins {

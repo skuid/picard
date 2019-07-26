@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	sq "github.com/Masterminds/squirrel"
+	"github.com/skuid/picard/queryparts"
 	"github.com/skuid/picard/reflectutil"
 
 	"github.com/skuid/picard/query"
@@ -21,7 +22,7 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 		return 0, err
 	}
 
-	tbl, err := query.Build(porm.multitenancyValue, model, nil)
+	tbl, err := query.Build(porm.multitenancyValue, model, queryparts.SelectFilter{}, nil)
 	if err != nil {
 		return 0, err
 	}

@@ -1,6 +1,7 @@
 package query
 
 import (
+	"github.com/skuid/picard/queryparts"
 	"testing"
 
 	"github.com/skuid/picard/metadata"
@@ -164,7 +165,7 @@ func TestQueryBuilder(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			assert := assert.New(t)
 
-			tbl, err := Build(orgID, tc.model, tc.assoc)
+			tbl, err := Build(orgID, tc.model, queryparts.SelectFilter{}, tc.assoc)
 			assert.NoError(err)
 
 			actual, actualArgs, err := tbl.ToSQL()

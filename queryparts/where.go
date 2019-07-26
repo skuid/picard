@@ -7,3 +7,14 @@ type Where struct {
 	Field string
 	Val   interface{}
 }
+
+type WhereIn struct {
+	Field string
+	Val []interface{}
+}
+
+type SelectFilter struct {
+	TableName string
+	FieldName string
+	Values []interface{}
+}

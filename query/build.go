@@ -14,7 +14,7 @@ import (
 Build takes the filter model and returns a query object. It takes the
 multitenancy value, current reflected value, and any tags
 */
-func Build(multitenancyVal, model interface{}, associations []tags.Association) (*qp.Table, error) {
+func Build(multitenancyVal, model interface{}, fields qp.SelectFilter, associations []tags.Association) (*qp.Table, error) {
 
 	val, err := stringutil.GetStructValue(model)
 	if err != nil {
@@ -23,7 +23,7 @@ func Build(multitenancyVal, model interface{}, associations []tags.Association) 
 
 	typ := val.Type()
 
-	tbl, err := buildQuery(multitenancyVal, typ, &val, associations, false, 0)
+	tbl, err := buildQuery(multitenancyVal, typ, &val, fields, associations, false, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -61,6 +61,7 @@ func buildQuery(
 	multitenancyVal interface{},
 	modelType reflect.Type,
 	modelVal *reflect.Value,
+	selectFilter qp.SelectFilter,
 	associations []tags.Association,
 	onlyJoin bool,
 	counter int,
@@ -128,7 +129,7 @@ func buildQuery(
 				// Get type, load it as a model so we can build it out
 				refTyp := relatedVal.Type()
 
-				refTbl, err := buildQuery(multitenancyVal, refTyp, &relatedVal, association.Associations, childOnlyJoin, counter+1)
+				refTbl, err := buildQuery(multitenancyVal, refTyp, &relatedVal, qp.SelectFilter{}, association.Associations, childOnlyJoin, counter+1)
 				if err != nil {
 					return nil, err
 				}
@@ -161,6 +162,10 @@ func buildQuery(
 	}
 
 	tbl.AddColumns(cols)
+
+	if tableName == selectFilter.TableName && len(selectFilter.Values) > 0 {
+		tbl.AddWhereIn(selectFilter.FieldName, selectFilter.Values)
+	}
 
 	return tbl, nil
 
