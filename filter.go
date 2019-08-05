@@ -8,7 +8,6 @@ import (
 	sq "github.com/Masterminds/squirrel"
 	"github.com/skuid/picard/query"
 	qp "github.com/skuid/picard/queryparts"
-	"github.com/skuid/picard/reflectutil"
 	"github.com/skuid/picard/stringutil"
 	"github.com/skuid/picard/tags"
 )
@@ -16,10 +15,11 @@ import (
 // FilterRequest holds information about a request to filter on a model
 type FilterRequest struct {
 	FilterModel  interface{}
+	FieldFilters []qp.FieldFilter
 	Associations []tags.Association
 	OrderBy      []qp.OrderByRequest
 	Runner       sq.BaseRunner
-	Fields       qp.SelectFilter
+	//Fields     []string // For use later whe we implement selecting specific columns
 }
 
 func addOrderBy(builder sq.SelectBuilder, orderBy []qp.OrderByRequest, filterMetadata *tags.TableMetadata, tableAlias string) sq.SelectBuilder {
@@ -39,7 +39,7 @@ func addOrderBy(builder sq.SelectBuilder, orderBy []qp.OrderByRequest, filterMet
 
 func (p PersistenceORM) getSingleFilterResults(request FilterRequest, filterMetadata *tags.TableMetadata) ([]*reflect.Value, error) {
 	filterModel := request.FilterModel
-	tbl, err := query.Build(p.multitenancyValue, filterModel, request.Fields, request.Associations)
+	tbl, err := query.Build(p.multitenancyValue, filterModel, request.FieldFilters, request.Associations, filterMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (p PersistenceORM) getMultiFilterResults(request FilterRequest, filterMetad
 	for i := 0; i < modelVal.Len(); i++ {
 		val := modelVal.Index(i)
 
-		ftbl, err := query.Build(mtVal, val.Interface(), request.Fields, request.Associations)
+		ftbl, err := query.Build(mtVal, val.Interface(), request.FieldFilters, request.Associations, filterMetadata)
 		if err != nil {
 			return nil, err
 		}
@@ -163,13 +163,14 @@ func (p PersistenceORM) FilterModel(request FilterRequest) ([]interface{}, error
 			if foreignKey != nil {
 				for _, result := range results {
 					newFilter := reflect.Indirect(reflect.New(childType))
-					pkval, ok := reflectutil.GetPK(*result)
-					if !ok {
+					pkval := getValueFromLookupString(*result, childMetadata.GetPrimaryKeyFieldName())
+
+					if !pkval.IsValid() {
 						return nil, fmt.Errorf("Missing 'primary_key' tag on type '%v'", result.Type().Name())
 					}
 
 					if fmf := newFilter.FieldByName(foreignKey.FieldName); fmf.CanSet() {
-						fmf.Set(*pkval)
+						fmf.Set(pkval)
 					} else {
 						return nil, fmt.Errorf("'foreign_key' field '%s' on 'child' type '%v' is not settable", foreignKey.FieldName, newFilter.Type())
 					}

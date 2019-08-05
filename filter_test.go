@@ -1301,7 +1301,7 @@ func TestFilterModel(t *testing.T) {
 						Name: "Children",
 						OrderBy: []qp.OrderByRequest{
 							{
-								Field: "Name",
+								Field:      "Name",
 								Descending: true,
 							},
 						},
@@ -1447,6 +1447,76 @@ func TestFilterModel(t *testing.T) {
 								"Pinkerton",
 								parentId,
 							),
+					)
+				mock.ExpectCommit()
+			},
+		},
+		{
+			"filter request with additional field filters item",
+			FilterRequest{
+				FilterModel: testdata.ToyModel{},
+				FieldFilters: []qp.FieldFilter{
+					{
+						FieldName:   "Name",
+						FilterValue: "Lego",
+					},
+				},
+			},
+			[]interface{}{},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
+					SELECT
+						t0.id AS "t0.id",
+						t0.organization_id AS "t0.organization_id",
+						t0.name AS "t0.name",
+						t0.parent_id AS "t0.parent_id"
+					FROM toymodel AS t0
+					WHERE t0.organization_id = $1 AND t0.name = $2
+				`)).
+					WithArgs(orgID, "Lego").
+					WillReturnRows(
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+						}),
+					)
+				mock.ExpectCommit()
+			},
+		},
+		{
+			"filter request with additional field filters array",
+			FilterRequest{
+				FilterModel: testdata.ToyModel{},
+				FieldFilters: []qp.FieldFilter{
+					{
+						FieldName:   "Name",
+						FilterValue: []string{"Lego", "Matchbox Car", "Nintendo"},
+					},
+				},
+			},
+			[]interface{}{},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
+					SELECT
+						t0.id AS "t0.id",
+						t0.organization_id AS "t0.organization_id",
+						t0.name AS "t0.name",
+						t0.parent_id AS "t0.parent_id"
+					FROM toymodel AS t0
+					WHERE t0.organization_id = $1 AND t0.name IN ($2,$3,$4)
+				`)).
+					WithArgs(orgID, "Lego", "Matchbox Car", "Nintendo").
+					WillReturnRows(
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+						}),
 					)
 				mock.ExpectCommit()
 			},

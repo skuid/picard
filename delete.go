@@ -5,7 +5,6 @@ import (
 	"reflect"
 
 	sq "github.com/Masterminds/squirrel"
-	"github.com/skuid/picard/queryparts"
 	"github.com/skuid/picard/reflectutil"
 
 	"github.com/skuid/picard/query"
@@ -22,7 +21,13 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 		return 0, err
 	}
 
-	tbl, err := query.Build(porm.multitenancyValue, model, queryparts.SelectFilter{}, nil)
+	metadata, err := tags.GetTableMetadata(model)
+	if err != nil {
+		return 0, err
+	}
+
+	tbl, err := query.Build(porm.multitenancyValue, model, nil, nil, metadata)
+
 	if err != nil {
 		return 0, err
 	}
@@ -31,7 +36,7 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 
 	lookupPks := make([]interface{}, 0)
 	if len(associations) > 0 {
-		_, pk := reflectutil.ReflectTableInfo(reflect.TypeOf(model))
+		pk := metadata.GetPrimaryKeyColumnName()
 		results, err := porm.FilterModel(FilterRequest{
 			FilterModel:  model,
 			Associations: associations,
@@ -41,8 +46,8 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 		}
 
 		for _, result := range results {
-			val, ok := reflectutil.GetPK(reflect.ValueOf(result))
-			if ok {
+			val := getValueFromLookupString(reflect.ValueOf(result), metadata.GetPrimaryKeyFieldName())
+			if val.IsValid() {
 				lookupPks = append(lookupPks, val.Interface())
 			}
 		}

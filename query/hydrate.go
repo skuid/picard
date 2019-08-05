@@ -9,8 +9,8 @@ import (
 	"reflect"
 
 	"github.com/skuid/picard/crypto"
-	"github.com/skuid/picard/stringutil"
 	qp "github.com/skuid/picard/queryparts"
+	"github.com/skuid/picard/stringutil"
 	"github.com/skuid/picard/tags"
 )
 
@@ -26,9 +26,8 @@ func Hydrate(filterModel interface{}, aliasMap map[string]qp.FieldDescriptor, ro
 
 	// Get the models type and picard tags
 	typ := modelVal.Type()
-	meta := tags.TableMetadataFromType(typ)
 
-	mappedCols, err := mapRows2Cols(meta, aliasMap, rows)
+	mappedCols, err := mapRows2Cols(aliasMap, rows)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +60,7 @@ func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if field.IsFK() {
 			refTyp := field.GetRelatedType()
 			// Recursively hydrate this reference field
@@ -119,7 +118,7 @@ func setFieldValue(model *reflect.Value, field tags.FieldMetadata, value interfa
 			model.FieldByName(field.GetName()).Set(reflect.ValueOf(value))
 		}
 	}
-	
+
 	return nil
 }
 
@@ -150,7 +149,7 @@ This function would return something like:
 
 
 */
-func mapRows2Cols(meta *tags.TableMetadata, aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows) ([]map[string]map[string]interface{}, error) {
+func mapRows2Cols(aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows) ([]map[string]map[string]interface{}, error) {
 	results := make([]map[string]map[string]interface{}, 0)
 
 	cols, err := rows.Columns()
