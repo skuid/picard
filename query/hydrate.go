@@ -18,7 +18,7 @@ import (
 Hydrate takes the rows and pops them into the correct struct, in the correct
 order. This is usually called after you've built and executed the query model.
 */
-func Hydrate(filterModel interface{}, aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows) ([]*reflect.Value, error) {
+func Hydrate(filterModel interface{}, aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows, meta *tags.TableMetadata) ([]*reflect.Value, error) {
 	modelVal, err := stringutil.GetStructValue(filterModel)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func Hydrate(filterModel interface{}, aliasMap map[string]qp.FieldDescriptor, ro
 
 	hydrateds := make([]*reflect.Value, 0, len(mappedCols))
 	for _, mapped := range mappedCols {
-		hydrated, err := hydrate(typ, mapped, 0)
+		hydrated, err := hydrate(typ, mapped, 0, meta)
 
 		if err != nil {
 			return nil, err
@@ -45,8 +45,7 @@ func Hydrate(filterModel interface{}, aliasMap map[string]qp.FieldDescriptor, ro
 	return hydrateds, nil
 }
 
-func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter int) (*reflect.Value, error) {
-	meta := tags.TableMetadataFromType(typ)
+func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter int, meta *tags.TableMetadata) (*reflect.Value, error) {
 
 	model := reflect.Indirect(reflect.New(typ))
 
@@ -63,8 +62,9 @@ func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter
 
 		if field.IsFK() {
 			refTyp := field.GetRelatedType()
+			fkField := meta.GetForeignKeyField(field.GetName())
 			// Recursively hydrate this reference field
-			refValHydrated, err := hydrate(refTyp, mapped, counter+1)
+			refValHydrated, err := hydrate(refTyp, mapped, counter+1, fkField.TableMetadata)
 			if err != nil {
 				return nil, err
 			}

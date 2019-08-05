@@ -6,6 +6,7 @@ import (
 
 	"github.com/skuid/picard/crypto"
 	qp "github.com/skuid/picard/queryparts"
+	"github.com/skuid/picard/tags"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	sql "github.com/Masterminds/squirrel"
@@ -331,8 +332,13 @@ func TestHydrate(t *testing.T) {
 				t.Errorf("there were unmet sqlmock expectations:\n%s", err)
 			}
 
+			metadata, err := tags.GetTableMetadata(tc.model)
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			// Testing our Hydrate function
-			actuals, err := Hydrate(tc.model, tc.aliasMap, rows)
+			actuals, err := Hydrate(tc.model, tc.aliasMap, rows, metadata)
 			assert.NoError(err)
 			for i, actual := range actuals {
 				assert.Equal(tc.expected[i], actual.Interface().(field))
