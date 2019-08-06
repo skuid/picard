@@ -19,7 +19,7 @@ type FilterRequest struct {
 	Associations []tags.Association
 	OrderBy      []qp.OrderByRequest
 	Runner       sq.BaseRunner
-	//Fields     []string // For use later whe we implement selecting specific columns
+	SelectFields []string
 }
 
 func addOrderBy(builder sq.SelectBuilder, orderBy []qp.OrderByRequest, filterMetadata *tags.TableMetadata, tableAlias string) sq.SelectBuilder {
@@ -39,7 +39,7 @@ func addOrderBy(builder sq.SelectBuilder, orderBy []qp.OrderByRequest, filterMet
 
 func (p PersistenceORM) getSingleFilterResults(request FilterRequest, filterMetadata *tags.TableMetadata) ([]*reflect.Value, error) {
 	filterModel := request.FilterModel
-	tbl, err := query.Build(p.multitenancyValue, filterModel, request.FieldFilters, request.Associations, filterMetadata)
+	tbl, err := query.Build(p.multitenancyValue, filterModel, request.FieldFilters, request.Associations, request.SelectFields, filterMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (p PersistenceORM) getMultiFilterResults(request FilterRequest, filterMetad
 	for i := 0; i < modelVal.Len(); i++ {
 		val := modelVal.Index(i)
 
-		ftbl, err := query.Build(mtVal, val.Interface(), request.FieldFilters, request.Associations, filterMetadata)
+		ftbl, err := query.Build(mtVal, val.Interface(), request.FieldFilters, request.Associations, request.SelectFields, filterMetadata)
 		if err != nil {
 			return nil, err
 		}
@@ -208,6 +208,8 @@ func (p PersistenceORM) FilterModel(request FilterRequest) ([]interface{}, error
 				Associations: association.Associations,
 				OrderBy:      association.OrderBy,
 				Runner:       request.Runner,
+				FieldFilters: association.FieldFilters,
+				SelectFields: association.SelectFields,
 			})
 			if err != nil {
 				return nil, err

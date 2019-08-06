@@ -43,8 +43,8 @@ func TestDeleteModel(t *testing.T) {
 				`)).
 					WithArgs(
 						"00000000-0000-0000-0000-000000000001",
-							"00000000-0000-0000-0000-000000000555",
-						).
+						"00000000-0000-0000-0000-000000000555",
+					).
 					WillReturnResult(sqlmock.NewResult(0, 1))
 				mock.ExpectCommit()
 			},
@@ -63,22 +63,10 @@ func TestDeleteModel(t *testing.T) {
 				mock.ExpectQuery(testdata.FmtSQLRegex(`
 					SELECT
 						t0.id AS "t0.id",
-						t0.organization_id AS "t0.organization_id",
-						t0.name AS "t0.name",
-						t0.nullable_lookup AS "t0.nullable_lookup",
-						t0.type AS "t0.type",
-						t0.is_active AS "t0.is_active",
-						t0.parent_id AS "t0.parent_id",
-						t0.config AS "t0.config",
-						t0.created_by_id AS "t0.created_by_id",
-						t0.updated_by_id AS "t0.updated_by_id",
-						t0.created_at AS "t0.created_at",
-						t0.updated_at AS "t0.updated_at",
 						t1.id AS "t1.id",
-						t1.organization_id AS "t1.organization_id",
 						t1.name AS "t1.name"
 					FROM testobject AS t0
-					LEFT JOIN parenttest AS t1 ON
+					JOIN parenttest AS t1 ON
 						(t1.id = t0.parent_id AND t1.organization_id = $1)
 					WHERE
 						t0.organization_id = $2 AND

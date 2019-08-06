@@ -16,17 +16,20 @@ import (
 // Returns the number of rows affected or an error.
 func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 
-	associations, err := getAssociationsFromModel(model)
-	if err != nil {
-		return 0, err
-	}
-
 	metadata, err := tags.GetTableMetadata(model)
 	if err != nil {
 		return 0, err
 	}
 
-	tbl, err := query.Build(porm.multitenancyValue, model, nil, nil, metadata)
+	hasAssociations, err := hasAssociations(model, metadata)
+	if err != nil {
+		return 0, err
+	}
+
+	pkField := metadata.GetPrimaryKeyFieldName()
+	pkColumn := metadata.GetPrimaryKeyColumnName()
+
+	tbl, err := query.Build(porm.multitenancyValue, model, nil, nil, nil, metadata)
 
 	if err != nil {
 		return 0, err
@@ -35,25 +38,24 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 	dSQL := tbl.DeleteSQL()
 
 	lookupPks := make([]interface{}, 0)
-	if len(associations) > 0 {
-		pk := metadata.GetPrimaryKeyColumnName()
+	if hasAssociations {
 		results, err := porm.FilterModel(FilterRequest{
 			FilterModel:  model,
-			Associations: associations,
+			SelectFields: []string{pkField},
 		})
 		if err != nil {
 			return 0, err
 		}
 
 		for _, result := range results {
-			val := getValueFromLookupString(reflect.ValueOf(result), metadata.GetPrimaryKeyFieldName())
+			val := getValueFromLookupString(reflect.ValueOf(result), pkField)
 			if val.IsValid() {
 				lookupPks = append(lookupPks, val.Interface())
 			}
 		}
 		dSQL = dSQL.Where(
 			sq.Eq{
-				fmt.Sprintf("%s.%s", tbl.Alias, pk): lookupPks,
+				fmt.Sprintf("%s.%s", tbl.Alias, pkColumn): lookupPks,
 			},
 		)
 	}
@@ -79,51 +81,25 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 	return results.RowsAffected()
 }
 
-func getAssociationsFromModel(model interface{}) ([]tags.Association, error) {
-
+func hasAssociations(model interface{}, metadata *tags.TableMetadata) (bool, error) {
 	val, err := stringutil.GetStructValue(model)
-
 	if err != nil {
-		return nil, err
+		return false, err
 	}
-
-	return getAssociationsFromValue(val)
-}
-
-func getAssociationsFromValue(val reflect.Value) ([]tags.Association, error) {
-	associations := make([]tags.Association, 0)
 
 	if val.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("Model must be a struct in order to get associations. It was a %v instead", val.Kind())
+		return false, fmt.Errorf("Model must be a struct in order to get associations. It was a %v instead", val.Kind())
 	}
 
-	for i := 0; i < val.Type().NumField(); i++ {
-		structField := val.Type().Field(i)
-		ptags := tags.GetStructTagsMap(structField, "picard")
+	for _, fkField := range metadata.GetForeignKeys() {
+		relatedName := fkField.RelatedFieldName
 
-		_, isFK := ptags["foreign_key"]
-
-		if isFK {
-			if relatedName, ok := ptags["related"]; ok {
-
-				relatedVal := val.FieldByName(relatedName)
-
-				if !reflectutil.IsZeroValue(relatedVal) {
-					fieldAssoc := tags.Association{
-						Name: relatedName,
-					}
-
-					childAssocs, err := getAssociationsFromValue(relatedVal)
-					if err != nil {
-						return nil, err
-					}
-					fieldAssoc.Associations = append(fieldAssoc.Associations, childAssocs...)
-
-					associations = append(associations, fieldAssoc)
-				}
+		if relatedName != "" {
+			relatedVal := val.FieldByName(relatedName)
+			if !reflectutil.IsZeroValue(relatedVal) {
+				return true, nil
 			}
 		}
 	}
-
-	return associations, nil
+	return false, nil
 }

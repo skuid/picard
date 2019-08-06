@@ -169,7 +169,7 @@ func TestQueryBuilder(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			tbl, err := Build(orgID, tc.model, nil, tc.assoc, metadata)
+			tbl, err := Build(orgID, tc.model, nil, tc.assoc, nil, metadata)
 			assert.NoError(err)
 
 			actual, actualArgs, err := tbl.ToSQL()
