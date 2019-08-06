@@ -52,10 +52,17 @@ to generate the SQL. It takes
 - modelType: This is the reflected type of the struct used for this table's load. It
 			is used to figure out which columns to select, joins to add, and wheres.
 - modelVal: This is an instance of the struct, holding any lookup values
+- filters: Additional filters to add to this query. This allows for more complex conditions
+			than a simple modelFilter can provide.
 - associations: List of associations to load. For references, this will add the
 			join to the table at the correct level.
+- selectFields: List of fields to add to the select clause of the query. If this is null,
+			add all fields with columns specified to the query.
+- onlyJoin: If the association wasn't asked for, but there is a value in the related structure, just join but don't
+			add the fields to the select.
 - counter: because record keeping and aliasing is hard, we have to keep track
 			of which join we're currently looking at during the recursions.
+- filterMetadata: Metadata about struct that was passed in in modelVal
 */
 func buildQuery(
 	multitenancyVal interface{},
