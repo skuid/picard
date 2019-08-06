@@ -14,7 +14,7 @@ import (
 Build takes the filter model and returns a query object. It takes the
 multitenancy value, current reflected value, and any tags
 */
-func Build(multitenancyVal, model interface{}, fields qp.SelectFilter, associations []tags.Association) (*qp.Table, error) {
+func Build(multitenancyVal, model interface{}, filters []qp.FieldFilter, associations []tags.Association, selectFields []string, filterMetadata *tags.TableMetadata) (*qp.Table, error) {
 
 	val, err := stringutil.GetStructValue(model)
 	if err != nil {
@@ -23,7 +23,7 @@ func Build(multitenancyVal, model interface{}, fields qp.SelectFilter, associati
 
 	typ := val.Type()
 
-	tbl, err := buildQuery(multitenancyVal, typ, &val, fields, associations, false, 0)
+	tbl, err := buildQuery(multitenancyVal, typ, &val, filters, associations, selectFields, false, 0, filterMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -52,51 +52,59 @@ to generate the SQL. It takes
 - modelType: This is the reflected type of the struct used for this table's load. It
 			is used to figure out which columns to select, joins to add, and wheres.
 - modelVal: This is an instance of the struct, holding any lookup values
+- filters: Additional filters to add to this query. This allows for more complex conditions
+			than a simple modelFilter can provide.
 - associations: List of associations to load. For references, this will add the
 			join to the table at the correct level.
+- selectFields: List of fields to add to the select clause of the query. If this is null,
+			add all fields with columns specified to the query.
+- onlyJoin: If the association wasn't asked for, but there is a value in the related structure, just join but don't
+			add the fields to the select.
 - counter: because record keeping and aliasing is hard, we have to keep track
 			of which join we're currently looking at during the recursions.
+- filterMetadata: Metadata about struct that was passed in in modelVal
 */
 func buildQuery(
 	multitenancyVal interface{},
 	modelType reflect.Type,
 	modelVal *reflect.Value,
-	selectFilter qp.SelectFilter,
+	filters []qp.FieldFilter,
 	associations []tags.Association,
+	selectFields []string,
 	onlyJoin bool,
 	counter int,
+	filterMetadata *tags.TableMetadata,
 ) (*qp.Table, error) {
 	// Inspect current reflected value, and add select/where clauses
 
-	tableName, pkName := reflectutil.ReflectTableInfo(modelType)
+	pkName := filterMetadata.GetPrimaryKeyColumnName()
+	tableName := filterMetadata.GetTableName()
 
 	tbl := NewIndexed(tableName, counter)
 
 	cols := make([]string, 0, modelType.NumField())
 	seen := make(map[string]bool)
 
-	for i := 0; i < modelType.NumField(); i++ {
-		field := modelType.Field(i)
+	for _, field := range filterMetadata.GetFields() {
 		notZero := false
 		var val reflect.Value
 		if modelVal != nil {
-			val = modelVal.FieldByName(field.Name)
+			val = modelVal.FieldByName(field.GetName())
 			notZero = !reflectutil.IsZeroValue(val)
 		}
-		ptags := tags.GetStructTagsMap(field, "picard")
-		column, hasColumn := ptags["column"]
-		_, isMultitenancyColumn := ptags["multitenancy_key"]
-		_, isFk := ptags["foreign_key"]
-		_, isPrimaryKey := ptags["primary_key"]
+		column := field.GetColumnName()
+		isMultitenancyColumn := field.IsMultitenancyKey()
+		isFk := field.IsFK()
+		isPrimaryKey := field.IsPrimaryKey()
 
 		addCol := true
 
-		if onlyJoin && !isPrimaryKey {
+		if selectFields != nil && !stringutil.StringSliceContainsKey(selectFields, field.GetName()) {
 			addCol = false
 		}
 
-		if !hasColumn {
-			continue
+		if onlyJoin && !isPrimaryKey {
+			addCol = false
 		}
 
 		switch {
@@ -107,7 +115,7 @@ func buildQuery(
 			}
 			tbl.AddMultitenancyWhere(column, multitenancyVal)
 		case isFk:
-			relatedName := ptags["related"]
+			relatedName := field.GetRelatedName()
 			relatedVal := modelVal.FieldByName(relatedName)
 
 			association, ok := getAssociation(associations, relatedName)
@@ -128,13 +136,14 @@ func buildQuery(
 			if ok || childOnlyJoin {
 				// Get type, load it as a model so we can build it out
 				refTyp := relatedVal.Type()
+				refMetadata := tags.TableMetadataFromType(refTyp)
 
-				refTbl, err := buildQuery(multitenancyVal, refTyp, &relatedVal, qp.SelectFilter{}, association.Associations, childOnlyJoin, counter+1)
+				refTbl, err := buildQuery(multitenancyVal, refTyp, &relatedVal, association.FieldFilters, association.Associations, association.SelectFields, childOnlyJoin, counter+1, refMetadata)
 				if err != nil {
 					return nil, err
 				}
 
-				joinField := ptags["column"]
+				joinField := column
 
 				direction := "left"
 				if childOnlyJoin {
@@ -144,8 +153,7 @@ func buildQuery(
 			}
 
 		case notZero:
-			_, isEncrypted := ptags["encrypted"]
-			if isEncrypted {
+			if field.IsEncrypted() {
 				return nil, errors.New("cannot perform queries with where clauses on encrypted fields")
 			}
 			if !seen[column] {
@@ -163,8 +171,11 @@ func buildQuery(
 
 	tbl.AddColumns(cols)
 
-	if tableName == selectFilter.TableName && len(selectFilter.Values) > 0 {
-		tbl.AddWhereIn(selectFilter.FieldName, selectFilter.Values)
+	if filters != nil && len(filters) > 0 && modelVal != nil {
+		for _, filter := range filters {
+			fieldMetadata := filterMetadata.GetField(filter.FieldName)
+			tbl.AddWhere(fieldMetadata.GetColumnName(), filter.FilterValue)
+		}
 	}
 
 	return tbl, nil

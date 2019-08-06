@@ -16,6 +16,8 @@ type Association struct {
 	Name         string
 	Associations []Association
 	OrderBy      []qp.OrderByRequest
+	SelectFields []string
+	FieldFilters []qp.FieldFilter
 }
 
 // Lookup structure
@@ -89,9 +91,14 @@ func (fm FieldMetadata) IsPrimaryKey() bool {
 	return fm.isPrimaryKey
 }
 
-// IsReference function
+// IsFK function
 func (fm FieldMetadata) IsFK() bool {
 	return fm.isFK
+}
+
+// IsMultitenancyKey function
+func (fm FieldMetadata) IsMultitenancyKey() bool {
+	return fm.isMultitenancyKey
 }
 
 // GetName function
@@ -109,14 +116,17 @@ func (fm FieldMetadata) GetFieldType() reflect.Type {
 	return fm.fieldType
 }
 
+// GetRelatedType function
 func (fm FieldMetadata) GetRelatedType() reflect.Type {
 	return fm.relatedField.Type
 }
 
+// GetRelatedName function
 func (fm FieldMetadata) GetRelatedName() string {
 	return fm.relatedField.Name
 }
 
+// IsEncrypted function
 func (fm FieldMetadata) IsEncrypted() bool {
 	return fm.isEncrypted
 }
@@ -316,11 +326,15 @@ func (tm TableMetadata) GetField(fieldName string) FieldMetadata {
 func GetTableMetadata(data interface{}) (*TableMetadata, error) {
 	// Verify that we've been passed valid input
 	t := reflect.TypeOf(data)
-	if t.Kind() != reflect.Slice {
-		return nil, errors.New("Can only upsert slices")
-	}
+	var tableMetadata *TableMetadata
 
-	tableMetadata := TableMetadataFromType(t.Elem())
+	if t.Kind() == reflect.Slice {
+		tableMetadata = TableMetadataFromType(t.Elem())
+	} else if t.Kind() == reflect.Struct {
+		tableMetadata = TableMetadataFromType(t)
+	} else {
+		return nil, errors.New("Can only get metadata structs or slices of structs")
+	}
 
 	if tableMetadata.tableName == "" {
 		return nil, errors.New("No table name specified in struct metadata")

@@ -8,13 +8,8 @@ type Where struct {
 	Val   interface{}
 }
 
-type WhereIn struct {
-	Field string
-	Val []interface{}
-}
-
-type SelectFilter struct {
-	TableName string
-	FieldName string
-	Values []interface{}
+// FieldFilter defines an arbitrary filter on a FilterRequest
+type FieldFilter struct {
+	FieldName   string
+	FilterValue interface{}
 }

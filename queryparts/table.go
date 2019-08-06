@@ -3,6 +3,7 @@ package queryparts
 import (
 	"fmt"
 	"strings"
+
 	sql "github.com/Masterminds/squirrel"
 )
 
@@ -16,16 +17,15 @@ a query by calling
 	tbl := New("my_table")
 */
 type Table struct {
-	root    *Table
-	Counter int
-	Alias   string
-	Name    string
-	columns []string
-	lookups map[string]interface{}
-	Joins   []Join
-	Wheres  []Where
+	root         *Table
+	Counter      int
+	Alias        string
+	Name         string
+	columns      []string
+	lookups      map[string]interface{}
+	Joins        []Join
+	Wheres       []Where
 	MultiTenancy Where
-	WhereIns []WhereIn
 }
 
 /*
@@ -65,17 +65,10 @@ func (t *Table) AddWhere(field string, val interface{}) {
 	})
 }
 
-func (t *Table) AddWhereIn(field string, val [] interface{}) {
-	t.WhereIns = append(t.WhereIns, WhereIn{
-		Field: field,
-		Val: val,
-	})
-}
-
 func (t *Table) AddMultitenancyWhere(field string, val interface{}) {
 	t.MultiTenancy = Where{
 		Field: field,
-		Val: val,
+		Val:   val,
 	}
 }
 
@@ -153,7 +146,6 @@ func (t *Table) Columns() []string {
 	return cols
 }
 
-
 /*
 FieldAliases returns a map of all columns on a table and that table's joins.
 */
@@ -196,23 +188,13 @@ func (t *Table) BuildSQL() sql.SelectBuilder {
 	if t.MultiTenancy != (Where{}) {
 		bld = bld.Where(
 			sql.Eq{
-				fmt.Sprintf(AliasedField, t.Alias, t.MultiTenancy.Field):
-				t.MultiTenancy.Val,
+				fmt.Sprintf(AliasedField, t.Alias, t.MultiTenancy.Field): t.MultiTenancy.Val,
 			},
 		)
 	}
 
 	for _, where := range t.Wheres {
 		bld = bld.Where(sql.Eq{fmt.Sprintf(AliasedField, t.Alias, where.Field): where.Val})
-	}
-
-	for _, whereIn := range t.WhereIns {
-		placeholders := make([]string, len(whereIn.Val))
-		for i, _ := range whereIn.Val {
-			placeholders[i] = "?"
-		}
-		parens := "(" + strings.Join(placeholders, ",") + ")"
-		bld = bld.Where(whereIn.Field + " IN " + parens, whereIn.Val...)
 	}
 
 	for _, join := range t.Joins {
@@ -233,8 +215,7 @@ func (t *Table) DeleteSQL() sql.DeleteBuilder {
 	if t.MultiTenancy != (Where{}) {
 		bld = bld.Where(
 			sql.Eq{
-				fmt.Sprintf(AliasedField, t.Alias, t.MultiTenancy.Field):
-				t.MultiTenancy.Val,
+				fmt.Sprintf(AliasedField, t.Alias, t.MultiTenancy.Field): t.MultiTenancy.Val,
 			},
 		)
 	}
@@ -256,8 +237,7 @@ func sqlizeJoin(bld sql.SelectBuilder, join Join) sql.SelectBuilder {
 		jc = sql.And{
 			jc,
 			sql.Eq{
-				fmt.Sprintf(AliasedField, join.Table.Alias, where.Field):
-				where.Val,
+				fmt.Sprintf(AliasedField, join.Table.Alias, where.Field): where.Val,
 			},
 		}
 	}
@@ -272,7 +252,6 @@ func sqlizeJoin(bld sql.SelectBuilder, join Join) sql.SelectBuilder {
 
 	}
 	bld = bld.JoinClause(jc)
-
 
 	for _, where := range join.Table.Wheres {
 		bld = bld.Where(sql.Eq{fmt.Sprintf(AliasedField, join.Table.Alias, where.Field): where.Val})

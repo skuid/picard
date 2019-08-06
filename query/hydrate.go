@@ -9,8 +9,8 @@ import (
 	"reflect"
 
 	"github.com/skuid/picard/crypto"
-	"github.com/skuid/picard/stringutil"
 	qp "github.com/skuid/picard/queryparts"
+	"github.com/skuid/picard/stringutil"
 	"github.com/skuid/picard/tags"
 )
 
@@ -18,7 +18,7 @@ import (
 Hydrate takes the rows and pops them into the correct struct, in the correct
 order. This is usually called after you've built and executed the query model.
 */
-func Hydrate(filterModel interface{}, aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows) ([]*reflect.Value, error) {
+func Hydrate(filterModel interface{}, aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows, meta *tags.TableMetadata) ([]*reflect.Value, error) {
 	modelVal, err := stringutil.GetStructValue(filterModel)
 	if err != nil {
 		return nil, err
@@ -26,16 +26,15 @@ func Hydrate(filterModel interface{}, aliasMap map[string]qp.FieldDescriptor, ro
 
 	// Get the models type and picard tags
 	typ := modelVal.Type()
-	meta := tags.TableMetadataFromType(typ)
 
-	mappedCols, err := mapRows2Cols(meta, aliasMap, rows)
+	mappedCols, err := mapRows2Cols(aliasMap, rows)
 	if err != nil {
 		return nil, err
 	}
 
 	hydrateds := make([]*reflect.Value, 0, len(mappedCols))
 	for _, mapped := range mappedCols {
-		hydrated, err := hydrate(typ, mapped, 0)
+		hydrated, err := hydrate(typ, mapped, 0, meta)
 
 		if err != nil {
 			return nil, err
@@ -46,8 +45,7 @@ func Hydrate(filterModel interface{}, aliasMap map[string]qp.FieldDescriptor, ro
 	return hydrateds, nil
 }
 
-func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter int) (*reflect.Value, error) {
-	meta := tags.TableMetadataFromType(typ)
+func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter int, meta *tags.TableMetadata) (*reflect.Value, error) {
 
 	model := reflect.Indirect(reflect.New(typ))
 
@@ -61,11 +59,12 @@ func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if field.IsFK() {
 			refTyp := field.GetRelatedType()
+			fkField := meta.GetForeignKeyField(field.GetName())
 			// Recursively hydrate this reference field
-			refValHydrated, err := hydrate(refTyp, mapped, counter+1)
+			refValHydrated, err := hydrate(refTyp, mapped, counter+1, fkField.TableMetadata)
 			if err != nil {
 				return nil, err
 			}
@@ -119,7 +118,7 @@ func setFieldValue(model *reflect.Value, field tags.FieldMetadata, value interfa
 			model.FieldByName(field.GetName()).Set(reflect.ValueOf(value))
 		}
 	}
-	
+
 	return nil
 }
 
@@ -150,7 +149,7 @@ This function would return something like:
 
 
 */
-func mapRows2Cols(meta *tags.TableMetadata, aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows) ([]map[string]map[string]interface{}, error) {
+func mapRows2Cols(aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows) ([]map[string]map[string]interface{}, error) {
 	results := make([]map[string]map[string]interface{}, 0)
 
 	cols, err := rows.Columns()
