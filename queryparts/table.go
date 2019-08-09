@@ -20,6 +20,7 @@ type Table struct {
 	root         *Table
 	Counter      int
 	Alias        string
+	RefPath      string
 	Name         string
 	columns      []string
 	lookups      map[string]interface{}
@@ -32,16 +33,17 @@ type Table struct {
 New returns a new table. This is a good starting point
 */
 func New(name string) *Table {
-	return NewIndexed(name, 0)
+	return NewIndexed(name, 0, "")
 }
 
 /*
 NewIndexed returns a new table. This is a good starting point
 */
-func NewIndexed(name string, index int) *Table {
+func NewIndexed(name string, index int, refPath string) *Table {
 	return &Table{
 		Counter: index + 1,
 		Alias:   fmt.Sprintf("t%d", index),
+		RefPath: refPath,
 		Name:    name,
 		columns: make([]string, 0),
 		lookups: make(map[string]interface{}),
@@ -153,9 +155,10 @@ func (t *Table) FieldAliases() map[string]FieldDescriptor {
 	aliasMap := make(map[string]FieldDescriptor)
 	for _, col := range t.columns {
 		aliasMap[fmt.Sprintf(AliasedField, t.Alias, col)] = FieldDescriptor{
-			Alias: t.Alias,
-			Table: t.Name,
-			Field: col,
+			Alias:   t.Alias,
+			RefPath: t.RefPath,
+			Table:   t.Name,
+			Column:  col,
 		}
 	}
 

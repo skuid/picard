@@ -29,7 +29,8 @@ func TestQueryBuilder(t *testing.T) {
 					t0.id AS "t0.id",
 					t0.organization_id AS "t0.organization_id",
 					t0.name AS "t0.name",
-					t0.parent_id AS "t0.parent_id"
+					t0.parent_id AS "t0.parent_id",
+					t0.other_parent_id AS "t0.other_parent_id"
 				FROM parentmodel AS t0
 				WHERE t0.organization_id = $1 AND t0.name = $2
 			`),

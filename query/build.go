@@ -23,7 +23,7 @@ func Build(multitenancyVal, model interface{}, filters []qp.FieldFilter, associa
 
 	typ := val.Type()
 
-	tbl, err := buildQuery(multitenancyVal, typ, &val, filters, associations, selectFields, false, 0, filterMetadata)
+	tbl, err := buildQuery(multitenancyVal, typ, &val, filters, associations, selectFields, false, 0, "", filterMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -73,6 +73,7 @@ func buildQuery(
 	selectFields []string,
 	onlyJoin bool,
 	counter int,
+	refPath string,
 	filterMetadata *tags.TableMetadata,
 ) (*qp.Table, error) {
 	// Inspect current reflected value, and add select/where clauses
@@ -80,7 +81,7 @@ func buildQuery(
 	pkName := filterMetadata.GetPrimaryKeyColumnName()
 	tableName := filterMetadata.GetTableName()
 
-	tbl := NewIndexed(tableName, counter)
+	tbl := NewIndexed(tableName, counter, refPath)
 
 	cols := make([]string, 0, modelType.NumField())
 	seen := make(map[string]bool)
@@ -88,8 +89,9 @@ func buildQuery(
 	for _, field := range filterMetadata.GetFields() {
 		notZero := false
 		var val reflect.Value
+		fieldName := field.GetName()
 		if modelVal != nil {
-			val = modelVal.FieldByName(field.GetName())
+			val = modelVal.FieldByName(fieldName)
 			notZero = !reflectutil.IsZeroValue(val)
 		}
 		column := field.GetColumnName()
@@ -99,7 +101,7 @@ func buildQuery(
 
 		addCol := true
 
-		if selectFields != nil && !stringutil.StringSliceContainsKey(selectFields, field.GetName()) {
+		if selectFields != nil && !stringutil.StringSliceContainsKey(selectFields, fieldName) {
 			addCol = false
 		}
 
@@ -136,9 +138,16 @@ func buildQuery(
 			if ok || childOnlyJoin {
 				// Get type, load it as a model so we can build it out
 				refTyp := relatedVal.Type()
-				refMetadata := tags.TableMetadataFromType(refTyp)
+				refMetadata := filterMetadata.GetForeignKeyField(fieldName).TableMetadata
 
-				refTbl, err := buildQuery(multitenancyVal, refTyp, &relatedVal, association.FieldFilters, association.Associations, association.SelectFields, childOnlyJoin, counter+1, refMetadata)
+				fkRefPath := fieldName
+				if refPath != "" {
+					fkRefPath = refPath + "." + fieldName
+				}
+
+				counter = counter + 1
+
+				refTbl, err := buildQuery(multitenancyVal, refTyp, &relatedVal, association.FieldFilters, association.Associations, association.SelectFields, childOnlyJoin, counter, fkRefPath, refMetadata)
 				if err != nil {
 					return nil, err
 				}

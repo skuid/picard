@@ -12,12 +12,12 @@ import (
 New returns a new table. This is a good starting point
 */
 func New(name string) *qp.Table {
-	return qp.NewIndexed(name, 0)
+	return qp.NewIndexed(name, 0, "")
 }
 
 /*
 NewIndexed returns a new table. This is a good starting point
 */
-func NewIndexed(name string, index int) *qp.Table {
-	return qp.NewIndexed(name, index)
+func NewIndexed(name string, index int, refPath string) *qp.Table {
+	return qp.NewIndexed(name, index, refPath)
 }
