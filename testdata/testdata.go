@@ -29,6 +29,8 @@ type ParentModel struct {
 	Name                 string                `json:"name" picard:"lookup,column=name"`
 	ParentID             string                `picard:"foreign_key,lookup,required,related=GrandParent,column=parent_id"`
 	GrandParent          GrandParentModel      `json:"parent" validate:"-"`
+	OtherParentID        string                `picard:"foreign_key,related=GrandMother,column=other_parent_id"`
+	GrandMother          GrandParentModel      `json:"other_parent" validate:"-"`
 	Children             []ChildModel          `json:"children" picard:"child,foreign_key=ParentID"`
 	Animals              []PetModel            `json:"animals" picard:"child,foreign_key=ParentID"`
 	ChildrenMap          map[string]ChildModel `picard:"child,foreign_key=ParentID,key_mapping=Name"`

@@ -33,8 +33,9 @@ func Hydrate(filterModel interface{}, aliasMap map[string]qp.FieldDescriptor, ro
 	}
 
 	hydrateds := make([]*reflect.Value, 0, len(mappedCols))
+	alias := fmt.Sprintf(qp.AliasedField, "t0", meta.GetTableName())
 	for _, mapped := range mappedCols {
-		hydrated, err := hydrate(typ, mapped, 0, meta)
+		hydrated, err := hydrate(typ, mapped, alias, aliasMap, "", meta)
 
 		if err != nil {
 			return nil, err
@@ -45,13 +46,18 @@ func Hydrate(filterModel interface{}, aliasMap map[string]qp.FieldDescriptor, ro
 	return hydrateds, nil
 }
 
-func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter int, meta *tags.TableMetadata) (*reflect.Value, error) {
+func hydrate(
+	typ reflect.Type,
+	mapped map[string]map[string]interface{},
+	alias string,
+	aliasMap map[string]qp.FieldDescriptor,
+	refPath string,
+	meta *tags.TableMetadata,
+) (*reflect.Value, error) {
 
 	model := reflect.Indirect(reflect.New(typ))
 
-	alias := fmt.Sprintf("t%d", counter)
-
-	mappedFields := mapped[fmt.Sprintf(qp.AliasedField, alias, meta.GetTableName())]
+	mappedFields := mapped[alias]
 
 	for _, field := range meta.GetFields() {
 		fieldVal := mappedFields[field.GetColumnName()]
@@ -63,8 +69,31 @@ func hydrate(typ reflect.Type, mapped map[string]map[string]interface{}, counter
 		if field.IsFK() {
 			refTyp := field.GetRelatedType()
 			fkField := meta.GetForeignKeyField(field.GetName())
+			foreignMetadata := fkField.TableMetadata
+			foreignTableName := foreignMetadata.GetTableName()
+			fieldName := field.GetName()
+
+			fkRefPath := fieldName
+			if refPath != "" {
+				fkRefPath = refPath + "." + fieldName
+			}
+
+			// Search through the alias map to find the correct field
+			var fkAlias string
+			for _, descriptor := range aliasMap {
+				if descriptor.Table == foreignTableName && descriptor.RefPath == fkRefPath {
+					fkAlias = fmt.Sprintf(qp.AliasedField, descriptor.Alias, foreignTableName)
+					break
+				}
+			}
+			if fkAlias == "" {
+				// We couldnl't find a matching item in the alias map
+				// This most likely means that this field was not queried.
+				continue
+			}
+
 			// Recursively hydrate this reference field
-			refValHydrated, err := hydrate(refTyp, mapped, counter+1, fkField.TableMetadata)
+			refValHydrated, err := hydrate(refTyp, mapped, fkAlias, aliasMap, fkRefPath, foreignMetadata)
 			if err != nil {
 				return nil, err
 			}
@@ -185,9 +214,9 @@ func mapRows2Cols(aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows) ([]map
 			if reflectValue := reflect.ValueOf(val); reflectValue.IsValid() {
 				reflectTyp := reflectValue.Type()
 				if reflectTyp == reflect.TypeOf([]byte(nil)) && reflectValue.Len() == 36 {
-					result[aliasedTbl][tmap.Field] = string(val.([]uint8))
+					result[aliasedTbl][tmap.Column] = string(val.([]uint8))
 				} else {
-					result[aliasedTbl][tmap.Field] = val
+					result[aliasedTbl][tmap.Column] = val
 				}
 			}
 		}

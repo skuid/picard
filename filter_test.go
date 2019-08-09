@@ -40,7 +40,8 @@ func TestFilterModelWithAssociations(t *testing.T) {
 						t0.id AS "t0.id",
 						t0.organization_id AS "t0.organization_id",
 						t0.name AS "t0.name",
-						t0.parent_id AS "t0.parent_id"
+						t0.parent_id AS "t0.parent_id",
+						t0.other_parent_id AS "t0.other_parent_id"
 					FROM parentmodel AS t0
 					WHERE t0.organization_id = $1 AND t0.name = $2
 				`)).
@@ -86,7 +87,8 @@ func TestFilterModelWithAssociations(t *testing.T) {
 						t0.id AS "t0.id",
 						t0.organization_id AS "t0.organization_id",
 						t0.name AS "t0.name",
-						t0.parent_id AS "t0.parent_id"
+						t0.parent_id AS "t0.parent_id",
+						t0.other_parent_id AS "t0.other_parent_id"
 					FROM parentmodel AS t0
 					WHERE t0.organization_id = $1
 				`)).
@@ -145,6 +147,7 @@ func TestFilterModelWithAssociations(t *testing.T) {
 						t0.organization_id AS "t0.organization_id",
 						t0.name AS "t0.name",
 						t0.parent_id AS "t0.parent_id",
+						t0.other_parent_id AS "t0.other_parent_id",
 						t1.id AS "t1.id",
 						t1.organization_id AS "t1.organization_id",
 						t1.name AS "t1.name",
@@ -177,6 +180,101 @@ func TestFilterModelWithAssociations(t *testing.T) {
 								orgID,
 								"grandpops",
 								77,
+							),
+					)
+			},
+			nil,
+		},
+		{
+			"happy path for single parent filter with multiple eager loading reference fields to the same entity",
+			testdata.ParentModel{
+				Name: "pops",
+			},
+			[]tags.Association{
+				{
+					Name: "GrandParent",
+				},
+				{
+					Name: "GrandMother",
+				},
+			},
+			[]interface{}{
+				testdata.ParentModel{
+					ID:             "00000000-0000-0000-0000-000000000002",
+					OrganizationID: orgID,
+					Name:           "pops",
+					ParentID:       "00000000-0000-0000-0000-000000000023",
+					GrandParent: testdata.GrandParentModel{
+						ID:             "00000000-0000-0000-0000-000000000023",
+						OrganizationID: orgID,
+						Name:           "grandpops",
+						Age:            77,
+					},
+					OtherParentID: "00000000-0000-0000-0000-000000000024",
+					GrandMother: testdata.GrandParentModel{
+						ID:             "00000000-0000-0000-0000-000000000024",
+						OrganizationID: orgID,
+						Name:           "grandmoms",
+						Age:            76,
+					},
+				},
+			},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
+					SELECT
+						t0.id AS "t0.id",
+						t0.organization_id AS "t0.organization_id",
+						t0.name AS "t0.name",
+						t0.parent_id AS "t0.parent_id",
+						t0.other_parent_id AS "t0.other_parent_id",
+						t1.id AS "t1.id",
+						t1.organization_id AS "t1.organization_id",
+						t1.name AS "t1.name",
+						t1.age AS "t1.age",
+						t2.id AS "t2.id",
+						t2.organization_id AS "t2.organization_id",
+						t2.name AS "t2.name",
+						t2.age AS "t2.age" 
+					FROM parentmodel AS t0
+					LEFT JOIN grandparentmodel AS t1 ON
+						(t1.id = t0.parent_id AND t1.organization_id = $1)
+					LEFT JOIN grandparentmodel AS t2 ON
+						(t2.id = t0.other_parent_id AND t2.organization_id = $2)
+					WHERE
+						t0.organization_id = $3 AND
+						t0.name = $4
+				`)).
+					WithArgs(orgID, orgID, orgID, "pops").
+					WillReturnRows(
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+							"t0.other_parent_id",
+							"t1.id",
+							"t1.organization_id",
+							"t1.name",
+							"t1.age",
+							"t2.id",
+							"t2.organization_id",
+							"t2.name",
+							"t2.age",
+						}).
+							AddRow(
+								"00000000-0000-0000-0000-000000000002",
+								orgID,
+								"pops",
+								"00000000-0000-0000-0000-000000000023",
+								"00000000-0000-0000-0000-000000000024",
+								"00000000-0000-0000-0000-000000000023",
+								orgID,
+								"grandpops",
+								77,
+								"00000000-0000-0000-0000-000000000024",
+								orgID,
+								"grandmoms",
+								76,
 							),
 					)
 			},
@@ -258,7 +356,8 @@ func TestFilterModelWithAssociations(t *testing.T) {
 							t0.id AS "t0.id",
 							t0.organization_id AS "t0.organization_id",
 							t0.name AS "t0.name",
-							t0.parent_id AS "t0.parent_id"
+							t0.parent_id AS "t0.parent_id",
+							t0.other_parent_id AS "t0.other_parent_id"
 						FROM parentmodel AS t0
 						WHERE t0.organization_id = $1 AND t0.name = $2
 					`)).
@@ -423,7 +522,8 @@ func TestFilterModelWithAssociations(t *testing.T) {
 							t0.id AS "t0.id",
 							t0.organization_id AS "t0.organization_id",
 							t0.name AS "t0.name",
-							t0.parent_id AS "t0.parent_id"
+							t0.parent_id AS "t0.parent_id",
+							t0.other_parent_id AS "t0.other_parent_id"
 						FROM parentmodel AS t0
 						WHERE t0.organization_id = $1 AND t0.name = $2
 					`)).
@@ -529,7 +629,8 @@ func TestFilterModelWithAssociations(t *testing.T) {
 										t0.id AS "t0.id",
 										t0.organization_id AS "t0.organization_id",
 										t0.name AS "t0.name",
-										t0.parent_id AS "t0.parent_id"
+										t0.parent_id AS "t0.parent_id",
+										t0.other_parent_id AS "t0.other_parent_id"
 									FROM parentmodel AS t0
 									WHERE t0.organization_id = $1 AND t0.name = $2
 								`)).
@@ -648,7 +749,8 @@ func TestFilterModelWithAssociations(t *testing.T) {
 								t0.id AS "t0.id",
 								t0.organization_id AS "t0.organization_id",
 								t0.name AS "t0.name",
-								t0.parent_id AS "t0.parent_id"
+								t0.parent_id AS "t0.parent_id",
+								t0.other_parent_id AS "t0.other_parent_id"
 							FROM parentmodel AS t0
 							WHERE t0.organization_id = $1 AND t0.name = $2
 						`)).
@@ -1365,7 +1467,8 @@ func TestFilterModel(t *testing.T) {
 						t0.id AS "t0.id",
 						t0.organization_id AS "t0.organization_id",
 						t0.name AS "t0.name",
-						t0.parent_id AS "t0.parent_id"
+						t0.parent_id AS "t0.parent_id",
+						t0.other_parent_id AS "t0.other_parent_id"
 					FROM parentmodel AS t0
 					WHERE t0.organization_id = $1
 					ORDER BY t0.name
@@ -1594,6 +1697,7 @@ func TestFilterModel(t *testing.T) {
 						t0.organization_id AS "t0.organization_id",
 						t0.name AS "t0.name",
 						t0.parent_id AS "t0.parent_id",
+						t0.other_parent_id AS "t0.other_parent_id",
 						t1.id AS "t1.id",
 						t1.name AS "t1.name"
 					FROM parentmodel AS t0
@@ -1672,7 +1776,8 @@ func TestFilterModel(t *testing.T) {
 							t0.id AS "t0.id",
 							t0.organization_id AS "t0.organization_id",
 							t0.name AS "t0.name",
-							t0.parent_id AS "t0.parent_id"
+							t0.parent_id AS "t0.parent_id",
+							t0.other_parent_id AS "t0.other_parent_id"
 						FROM parentmodel AS t0
 						WHERE t0.organization_id = $1 AND t0.name = $2
 					`)).
