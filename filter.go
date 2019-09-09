@@ -15,7 +15,7 @@ import (
 // FilterRequest holds information about a request to filter on a model
 type FilterRequest struct {
 	FilterModel  interface{}
-	FieldFilters []qp.FieldFilter
+	FieldFilters tags.Filterable
 	Associations []tags.Association
 	OrderBy      []qp.OrderByRequest
 	Runner       sq.BaseRunner
@@ -80,16 +80,12 @@ func (p PersistenceORM) getMultiFilterResults(request FilterRequest, filterMetad
 		ands := sq.And{}
 
 		for _, where := range ftbl.Wheres {
-			ands = append(ands, sq.Eq{
-				fmt.Sprintf("%v.%v", tbl.Alias, where.Field): where.Val,
-			})
+			ands = append(ands, where)
 		}
 
 		for _, join := range ftbl.Joins {
 			for _, where := range join.Table.Wheres {
-				ands = append(ands, sq.Eq{
-					fmt.Sprintf("%v.%v", join.Table.Alias, where.Field): where.Val,
-				})
+				ands = append(ands, where)
 			}
 		}
 
@@ -97,10 +93,10 @@ func (p PersistenceORM) getMultiFilterResults(request FilterRequest, filterMetad
 
 	}
 
-	tbl.Wheres = make([]qp.Where, 0)
+	tbl.Wheres = make([]sq.Sqlizer, 0)
 
 	for _, join := range tbl.Joins {
-		join.Table.Wheres = make([]qp.Where, 0)
+		join.Table.Wheres = make([]sq.Sqlizer, 0)
 	}
 
 	sql := tbl.BuildSQL()

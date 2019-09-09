@@ -1558,11 +1558,9 @@ func TestFilterModel(t *testing.T) {
 			"filter request with additional field filters item",
 			FilterRequest{
 				FilterModel: testdata.ToyModel{},
-				FieldFilters: []qp.FieldFilter{
-					{
-						FieldName:   "Name",
-						FilterValue: "Lego",
-					},
+				FieldFilters: tags.FieldFilter{
+					FieldName:   "Name",
+					FilterValue: "Lego",
 				},
 			},
 			[]interface{}{},
@@ -1590,14 +1588,160 @@ func TestFilterModel(t *testing.T) {
 			},
 		},
 		{
+			"filter request with additional field filters item - or group - single item",
+			FilterRequest{
+				FilterModel: testdata.ToyModel{},
+				FieldFilters: tags.OrFilterGroup{
+					tags.FieldFilter{
+						FieldName:   "Name",
+						FilterValue: "Lego",
+					},
+				},
+			},
+			[]interface{}{},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
+					SELECT
+						t0.id AS "t0.id",
+						t0.organization_id AS "t0.organization_id",
+						t0.name AS "t0.name",
+						t0.parent_id AS "t0.parent_id"
+					FROM toymodel AS t0
+					WHERE t0.organization_id = $1 AND (t0.name = $2)
+				`)).
+					WithArgs(orgID, "Lego").
+					WillReturnRows(
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+						}),
+					)
+				mock.ExpectCommit()
+			},
+		},
+		{
+			"filter request with additional field filters item - and group - single item",
+			FilterRequest{
+				FilterModel: testdata.ToyModel{},
+				FieldFilters: tags.AndFilterGroup{
+					tags.FieldFilter{
+						FieldName:   "Name",
+						FilterValue: "Lego",
+					},
+				},
+			},
+			[]interface{}{},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
+					SELECT
+						t0.id AS "t0.id",
+						t0.organization_id AS "t0.organization_id",
+						t0.name AS "t0.name",
+						t0.parent_id AS "t0.parent_id"
+					FROM toymodel AS t0
+					WHERE t0.organization_id = $1 AND (t0.name = $2)
+				`)).
+					WithArgs(orgID, "Lego").
+					WillReturnRows(
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+						}),
+					)
+				mock.ExpectCommit()
+			},
+		},
+		{
+			"filter request with additional field filters item - or group - multi item",
+			FilterRequest{
+				FilterModel: testdata.ToyModel{},
+				FieldFilters: tags.OrFilterGroup{
+					tags.FieldFilter{
+						FieldName:   "Name",
+						FilterValue: "Lego",
+					},
+					tags.FieldFilter{
+						FieldName:   "Name",
+						FilterValue: "Lego2",
+					},
+				},
+			},
+			[]interface{}{},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
+					SELECT
+						t0.id AS "t0.id",
+						t0.organization_id AS "t0.organization_id",
+						t0.name AS "t0.name",
+						t0.parent_id AS "t0.parent_id"
+					FROM toymodel AS t0
+					WHERE t0.organization_id = $1 AND (t0.name = $2 OR t0.name = $3)
+				`)).
+					WithArgs(orgID, "Lego", "Lego2").
+					WillReturnRows(
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+						}),
+					)
+				mock.ExpectCommit()
+			},
+		},
+		{
+			"filter request with additional field filters item - and group - multi item",
+			FilterRequest{
+				FilterModel: testdata.ToyModel{},
+				FieldFilters: tags.AndFilterGroup{
+					tags.FieldFilter{
+						FieldName:   "Name",
+						FilterValue: "Lego",
+					},
+					tags.FieldFilter{
+						FieldName:   "Name",
+						FilterValue: "Lego2",
+					},
+				},
+			},
+			[]interface{}{},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
+					SELECT
+						t0.id AS "t0.id",
+						t0.organization_id AS "t0.organization_id",
+						t0.name AS "t0.name",
+						t0.parent_id AS "t0.parent_id"
+					FROM toymodel AS t0
+					WHERE t0.organization_id = $1 AND (t0.name = $2 AND t0.name = $3)
+				`)).
+					WithArgs(orgID, "Lego", "Lego2").
+					WillReturnRows(
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+						}),
+					)
+				mock.ExpectCommit()
+			},
+		},
+		{
 			"filter request with additional field filters array",
 			FilterRequest{
 				FilterModel: testdata.ToyModel{},
-				FieldFilters: []qp.FieldFilter{
-					{
-						FieldName:   "Name",
-						FilterValue: []string{"Lego", "Matchbox Car", "Nintendo"},
-					},
+				FieldFilters: tags.FieldFilter{
+					FieldName:   "Name",
+					FilterValue: []string{"Lego", "Matchbox Car", "Nintendo"},
 				},
 			},
 			[]interface{}{},
@@ -1628,11 +1772,9 @@ func TestFilterModel(t *testing.T) {
 			"filter request with additional field filters array and select fields specified",
 			FilterRequest{
 				FilterModel: testdata.ToyModel{},
-				FieldFilters: []qp.FieldFilter{
-					{
-						FieldName:   "Name",
-						FilterValue: []string{"Lego", "Matchbox Car", "Nintendo"},
-					},
+				FieldFilters: tags.FieldFilter{
+					FieldName:   "Name",
+					FilterValue: []string{"Lego", "Matchbox Car", "Nintendo"},
 				},
 				SelectFields: []string{"ID", "Name"},
 			},
@@ -1668,11 +1810,9 @@ func TestFilterModel(t *testing.T) {
 					{
 						Name:         "GrandParent",
 						SelectFields: []string{"ID", "Name"},
-						FieldFilters: []qp.FieldFilter{
-							{
-								FieldName:   "Name",
-								FilterValue: "grandpops",
-							},
+						FieldFilters: tags.FieldFilter{
+							FieldName:   "Name",
+							FilterValue: "grandpops",
 						},
 					},
 				},
@@ -1740,11 +1880,9 @@ func TestFilterModel(t *testing.T) {
 					{
 						Name:         "Children",
 						SelectFields: []string{"ID", "Name", "ParentID"},
-						FieldFilters: []qp.FieldFilter{
-							{
-								FieldName:   "Name",
-								FilterValue: []string{"kiddo", "another_kid"},
-							},
+						FieldFilters: tags.FieldFilter{
+							FieldName:   "Name",
+							FilterValue: []string{"kiddo", "another_kid"},
 						},
 					},
 				},

@@ -2,9 +2,11 @@ package tags
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 
+	"github.com/Masterminds/squirrel"
 	"github.com/skuid/picard/metadata"
 	qp "github.com/skuid/picard/queryparts"
 )
@@ -17,7 +19,49 @@ type Association struct {
 	Associations []Association
 	OrderBy      []qp.OrderByRequest
 	SelectFields []string
-	FieldFilters []qp.FieldFilter
+	FieldFilters Filterable
+}
+
+// FieldFilter defines an arbitrary filter on a FilterRequest
+type FieldFilter struct {
+	FieldName   string
+	FilterValue interface{}
+}
+
+// Apply applies the filter
+func (ff FieldFilter) Apply(table *qp.Table, metadata *TableMetadata) squirrel.Sqlizer {
+	fieldMetadata := metadata.GetField(ff.FieldName)
+	columnName := fieldMetadata.GetColumnName()
+	return squirrel.Eq{fmt.Sprintf(qp.AliasedField, table.Alias, columnName): ff.FilterValue}
+}
+
+// OrFilterGroup applies a group of filters using ors
+type OrFilterGroup []Filterable
+
+// Apply applies the filter
+func (ofg OrFilterGroup) Apply(table *qp.Table, metadata *TableMetadata) squirrel.Sqlizer {
+	ors := squirrel.Or{}
+	for _, filter := range ofg {
+		ors = append(ors, filter.Apply(table, metadata))
+	}
+	return ors
+}
+
+// AndFilterGroup applies a group of filters using ands
+type AndFilterGroup []Filterable
+
+// Apply applies the filter
+func (afg AndFilterGroup) Apply(table *qp.Table, metadata *TableMetadata) squirrel.Sqlizer {
+	ands := squirrel.And{}
+	for _, filter := range afg {
+		ands = append(ands, filter.Apply(table, metadata))
+	}
+	return ands
+}
+
+// Filterable interface allows filters to be specified in Filter Requests
+type Filterable interface {
+	Apply(*qp.Table, *TableMetadata) squirrel.Sqlizer
 }
 
 // Lookup structure

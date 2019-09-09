@@ -14,7 +14,7 @@ import (
 Build takes the filter model and returns a query object. It takes the
 multitenancy value, current reflected value, and any tags
 */
-func Build(multitenancyVal, model interface{}, filters []qp.FieldFilter, associations []tags.Association, selectFields []string, filterMetadata *tags.TableMetadata) (*qp.Table, error) {
+func Build(multitenancyVal, model interface{}, filters tags.Filterable, associations []tags.Association, selectFields []string, filterMetadata *tags.TableMetadata) (*qp.Table, error) {
 
 	val, err := stringutil.GetStructValue(model)
 	if err != nil {
@@ -68,7 +68,7 @@ func buildQuery(
 	multitenancyVal interface{},
 	modelType reflect.Type,
 	modelVal *reflect.Value,
-	filters []qp.FieldFilter,
+	filters tags.Filterable,
 	associations []tags.Association,
 	selectFields []string,
 	onlyJoin bool,
@@ -180,11 +180,8 @@ func buildQuery(
 
 	tbl.AddColumns(cols)
 
-	if filters != nil && len(filters) > 0 && modelVal != nil {
-		for _, filter := range filters {
-			fieldMetadata := filterMetadata.GetField(filter.FieldName)
-			tbl.AddWhere(fieldMetadata.GetColumnName(), filter.FilterValue)
-		}
+	if filters != nil && modelVal != nil {
+		tbl.AddWhereGroup(filters.Apply(tbl, filterMetadata))
 	}
 
 	return tbl, nil
