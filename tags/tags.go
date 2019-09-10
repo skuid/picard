@@ -30,6 +30,10 @@ type FieldFilter struct {
 
 // Apply applies the filter
 func (ff FieldFilter) Apply(table *qp.Table, metadata *TableMetadata) squirrel.Sqlizer {
+	// Return early if no fieldname was provided in our filter
+	if ff.FieldName == "" {
+		return squirrel.Eq{}
+	}
 	fieldMetadata := metadata.GetField(ff.FieldName)
 	columnName := fieldMetadata.GetColumnName()
 	return squirrel.Eq{fmt.Sprintf(qp.AliasedField, table.Alias, columnName): ff.FilterValue}

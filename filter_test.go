@@ -1736,6 +1736,36 @@ func TestFilterModel(t *testing.T) {
 			},
 		},
 		{
+			"filter request with zero value filter should not bomb",
+			FilterRequest{
+				FilterModel:  testdata.ToyModel{},
+				FieldFilters: tags.FieldFilter{},
+			},
+			[]interface{}{},
+			func(mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectQuery(testdata.FmtSQLRegex(`
+					SELECT
+						t0.id AS "t0.id",
+						t0.organization_id AS "t0.organization_id",
+						t0.name AS "t0.name",
+						t0.parent_id AS "t0.parent_id"
+					FROM toymodel AS t0
+					WHERE t0.organization_id = $1
+				`)).
+					WithArgs(orgID).
+					WillReturnRows(
+						sqlmock.NewRows([]string{
+							"t0.id",
+							"t0.organization_id",
+							"t0.name",
+							"t0.parent_id",
+						}),
+					)
+				mock.ExpectCommit()
+			},
+		},
+		{
 			"filter request with additional field filters array",
 			FilterRequest{
 				FilterModel: testdata.ToyModel{},
