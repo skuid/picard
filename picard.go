@@ -1004,6 +1004,7 @@ func (p PersistenceORM) processObject(
 					tableMetadata.GetTableName(),
 					key,
 					foreignKey.KeyColumn,
+					foreignKey.RelatedFieldName,
 				)
 			}
 		}
