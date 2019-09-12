@@ -75,11 +75,6 @@ func (e *ForeignKeyError) GetFieldName() string {
 	return e.FieldName
 }
 
-// IsForeignKeyError indicates that the error is a foreign key
-func (e *ForeignKeyError) IsForeignKeyError() (bool, string) {
-	return true, e.Key
-}
-
 // SplitKey splits the key value into field parts
 func (e *ForeignKeyError) SplitKey() []string {
 	return strings.Split(e.Key, separator)
