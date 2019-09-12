@@ -19,14 +19,6 @@ func (err Error) Error() string {
 	return string(err)
 }
 
-// ForeignKeyError has extra information about which lookup failed
-type ForeignKeyError struct {
-	Err       error
-	Table     string
-	Key       string
-	KeyColumn string
-}
-
 func multiErrorOutputter(errs []error) string {
 	errorStrings := []string{}
 	for _, err := range errs {
@@ -51,21 +43,41 @@ func SquashErrors(errs []error) error {
 	return squashedError
 }
 
+// ForeignKeyError has extra information about which lookup failed
+type ForeignKeyError struct {
+	Err       error
+	Table     string
+	Key       string
+	KeyColumn string
+	FieldName string
+}
+
 /*
 NewForeignKeyError returns a new ForeignKeyError object, populated with
 extra information about which lookup failed
 */
-func NewForeignKeyError(reason, table, key, keyColumn string) *ForeignKeyError {
+func NewForeignKeyError(reason, table, key, keyColumn string, fieldName string) *ForeignKeyError {
 	return &ForeignKeyError{
 		Err:       errors.New(reason),
 		Table:     table,
 		Key:       key,
 		KeyColumn: keyColumn,
+		FieldName: fieldName,
 	}
 }
 
 func (e *ForeignKeyError) Error() string {
 	return fmt.Sprintf("%s: Table '%s', Foreign Key '%s', Key '%s'", e.Err, e.Table, e.KeyColumn, e.Key)
+}
+
+// GetFieldName returns the Related Field Name property
+func (e *ForeignKeyError) GetFieldName() string {
+	return e.FieldName
+}
+
+// SplitKey splits the key value into field parts
+func (e *ForeignKeyError) SplitKey() []string {
+	return strings.Split(e.Key, separator)
 }
 
 // QueryError holds additional information about an SQL query failure
