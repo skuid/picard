@@ -29,7 +29,7 @@ Then you can use any of the functionality on the ORM.
 Picard lets you define structs that represent database tables. Struct fields represent database columns.
 
 ### Struct Tags
-Structs are mapped to database tables and columns through picard struct tags. Picard uses reflection to read these tags and determine relational modeling and specialized field.
+Structs are mapped to database tables and columns through picard struct tags. Picard uses reflection to read these tags and determine relational modeling.
 
 ```go
 type tableA struct {
@@ -43,7 +43,7 @@ type tableA struct {
 ```
 
 #### Table Metadata
-A special field of the type picard.Metadata is required in all structs used with picard. This field stores information about that particular struct as well as metadata about the associated database table. 
+A special field of the type `picard.Metadata` is required in all structs used with picard. This field stores information about that particular struct as well as metadata about the associated database table. 
 
 ##### tablename
 Specifies the name of the table in the database.
@@ -54,7 +54,7 @@ Specifies the name of the table in the database.
 Indicates that this column is a primary key in the database.
 
 ##### multitenancy_key
-Indicates that this column is used as a multitenancy key to differentiate between tenants. Annotating this field will add it to all `WHERE` clauses.
+Indicates that this column is used as a multitenancy key needed to differentiate between tenants. Annotating this field will add it to all `WHERE` clauses.
 
 ##### column
 Specifies the column name that is associated with this field. Include `column=<name>`, where `<name>` is the name of the column in the database
@@ -116,8 +116,7 @@ Indicates that this field contains additional structs with picard metadata that 
 
 ##### related
 
-Specifies the field also in this struct that contains the related data. The field specified here must be of kind struct.
-
+Denotes a field on the struct that will hold related data for parent and junction models. The field specified here must be of kind struct. Picard will hydrate this field with related data.
 
 #### Special Tags - Optional
 
@@ -154,11 +153,11 @@ type tableB struct {
 
 ##### required
 
-Add `required` to `foreign_key` fields to make lookup of related data required, otherwise a `ForeignKeyError` will be returned.
+Add `required` to `foreign_key` fields to make the lookup of related data required, otherwise a `ForeignKeyError` will be returned.
 
 ##### audit fields
 
-Save and update audit fields without needing to hardcode the value of these fields for every struct. The performer id that is set in `picard.New` is automatically added to`created_by` and `updated_by` fields. `created_at` and `updated_at` are hydrated with the exact time the model is saved or updated at.
+Save and update audit fields without needing to hardcode their value for every struct. The performer id that is set in `picard.New` is automatically added to`created_by` and `updated_by` fields. `created_at` and `updated_at` are populated with the exact time the model is saved or updated.
 
 ```go
 type tableA struct {
@@ -221,7 +220,7 @@ type tableB struct {
 	TableAID string 		`picard:"foreign_key,lookup,required,column=tablea_id"`
 }
 ```
-This is similar to `key_mapping` except that the value type of the map is mapped to the Name field in tableB.
+This is similar to `key_mapping`, except that the value type of the map is linked to the `Name` field in `tableB`.
 
 This is only valid for fields that are marked as a foreign key. 
 
