@@ -86,12 +86,6 @@ type tableB struct {
 ##### foreign_key
 Specifies the field on the related struct that contains the foreign key for this relationship. During a picard deployment, this field will be populated with the value `primary_key` column of the parent object.
 
-##### key_mapping
-Only valid for fields that are maps of structs. This indicates which field to map the key of the map to on the child record during a picard deployment.
-
-##### value_mappings
-This indicates which fields on the parent to map to fields of the child during a picard deployment.
-
 #### Relationship Tags (Has Many)
 
 ```go
@@ -124,8 +118,6 @@ Indicates that this field contains additional structs with picard metadata that 
 
 Specifies the field also in this struct that contains the related data. The field specified here must be of kind struct.
 
-##### key_map
-Optional. Only valid for fields that are strings and are marked as a foreign key. This indicates that the value in this property should be mapped to the specified field of the related object.
 
 #### Special Tags - Optional
 
@@ -159,6 +151,7 @@ type tableB struct {
 }
 ```
 
+
 ##### required
 
 Add `required` to `foreign_key` fields to make lookup of related data required, otherwise a `ForeignKeyError` will be returned.
@@ -180,6 +173,83 @@ type tableA struct {
 	UpdatedDate time.Time `picard:"column=updated_at,audit=updated_at"`
 }
 ```
+
+#### Advanced tags
+
+##### key_mapping
+
+The `key_mapping` annotation is an advanced way to link the key of a `map[string]model{}` to a field on the child struct. This indicates that the value in this property should be mapped to the specified field of the related object.
+
+``` go
+type tableA struct {
+	Metadata       picard.Metadata 		`picard:"tablename=table_a"`
+	ID             string          		`picard:"primary_key,column=id"`
+	OrganizationID string          		`picard:"multitenancy_key,column=organization_id"`
+	Name           string          		`picard:"lookup,column=name"`
+	BMap           map[string]tableB        `picard:"child,foreign_key=TableAID,key_mapping=Name"`
+}
+
+type tableB struct {
+	Metadata picard.Metadata 	`picard:"tablename=table_b"`
+	ID       string          	`picard:"primary_key,column=id"`
+	Name     string          	`picard:"lookup,column=name"`
+	TableAID string 		`picard:"foreign_key,lookup,required,column=tablea_id"`
+}
+```
+
+In the example above, the keytype of map[string]tableB maps to the Name field on the tableB struct.
+
+This is only valid for fields that are marked as a foreign key. 
+
+##### value_mapping
+
+This indicates which fields on the parent to map to fields of the child during a picard deployment.
+
+``` go
+type tableA struct {
+	Metadata       picard.Metadata 		`picard:"tablename=table_a"`
+	ID             string          		`picard:"primary_key,column=id"`
+	OrganizationID string          		`picard:"multitenancy_key,column=organization_id"`
+	Name           string          		`picard:"lookup,column=name"`
+	BMap           map[string]tableB        `picard:"child,foreign_key=TableAID,value_mapping=Name"`
+}
+
+type tableB struct {
+	Metadata picard.Metadata 	`picard:"tablename=table_b"`
+	ID       string          	`picard:"primary_key,column=id"`
+	Name     string          	`picard:"lookup,column=name"`
+	TableAID string 		`picard:"foreign_key,lookup,required,column=tablea_id"`
+}
+```
+This is similar to `key_mapping` except that the value type of the map is mapped to the Name field in tableB.
+
+This is only valid for fields that are marked as a foreign key. 
+
+#### grouping_criteria
+
+The `grouping_criteria` annotation is used to describe which field on the parent struct is linked to a field child struct. Without grouping criteria specified we use the primary key from the parent as a filter condition on the child. If we want to link together values form a parent to a child we use this.
+
+``` go
+type tableA struct {
+	Metadata       picard.Metadata 		`picard:"tablename=table_a"`
+	ID             string          		`picard:"primary_key,column=id"`
+	OrganizationID string          		`picard:"multitenancy_key,column=organization_id"`
+	Name           string          		`picard:"lookup,column=name"`
+	AllTheBs []ChildModel          `picard:"child,grouping_criteria=ParentA.ID->ID"`
+
+}
+
+type tableB struct {
+	Metadata picard.Metadata 	`picard:"tablename=table_b"`
+	ID       string          	`picard:"primary_key,column=id"`
+	Name     string          	`picard:"lookup,column=name"`
+	TableAID string 		`picard:"foreign_key,lookup,required,column=tablea_id,related=ParentA"`
+	ParentA  tableA
+
+}
+```
+
+In the example above, `ParentA.ID->ID` indicates a link between tableA's `ID` field and tableB's `ParentID` field specifically on that `ID` field.
 
 ## Filter
 
@@ -338,7 +408,7 @@ type tableD struct {
 	Metadata picard.Metadata 	`picard:"tablename=table_d"`
 	ID       string          	`picard:"primary_key,column=id"`
 	Name     string          	`picard:"lookup,column=name"`
-	TableBID string 		`picard:"foreign_key,lookup,required,column=tableb_id"`
+	TableCID string 		`picard:"foreign_key,lookup,required,related=ParentC,column=tablec_id"`
 	ParentC  tableC
 }
 
