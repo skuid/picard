@@ -376,7 +376,7 @@ andResults, err := p.FilterModel(picard.FilterRequest{
 
 ### Associations
 
-We can eager load associations of a model by passing in a slice of `tags.Association` in the `filterRequest` in `filterModel`. Picard constructs the `JOIN`s for child and parent structs that are necessary to get nested results in the filter query.
+We can eager load associations of a model by passing in a slice of `tags.Association` in the `filterRequest` for a `filterModel`. Picard constructs all the necessary `JOIN`s from determining relationships via picard struct tags on model fields. This will help you avoid making n+1 queries to grab data for relationship models.
 
 ```go
 type tableA struct {

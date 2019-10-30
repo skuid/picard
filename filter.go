@@ -12,7 +12,97 @@ import (
 	"github.com/skuid/picard/tags"
 )
 
-// FilterRequest holds information about a request to filter on a model
+/* FilterRequest holds information about a request to filter on a model
+
+
+Example:
+
+	type TableA struct {
+		Metadata	metadata.Metadata	`picard:"tablename=table_a"`
+		ID			string				`picard:"primary_key,column=id"`
+		FieldA		string				`picard:"column=field_a"`
+		FieldB		string				`picard:"column=field_b"`
+	}
+
+	// Filter all TableA models
+	p.FilterModel(picard.FilterRequest{
+		FilterModel: TableA{},
+	}
+
+	// Filter TableA models by field values
+	p.FilterModel(picard.FilterRequest{
+		FilterModel: TableA{
+			FieldA: "foo",
+			FieldB: "bar",
+		},
+	}
+
+
+FieldFilters generates a `WHERE` clause grouping with either an `OR` grouping via `tags.OrFilterGroup` or an `AND` grouping via `tags.AndFilterGroup`. The `tags.FieldFilter`
+
+	type TableA struct {
+		Metadata	metadata.Metadata	`picard:"tablename=table_a"`
+		ID			string				`picard:"primary_key,column=id"`
+		FieldA		string				`picard:"column=field_a"`
+		FieldB		string				`picard:"column=field_b"`
+	}
+
+	import "github.com/skuid/picard/tags"
+
+	p.FilterModel(picard.FilterRequest{
+			FilterModel: TableA{},
+			FieldFilters: tags.OrFilterGroup{
+				tags.FieldFilter{
+					FieldName:   "FieldA",
+					FilterValue: "foo",
+				},
+				tags.FieldFilter{
+					FieldName:   "FieldB",
+					FilterValue: "bar",
+				},
+			},
+		}
+	})
+
+	// SELECT ... WHERE (t0.field_a = 'foo' OR t0.field_b = 'bar')
+
+	p.FilterModel(picard.FilterRequest{
+			FilterModel: TableA{},
+			FieldFilters: tags.AndFilterGroup{
+				tags.FieldFilter{
+					FieldName:   "FieldA",
+					FilterValue: "foo",
+				},
+				tags.FieldFilter{
+					FieldName:   "FieldB",
+					FilterValue: "bar",
+				},
+			},
+		}
+	})
+
+	// SELECT ... WHERE (t0.field_a = 'foo' AND t0.field_b = 'bar')
+
+Associations lets you define parent and child relationships that neeed to be eager loaded. See tags.Associations for more info.
+
+Runner lets the filter request execute in a transaction.
+
+SelectFields is set to define the exact columns to query for. Without `SelectFields`, all the columns defined in the table will be included in the query.
+
+Example:
+
+	results, err := p.FilterModel(picard.FilterRequest{
+		FilterModel: tableA{
+			FieldA: "jeanluc",
+		},
+		SelectFields: []string{
+			"Id",
+			"FieldB",
+		},
+	})
+
+	// SELECT t0.id, t0.field_b FROM table_a ...
+*/
 type FilterRequest struct {
 	FilterModel  interface{}
 	FieldFilters tags.Filterable
