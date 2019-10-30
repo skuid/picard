@@ -740,7 +740,10 @@ func TableMetadataFromType(t reflect.Type) *TableMetadata {
 	return &tableMetadata
 }
 
-// GetStructTagsMap function
+// GetStructTagsMap generates a map of struct tag to values
+// Example
+// 	input: testKeyOne=test_value_one,testKeyTwo=test_value_two
+// 	output: map[string]string{"testKeyOne": "test_value_one", "testKeyTwo": "test_value_two"
 func GetStructTagsMap(field reflect.StructField, tagType string) map[string]string {
 	tagValue := field.Tag.Get(tagType)
 	if tagValue == "" {
