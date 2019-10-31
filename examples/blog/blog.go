@@ -1,4 +1,4 @@
-package main
+package blog
 
 import (
 	"log"
@@ -15,11 +15,10 @@ type User struct {
 	Metadata       metadata.Metadata `picard:"tablename=users"`
 	ID             string            `picard:"primary_key,column=id"`
 	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
-	// Name           string            `picard:"lookup,column=username"`
-	Name string `picard:"column=username"`
+	Name           string            `picard:"column=username"`
 
 	Email    string `picard:"column=email"`
-	Password string `encrypted,picard:column=password`
+	Password string `picard:"encryptedcolumn=password"`
 	Blogs    []Blog `picard:"child,foreign_key=UserID"`
 }
 
@@ -28,23 +27,31 @@ type Blog struct {
 	Metadata       metadata.Metadata `picard:"tablename=blogs"`
 	ID             string            `picard:"primary_key,column=id"`
 	OrganizationID string            `picard:"multitenancy_key,column=organization_id"`
-	// Name           string            `picard:"lookup,column=name"`
-	Name string `picard:"column=name"`
-	Tags []Tag  `picard:"child,foreign_key=BlogID"`
-	// UserID         string            `picard:"foreign_key,lookup,required,related=User,column=user_id"`
-	UserID string `picard:"foreign_key,required,related=User,column=user_id"`
-	User   User
+	Name           string            `picard:"column=name"`
+	Tags           []Tag             `picard:"child,foreign_key=BlogID"`
+	UserID         string            `picard:"foreign_key,required,related=User,column=user_id"`
+	User           User
 }
 
 // Tag example struct
 type Tag struct {
 	Metadata metadata.Metadata `picard:"tablename=tags"`
 	ID       string            `picard:"primary_key,column=id"`
-	// Name     string            `picard:"lookup,column=name"`
-	Name string `picard:"column=name"`
-	// BlogID string `picard:"foreign_key,lookup,required,related=Blog,column=blog_id"`
-	BlogID string `picard:"foreign_key,required,related=Blog,column=blog_id"`
-	Blog   Blog
+	Name     string            `picard:"column=name"`
+	BlogID   string            `picard:"foreign_key,required,related=Blog,column=blog_id"`
+	Blog     Blog
+}
+
+func insertBlog(p picard.ORM, newBlog *Blog) error {
+	return p.CreateModel(newBlog)
+}
+
+func insertUser(p picard.ORM, newUser *User) error {
+	return p.CreateModel(newUser)
+}
+
+func insertTag(p picard.ORM, newTag *Tag) error {
+	return p.CreateModel(newTag)
 }
 
 // insert data creates users, blogs, and tags
@@ -54,7 +61,7 @@ func insertData(p picard.ORM) error {
 		ID:   "00000000-0000-0000-0000-000000000001",
 	}
 
-	if err := p.CreateModel(&newUser); err != nil {
+	if err := insertUser(p, &newUser); err != nil {
 		return err
 	}
 
@@ -63,7 +70,7 @@ func insertData(p picard.ORM) error {
 		ID:     "00000000-0000-0000-0000-000000000001",
 		UserID: "00000000-0000-0000-0000-000000000001",
 	}
-	if err := p.CreateModel(&newBlogA); err != nil {
+	if err := insertBlog(p, &newBlogA); err != nil {
 		return err
 	}
 
@@ -72,7 +79,7 @@ func insertData(p picard.ORM) error {
 		ID:     "00000000-0000-0000-0000-000000000002",
 		UserID: "00000000-0000-0000-0000-000000000001",
 	}
-	if err := p.CreateModel(&newBlogB); err != nil {
+	if err := insertBlog(p, &newBlogB); err != nil {
 		return err
 	}
 
@@ -81,7 +88,7 @@ func insertData(p picard.ORM) error {
 		ID:     "00000000-0000-0000-0000-000000000003",
 		BlogID: "00000000-0000-0000-0000-000000000002",
 	}
-	return p.CreateModel(&newTag)
+	return insertTag(p, &newTag)
 }
 
 // getAllBlogs grabs all blogs and eager logads Tag association in Tags field, ordering by Name in descending order
@@ -177,13 +184,12 @@ func getBlogs(p picard.ORM) ([]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	return blogs, nil
 }
 
 func deleteBlog(p picard.ORM, name string) (int64, error) {
-	rows, err := p.DeleteModel(picard.FilterRequest{
-		FilterModel: Blog{
-			Name: name,
-		},
+	rows, err := p.DeleteModel(Blog{
+		Name: name,
 	})
 	if err != nil {
 		return 0, err
@@ -192,11 +198,9 @@ func deleteBlog(p picard.ORM, name string) (int64, error) {
 }
 
 func updateBlog(p picard.ORM, id string, name string) error {
-	err := p.SaveModel(picard.FilterRequest{
-		FilterModel: Blog{
-			ID:   id,
-			Name: name,
-		},
+	err := p.SaveModel(Blog{
+		ID:   id,
+		Name: name,
 	})
 	if err != nil {
 		return err
@@ -250,5 +254,5 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("blogs deleted: %i\n", blogCount)
+	log.Printf("blogs deleted: %#v\n", blogCount)
 }
