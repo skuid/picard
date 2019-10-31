@@ -1,3 +1,6 @@
+/*
+Package stringutil contains basic string utility funcs for picard models, lookups, filters
+*/
 package stringutil
 
 import (

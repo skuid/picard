@@ -1,3 +1,6 @@
+/*
+Package tags generates table metadata by reading picard struct tag annotations
+*/
 package tags
 
 import (

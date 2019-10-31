@@ -30,14 +30,14 @@ type Table struct {
 }
 
 /*
-New returns a new table. This is a good starting point
+New returns a new table.
 */
 func New(name string) *Table {
 	return NewIndexed(name, 0, "")
 }
 
 /*
-NewIndexed returns a new table. This is a good starting point
+NewIndexed returns a new table.
 */
 func NewIndexed(name string, index int, refPath string) *Table {
 	return &Table{

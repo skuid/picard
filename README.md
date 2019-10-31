@@ -2,7 +2,7 @@
 
 # Picard
 
-Picard is a database interaction layer for go services.
+Picard is an ORM for go services that interact with PostgreSQL databases.
 
 # Usages
 
@@ -16,6 +16,12 @@ Here are some ways you can use picard:
 
 ## Initialization
 
+Create a picard connection to your database.
+
+```go
+err := picard.CreateConnection("postgres://localhost:5432/sampledb&user=user&password=password")
+```
+
 To create a new Picard ORM object for use in your project, you'll need a multitenancy value and performer id.
 
 ```go
@@ -24,12 +30,16 @@ porm := picard.New(orgID, userID)
 
 Then you can use any of the functionality on the ORM.
 
+You can close the connection with `picard.CloseConnection`
+
 ## Model Mapping via Structs
 
-Picard lets you define structs that represent database tables. Struct fields represent database columns.
+Picard lets you abstract database tables into structs with individual fields that may represent table columns. These structs can then be initialized with values and passed as arguments to picard methods that perform CRUD operations on the database. Struct fields are annotated with tags that tell picard extra information about the field, like if it is part of a key, if it is part of a relationship with another struct, if it need encryption, etc.
 
 ### Struct Tags
-Structs are mapped to database tables and columns through picard struct tags. Picard uses reflection to read these tags and determine relational modeling.
+Structs are mapped to database tables and their columns through picard struct tags. Picard uses reflection to read these tags and determine referential integrity for relational modeling.
+
+Example:
 
 ```go
 type tableA struct {
@@ -50,14 +60,14 @@ Specifies the name of the table in the database.
 
 #### Basic Column Tags
 
+##### column
+Specifies the column name that is associated with this field. Include `column=<name>`, where `<name>` is the name of the column in the database
+
 ##### primary_key
 Indicates that this column is a primary key in the database.
 
 ##### multitenancy_key
 Indicates that this column is used as a multitenancy key needed to differentiate between tenants. Annotating this field will add it to all `WHERE` clauses.
-
-##### column
-Specifies the column name that is associated with this field. Include `column=<name>`, where `<name>` is the name of the column in the database
 
 ##### lookup
 Tells picard that this column may be used in the `where` clause as part of the unique key for that object. Indicates that this field should be used in the componund key for checking to see if this record already exists in the database. Lookup fields are used in picard deployments to determine whether an insert or update is necessary. Include `lookup` in the picard annotations.

@@ -1,3 +1,4 @@
+// picard_test provides a mock orm for unit testing
 package picard_test
 
 import (

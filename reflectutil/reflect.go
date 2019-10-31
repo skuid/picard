@@ -1,3 +1,5 @@
+/* Package reflectutil contains basic go reflection utility funcs
+ */
 package reflectutil
 
 import (

@@ -1,13 +1,12 @@
+// Package metadata is a field type that can be easily detected by picard.
+// Used as an embedded type on a model struct, and certain metadata can be added as struct tags.
+// Currently supported tags: tablename
 package metadata
 
 import (
 	"reflect"
 )
 
-// Metadata is a field type that can be easily detected by picard.
-// Used as an embedded type on a model struct, and certain metadata can be added as struct tags.
-// Currently supported tags:
-//   tablename
 type Metadata struct {
 	DefinedFields []string
 }

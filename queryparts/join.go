@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	aliasedJoin  string = "%[2]v AS %[1]v ON"
+	aliasedJoin string = "%[2]v AS %[1]v ON"
 )
 
 /*

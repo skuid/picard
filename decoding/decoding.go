@@ -1,3 +1,6 @@
+/*
+Package decoder is used to default to jsoniter for its decoder
+*/
 package decoding
 
 import (
