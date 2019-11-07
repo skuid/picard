@@ -1,3 +1,6 @@
+/*
+Package tags generates table metadata by reading picard struct tag annotations
+*/
 package tags
 
 import (
@@ -13,7 +16,200 @@ import (
 
 const picardTagKey = "picard"
 
-// Association structure
+/* Association represents a data model relationship in the form of hasOne, hasMany, belongsTo between parent and child structs.
+
+Including Associations in FilterRequests will eager load the model relationship results in a single query with JOINs.
+
+Name refers to the name of the struct field that will hold the filter results for the relationship.
+For belongsTo relationships, this is the `related` tag value on a `foreign_key`` field on the struct
+
+Example:
+
+	type ChildModel struct {
+		Metadata	metadata.Metadata	`picard:"tablename=child"`
+		ID			string				`picard:"primary_key,column=id"`
+		ParentID 	string				`picard:"foreign_key,required,related=Parent,column=parent_id
+		Parent		ParentModel
+	}
+
+	p.FilterModel(picard.FilterRequest{
+		FilterModel: ChildModel{},
+		Associations: []tags.Association{
+			{
+				Name: "Parent",
+			},
+		},
+	})
+
+For hasOne or hasMany relationships, this is the field with the `child` tag
+
+Example:
+
+	type ParentModel struct {
+		Metadata	metadata.Metadata	`picard:"tablename=parent"`
+		ID			string				`picard:"primary_key,column=id"`
+		Children	[]ChildModel		`picard:"child,foreign_key=ParentID"`
+	}
+
+	p.FilterModel(picard.FilterRequest{
+		FilterModel: ParentModel{},
+		Associations: []tags.Association{
+			{
+				Name: "Children",
+			},
+		},
+	})
+
+
+Each association may have nested relationships, like so:
+
+	type ParentModel struct {
+		Metadata	metadata.Metadata	`picard:"tablename=parent"`
+		ID			string				`picard:"primary_key,column=id"`
+		Children	[]ChildModel		`picard:"child,foreign_key=ParentID"`
+	}
+
+	type ChildModel struct {
+		Metadata	metadata.Metadata	`picard:"tablename=child"`
+		ID			string				`picard:"primary_key,column=id"`
+		Children	[]GrandChildModel	`picard:"child,foreign_key=ParentID"`
+		ParentID 	string				`picard:"foreign_key,required,related=Parent,column=parent_id"``
+		Parent		ParentModel
+	}
+
+	type GrandChild struct {
+		Metadata	metadata.Metadata	`picard:"tablename=grandchild"`
+		ID			string				`picard:"primary_key,column=id"`
+		ParentID 	string				`picard:"foreign_key,required,related=Parent,column=parent_id
+		Parent		ChildModel
+	}
+
+	p.FilterModel(picard.FilterRequest{
+		FilterModel: ParentModel{},
+		Associations: []tags.Association{
+		{
+			Name: "Children",
+			Associations: []tags.Association{
+				{
+					Name: "Children",
+				},
+			},
+		},
+	})
+
+
+OrderBy lets you define the ordering of filter results by adding an ORDER BY clause with an OrderByRequest
+
+Example:
+
+	type ParentModel struct {
+		Metadata	metadata.Metadata	`picard:"tablename=parent"`
+		ID			string				`picard:"primary_key,column=id"`
+		Children	[]ChildModel		`picard:"child,foreign_key=ParentID"`
+	}
+
+	type ChildModel struct {
+		Metadata	metadata.Metadata	`picard:"tablename=child"`
+		ID			string				`picard:"primary_key,column=id"`
+		Name		string				`picard:"column=name"`
+	}
+	p.FilterModel(picard.FilterRequest{
+		FilterModel: ParentModel{},
+		Associations: []tags.Association{
+				{
+					Name: "Children",
+					OrderBy: []qp.OrderByRequest{
+					{
+						Field:      "Name",
+						Descending: true,
+					},
+				},
+			},
+	})
+
+	// SELECT ... FROM parent AS t0 LEFT JOIN child AS t1 ON ...ORDER BY t1.name DESC
+
+SelectFields lets you define the exact columns to query for. Without `SelectFields`, all the columns defined in the table will be included in the query.
+
+From the example above for OrderBy:
+
+	p.FilterModel(picard.FilterRequest{
+		FilterModel: ParentModel{},
+		Associations: []tags.Association{
+				{
+					Name: "Children",
+					SelectFields: []string{
+						"Name",
+					}
+				},
+			},
+		}
+	})
+
+	// SELECT ... t1.name FROM parent AS t0 LEFT JOIN child AS t1 ON ...
+
+FieldFilters generates a `WHERE` clause grouping with either an `OR` grouping via `tags.OrFilterGroup` or an `AND` grouping via `tags.AndFilterGroup`. The `tags.FieldFilter`
+
+	type ParentModel struct {
+		Metadata	metadata.Metadata	`picard:"tablename=parent"`
+		ID			string				`picard:"primary_key,column=id"`
+		Children	[]ChildModel		`picard:"child,foreign_key=ParentID"`
+	}
+
+	type ChildModel struct {
+		Metadata	metadata.Metadata	`picard:"tablename=child"`
+		ID			string				`picard:"primary_key,column=id"`
+		FieldA		string				`picard:"column=field_a"`
+		FieldB		string				`picard:"column=field_b"`
+	}
+
+
+import "github.com/skuid/picard/tags"
+
+	p.FilterModel(picard.FilterRequest{
+			FilterModel: ParentModel{},
+			Associations: []tags.Association{
+				{
+					Name: "Children",
+					FieldFilters: tags.OrFilterGroup{
+						tags.FieldFilter{
+							FieldName:   "FieldA",
+							FilterValue: "foo",
+						},
+						tags.FieldFilter{
+							FieldName:   "FieldB",
+							FilterValue: "bar",
+						},
+					},
+				}
+			},
+		}
+	})
+
+	// SELECT ... WHERE (t1.field_a = 'foo' OR t1.field_b = 'bar')
+
+	p.FilterModel(picard.FilterRequest{
+			FilterModel: ParentModel{},
+			Associations: []tags.Association{
+				{
+					Name: "Children",
+					FieldFilters: tags.AndFilterGroup{
+						tags.FieldFilter{
+							FieldName:   "FieldA",
+							FilterValue: "foo",
+						},
+						tags.FieldFilter{
+							FieldName:   "FieldB",
+							FilterValue: "bar",
+						},
+					},
+				}
+			},
+		}
+	})
+
+	// SELECT ... WHERE (t1.field_a = 'foo' AND t1.field_b = 'bar')
+*/
 type Association struct {
 	Name         string
 	Associations []Association
@@ -22,7 +218,24 @@ type Association struct {
 	FieldFilters Filterable
 }
 
-// FieldFilter defines an arbitrary filter on a FilterRequest
+/* FieldFilter defines an arbitrary filter on a FilterRequest
+
+
+Specify the fields that should be added in a AndFilterGroup or a OrFilterGroup WHERE clause grouping.
+
+Example:
+
+	import "github.com/skuid/picard/tags"
+
+	tags.FieldFilter{
+		FieldName:   "FieldB",
+		FilterValue: "bar",
+	},
+
+SQL translation in WHERE clause grouping:
+
+	t0.field_B = "bar"
+*/
 type FieldFilter struct {
 	FieldName   string
 	FilterValue interface{}
@@ -530,7 +743,10 @@ func TableMetadataFromType(t reflect.Type) *TableMetadata {
 	return &tableMetadata
 }
 
-// GetStructTagsMap function
+// GetStructTagsMap generates a map of struct tag to values
+// Example
+// 	input: testKeyOne=test_value_one,testKeyTwo=test_value_two
+// 	output: map[string]string{"testKeyOne": "test_value_one", "testKeyTwo": "test_value_two"
 func GetStructTagsMap(field reflect.StructField, tagType string) map[string]string {
 	tagValue := field.Tag.Get(tagType)
 	if tagValue == "" {

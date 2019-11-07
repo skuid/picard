@@ -1,3 +1,6 @@
+/*
+Package dbchange abstrats SQL upsert operations into structs
+*/
 package dbchange
 
 import (

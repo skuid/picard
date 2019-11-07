@@ -1,3 +1,4 @@
+// Package crypto lets picard column values to be encrypted and dexrypted with an encryption key
 package crypto
 
 import (
