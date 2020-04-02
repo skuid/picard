@@ -3,6 +3,7 @@ package picard_test
 
 import (
 	"errors"
+	"reflect"
 
 	"github.com/skuid/picard"
 )
@@ -68,6 +69,9 @@ func (morm *MockORM) DeployMultiple(data []interface{}) error {
 type MultiMockORM struct {
 	MockORMs []MockORM
 	index    int
+	// If initialized, you can use TypeMap instead of the MockORMs array to return specific types of results for specific
+	// requests (for example, when using goroutines to do parallel fetching of many models at once).
+	TypeMap  map[string]MockORM
 }
 
 // Returns the next mock in the series of mocks
@@ -82,6 +86,13 @@ func (multi *MultiMockORM) next() (*MockORM, error) {
 
 // FilterModel simply returns an error or return objects when set on the MockORM
 func (multi *MultiMockORM) FilterModel(request picard.FilterRequest) ([]interface{}, error) {
+	if (len(multi.TypeMap) > 0) {
+		typeof := reflect.TypeOf(request.FilterModel)
+		typename := typeof.Name()
+		if next, ok := multi.TypeMap[typename]; ok {
+			return next.FilterModel(request)
+		}
+	}
 	next, err := multi.next()
 	if err != nil {
 		return nil, err
