@@ -68,13 +68,21 @@ func (morm *MockORM) DeployMultiple(data []interface{}) error {
 	return morm.DeployMultipleError
 }
 
+// StartTransaction returns the error stored in MockORM and returns the value stored in the orm
+func (morm *MockORM) StartTransaction() (*sql.Tx, error) {
+	if morm.StartTransactionError != nil {
+		return nil, morm.StartTransactionError
+	}
+	return morm.StartTransactionReturns, nil
+}
+
 // MultiMockORM can be used to string together a series of calls to picard.ORM
 type MultiMockORM struct {
 	MockORMs []MockORM
 	index    int
 	// If initialized, you can use TypeMap instead of the MockORMs array to return specific types of results for specific
 	// requests (for example, when using goroutines to do parallel fetching of many models at once).
-	TypeMap  map[string]MockORM
+	TypeMap map[string]MockORM
 }
 
 // Returns the next mock in the series of mocks
