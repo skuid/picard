@@ -35,6 +35,7 @@ type ORM interface {
 	DeleteModel(model interface{}) (int64, error)
 	Deploy(data interface{}) error
 	DeployMultiple(data []interface{}) error
+	StartTransaction() (*sql.Tx, error)
 }
 
 // PersistenceORM provides the necessary configuration to perform an upsert of objects without IDs
@@ -48,11 +49,24 @@ type PersistenceORM struct {
 
 // New Creates a new Picard Object and handle defaults
 func New(multitenancyValue string, performerID string) ORM {
-	return PersistenceORM{
+	return &PersistenceORM{
 		multitenancyValue: multitenancyValue,
 		performedBy:       performerID,
 		batchSize:         100,
 	}
+}
+
+// StartTranscation begins a transaction and returns a sql.Tx param (see https://golang.org/pkg/database/sql/#Tx).
+// Picard methods use this transaction when executing queries and will initiate a rollback if there is an error
+// Using this method makes the caller responsible for ending a transaction to prevent a transaction leak.
+func (p *PersistenceORM) StartTransaction() (*sql.Tx, error) {
+	tx, err := GetConnection().Begin()
+	if err != nil {
+		return tx, err
+	}
+
+	p.transaction = tx
+	return tx, nil
 }
 
 // Decode decodes a reader using a specified decoder, but also writes metadata to picard StructMetadata
@@ -91,21 +105,23 @@ func (p PersistenceORM) Deploy(data interface{}) error {
 
 // DeployMultiple allows for doing multiple deployments in the same transaction
 func (p PersistenceORM) DeployMultiple(data []interface{}) error {
-	tx, err := GetConnection().Begin()
-	if err != nil {
-		return err
+	if p.transaction == nil {
+		tx, err := GetConnection().Begin()
+		if err != nil {
+			return err
+		}
+		p.transaction = tx
+		defer p.transaction.Commit()
 	}
 
-	p.transaction = tx
-
 	for _, dataItem := range data {
-		if err = p.upsert(dataItem, nil); err != nil {
-			tx.Rollback()
+		if err := p.upsert(dataItem, nil); err != nil {
+			p.transaction.Rollback()
 			return err
 		}
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 func (p PersistenceORM) upsert(data interface{}, deleteFilters interface{}) error {

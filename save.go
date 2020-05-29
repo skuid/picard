@@ -25,30 +25,33 @@ func (p PersistenceORM) persistModel(model interface{}, alwaysInsert bool) error
 	if modelValue.Kind() != reflect.Struct {
 		return errors.New("Models must be structs")
 	}
-	tx, err := GetConnection().Begin()
-	if err != nil {
-		return err
-	}
 
-	p.transaction = tx
+	if p.transaction == nil {
+		tx, err := GetConnection().Begin()
+		if err != nil {
+			return err
+		}
+		p.transaction = tx
+		defer p.transaction.Commit()
+	}
 
 	tableMetadata := tags.TableMetadataFromType(modelValue.Type())
 	primaryKeyValue := modelValue.FieldByName(tableMetadata.GetPrimaryKeyFieldName()).Interface()
 
 	if primaryKeyValue == nil || primaryKeyValue == "" || alwaysInsert {
 		if err := p.insertModel(modelValue, tableMetadata, primaryKeyValue); err != nil {
-			tx.Rollback()
+			p.transaction.Rollback()
 			return err
 		}
 	} else {
 		// Non-Empty UUID: the model needs to update.
 		if err := p.updateModel(modelValue, tableMetadata, primaryKeyValue); err != nil {
-			tx.Rollback()
+			p.transaction.Rollback()
 			return err
 		}
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 func (p PersistenceORM) updateModel(modelValue reflect.Value, tableMetadata *tags.TableMetadata, primaryKeyValue interface{}) error {

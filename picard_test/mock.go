@@ -2,6 +2,7 @@
 package picard_test
 
 import (
+	"database/sql"
 	"errors"
 	"reflect"
 
@@ -24,6 +25,8 @@ type MockORM struct {
 	DeleteModelRowsAffected  int64
 	DeleteModelError         error
 	DeleteModelCalledWith    interface{}
+	StartTransactionReturns  *sql.Tx
+	StartTransactionError    error
 }
 
 // FilterModel simply returns an error or return objects when set on the MockORM
@@ -86,7 +89,7 @@ func (multi *MultiMockORM) next() (*MockORM, error) {
 
 // FilterModel simply returns an error or return objects when set on the MockORM
 func (multi *MultiMockORM) FilterModel(request picard.FilterRequest) ([]interface{}, error) {
-	if (len(multi.TypeMap) > 0) {
+	if len(multi.TypeMap) > 0 {
 		typeof := reflect.TypeOf(request.FilterModel)
 		typename := typeof.Name()
 		if next, ok := multi.TypeMap[typename]; ok {
@@ -143,4 +146,13 @@ func (multi *MultiMockORM) DeployMultiple(data []interface{}) error {
 		return err
 	}
 	return next.DeployMultiple(data)
+}
+
+// StartTransaction returns the error stored in MockORM and returns the value stored in the orm
+func (multi *MultiMockORM) StartTransaction() (*sql.Tx, error) {
+	next, err := multi.next()
+	if err != nil {
+		return nil, err
+	}
+	return next.StartTransaction()
 }

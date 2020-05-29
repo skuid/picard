@@ -194,35 +194,10 @@ func TestDeleteModel(t *testing.T) {
 				`)).
 					WithArgs(testMultitenancyValue).
 					WillReturnError(errors.New("some test error 2"))
+				mock.ExpectRollback()
 			},
 			20,
 			"some test error 2",
-		},
-		{
-			"returns error on Exec delete statement",
-			struct {
-				metadata.Metadata `picard:"tablename=test_tablename"`
-
-				PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
-				TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
-				TestFieldOne           string `picard:"column=test_column_one"`
-				TestFieldTwo           string `picard:"column=test_column_two"`
-			}{
-				TestMultitenancyColumn: "test multitenancy value to be overwritten",
-			},
-			func(mock sqlmock.Sqlmock) {
-				mock.ExpectBegin()
-				mock.ExpectExec(testdata.FmtSQLRegex(`
-					DELETE FROM test_tablename AS t0
-					WHERE t0.multitenancy_key_column = $1
-				`)).
-					WithArgs(testMultitenancyValue).
-					WillReturnResult(sqlmock.NewResult(0, 20))
-				mock.ExpectCommit().
-					WillReturnError(errors.New("some test error 3"))
-			},
-			20,
-			"some test error 3",
 		},
 	}
 

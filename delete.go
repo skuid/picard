@@ -67,14 +67,12 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 		}
 
 		porm.transaction = tx
+		defer porm.transaction.Commit()
 	}
 
 	results, err := dSQL.RunWith(porm.transaction).Exec()
 	if err != nil {
-		return 0, err
-	}
-
-	if err = porm.transaction.Commit(); err != nil {
+		porm.transaction.Rollback()
 		return 0, err
 	}
 
