@@ -36,6 +36,8 @@ type ORM interface {
 	Deploy(data interface{}) error
 	DeployMultiple(data []interface{}) error
 	StartTransaction() (*sql.Tx, error)
+	Commit() error
+	Rollback() error
 }
 
 // PersistenceORM provides the necessary configuration to perform an upsert of objects without IDs
@@ -60,13 +62,39 @@ func New(multitenancyValue string, performerID string) ORM {
 // Picard methods use this transaction when executing queries and will initiate a rollback if there is an error
 // Using this method makes the caller responsible for ending a transaction to prevent a transaction leak.
 func (p *PersistenceORM) StartTransaction() (*sql.Tx, error) {
-	tx, err := GetConnection().Begin()
-	if err != nil {
-		return tx, err
+	if p.transaction == nil {
+		fmt.Println("should be nil")
+		tx, err := GetConnection().Begin()
+		if err != nil {
+			return tx, err
+		}
+		p.transaction = tx
+	} else {
+		fmt.Println("transaction not nil")
 	}
+	return p.transaction, nil
+}
 
-	p.transaction = tx
-	return tx, nil
+// Commit ends a transaction
+func (p *PersistenceORM) Commit() error {
+	if p.transaction != nil {
+		defer func(p *PersistenceORM) {
+			p.transaction = nil
+		}(p)
+		return p.transaction.Commit()
+	}
+	return nil
+}
+
+// Rollback aborts a transaction
+func (p *PersistenceORM) Rollback() error {
+	if p.transaction != nil {
+		defer func(p *PersistenceORM) {
+			p.transaction = nil
+		}(p)
+		return p.transaction.Rollback()
+	}
+	return nil
 }
 
 // Decode decodes a reader using a specified decoder, but also writes metadata to picard StructMetadata
@@ -111,12 +139,12 @@ func (p PersistenceORM) DeployMultiple(data []interface{}) error {
 			return err
 		}
 		p.transaction = tx
-		defer p.transaction.Commit()
+		defer p.Commit()
 	}
 
 	for _, dataItem := range data {
 		if err := p.upsert(dataItem, nil); err != nil {
-			p.transaction.Rollback()
+			p.Rollback()
 			return err
 		}
 	}

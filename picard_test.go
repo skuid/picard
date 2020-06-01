@@ -1797,7 +1797,7 @@ func TestStartTransaction(t *testing.T) {
 		{
 			"ORM methods should use an existing transaction set in StartTransaction",
 			func(orm ORM) error {
-				tx, err := orm.StartTransaction()
+				_, err := orm.StartTransaction()
 				newModel := &Item{
 					TestFieldOne: "kayak",
 				}
@@ -1833,7 +1833,7 @@ func TestStartTransaction(t *testing.T) {
 					return err
 				}
 
-				tx.Commit()
+				orm.Commit()
 
 				return nil
 			},
@@ -1885,7 +1885,7 @@ func TestStartTransaction(t *testing.T) {
 		{
 			"ORM methods should begin a new transaction if there has been a rollback",
 			func(orm ORM) error {
-				tx, err := orm.StartTransaction()
+				_, err := orm.StartTransaction()
 				newModel := &Item{
 					TestFieldOne: "kayak",
 				}
@@ -1894,8 +1894,8 @@ func TestStartTransaction(t *testing.T) {
 					return err
 				}
 
-				tx.Rollback()
-				tx, err = orm.StartTransaction()
+				orm.Rollback()
+				_, err = orm.StartTransaction()
 				if err != nil {
 					return err
 				}
@@ -1905,8 +1905,8 @@ func TestStartTransaction(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				tx.Rollback()
-				tx, err = orm.StartTransaction()
+				orm.Rollback()
+				_, err = orm.StartTransaction()
 				if err != nil {
 					return err
 				}
@@ -1918,8 +1918,8 @@ func TestStartTransaction(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				tx.Rollback()
-				tx, err = orm.StartTransaction()
+				orm.Rollback()
+				_, err = orm.StartTransaction()
 				if err != nil {
 					return err
 				}
@@ -1936,7 +1936,7 @@ func TestStartTransaction(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				tx.Rollback()
+				orm.Rollback()
 
 				return nil
 			},
@@ -1968,11 +1968,11 @@ func TestStartTransaction(t *testing.T) {
 
 				// deleteModel
 				mock.ExpectExec(testdata.FmtSQLRegex(`
-					DELETE FROM test_tablename AS t0
-					WHERE
-						t0.multitenancy_key_column = $1 AND
-						t0.primary_key_column = $2
-				`)).
+						DELETE FROM test_tablename AS t0
+						WHERE
+							t0.multitenancy_key_column = $1 AND
+							t0.primary_key_column = $2
+					`)).
 					WithArgs(
 						"00000000-0000-0000-0000-000000000005",
 						"00000000-0000-0000-0000-000000000555",
@@ -1990,6 +1990,45 @@ func TestStartTransaction(t *testing.T) {
 							AddRow("00000000-0000-0000-0000-000000000002"),
 					)
 
+				mock.ExpectRollback()
+			},
+		},
+		{
+			"StartTransaction shouldn't start another transaction if there is an existing one",
+			func(orm ORM) error {
+				orm.StartTransaction()
+				orm.StartTransaction()
+				orm.Commit()
+				return nil
+			},
+			func(orm ORM, mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectCommit()
+			},
+		},
+		{
+			"Commit shouldn't commit if transaction already finished",
+			func(orm ORM) error {
+				orm.StartTransaction()
+				orm.Commit()
+				orm.Commit()
+				return nil
+			},
+			func(orm ORM, mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectCommit()
+			},
+		},
+		{
+			"Rollback shouldn't commit if transaction already finished",
+			func(orm ORM) error {
+				orm.StartTransaction()
+				orm.Rollback()
+				orm.Rollback()
+				return nil
+			},
+			func(orm ORM, mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
 				mock.ExpectRollback()
 			},
 		},

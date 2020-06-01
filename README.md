@@ -34,8 +34,11 @@ You can close the connection with `picard.CloseConnection`
 
 ## Transactions
 
-All picard methods start one transaction per method when executing queries and will rollback the transaction when there is an error.
-If you would like to use a transaction with multiple methods, call `picard.StartTransaction()`. Calling this method makes you responsible for commiting the transaction via [Tx.Commit()](https://golang.org/pkg/database/sql/#Tx.Commit) in order to prevent a transaction leak. Picard will always rollback using this initiated transaction if it encounters an error.
+All picard methods start one transaction per method when executing queries. It will rollback the transaction when there is an error or commit it when the operation is complete.
+
+If you would like to take control of transactions so you can use them across multiple methods, call `StartTransaction()` before calling these methods.
+The transaction started in `StartTransaction` can be completed with `Commit()` or aborted with `Rollback()`. Use these methods to prevent dangling transactions.
+Picard will always rollback using this initiated transaction if it encounters an error, but will not commit a transaction for you.
 
 ## Model Mapping via Structs
 

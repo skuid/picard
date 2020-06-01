@@ -27,6 +27,8 @@ type MockORM struct {
 	DeleteModelCalledWith    interface{}
 	StartTransactionReturns  *sql.Tx
 	StartTransactionError    error
+	CommitError              error
+	RollbackError            error
 }
 
 // FilterModel simply returns an error or return objects when set on the MockORM
@@ -74,6 +76,22 @@ func (morm *MockORM) StartTransaction() (*sql.Tx, error) {
 		return nil, morm.StartTransactionError
 	}
 	return morm.StartTransactionReturns, nil
+}
+
+// Commit returns the error stored in MockORM
+func (morm *MockORM) Commit() error {
+	if morm.CommitError != nil {
+		return morm.CommitError
+	}
+	return nil
+}
+
+// Rollback returns the error stored in MockORM
+func (morm *MockORM) Rollback() error {
+	if morm.CommitError != nil {
+		return morm.CommitError
+	}
+	return nil
 }
 
 // MultiMockORM can be used to string together a series of calls to picard.ORM
@@ -163,4 +181,22 @@ func (multi *MultiMockORM) StartTransaction() (*sql.Tx, error) {
 		return nil, err
 	}
 	return next.StartTransaction()
+}
+
+// Commit returns the error stored in MockORM
+func (multi *MultiMockORM) Commit() error {
+	next, err := multi.next()
+	if err != nil {
+		return nil
+	}
+	return next.Commit()
+}
+
+// Commit returns the error stored in MockORM
+func (multi *MultiMockORM) Rollback() error {
+	next, err := multi.next()
+	if err != nil {
+		return nil
+	}
+	return next.Rollback()
 }

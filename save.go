@@ -32,7 +32,7 @@ func (p PersistenceORM) persistModel(model interface{}, alwaysInsert bool) error
 			return err
 		}
 		p.transaction = tx
-		defer p.transaction.Commit()
+		defer p.Commit()
 	}
 
 	tableMetadata := tags.TableMetadataFromType(modelValue.Type())
@@ -40,13 +40,13 @@ func (p PersistenceORM) persistModel(model interface{}, alwaysInsert bool) error
 
 	if primaryKeyValue == nil || primaryKeyValue == "" || alwaysInsert {
 		if err := p.insertModel(modelValue, tableMetadata, primaryKeyValue); err != nil {
-			p.transaction.Rollback()
+			p.Rollback()
 			return err
 		}
 	} else {
 		// Non-Empty UUID: the model needs to update.
 		if err := p.updateModel(modelValue, tableMetadata, primaryKeyValue); err != nil {
-			p.transaction.Rollback()
+			p.Rollback()
 			return err
 		}
 	}
