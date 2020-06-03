@@ -63,14 +63,11 @@ func New(multitenancyValue string, performerID string) ORM {
 // Using this method makes the caller responsible for ending a transaction to prevent a transaction leak.
 func (p *PersistenceORM) StartTransaction() (*sql.Tx, error) {
 	if p.transaction == nil {
-		fmt.Println("should be nil")
 		tx, err := GetConnection().Begin()
 		if err != nil {
 			return tx, err
 		}
 		p.transaction = tx
-	} else {
-		fmt.Println("transaction not nil")
 	}
 	return p.transaction, nil
 }
