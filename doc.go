@@ -23,6 +23,14 @@ Then you can use any of the functionality on the ORM.
 
 You can close the connection with `picard.CloseConnection`
 
+Transactions:
+
+All picard methods start one transaction per method when executing queries. It will rollback the transaction when there is an error or commit it when the operation is complete.
+
+If you would like to take control of transactions so you can use them across multiple methods, call `StartTransaction()` before these methods.
+The transaction started in `StartTransaction` can be completed with `Commit()` or aborted with `Rollback()`. Use these methods to prevent dangling transactions.
+Picard will always rollback using this initiated transaction if it encounters an error, but will never commit a transaction for you.
+
 Model Mapping via Structs:
 
 Picard lets you abstract database tables into structs with individual fields that may represent table columns. These structs can then be initialized with values and passed as arguments to picard methods that perform CRUD operations on the database. Struct fields are annotated with tags that tell picard extra information about the field, like if it is part of a key, if it is part of a relationship with another struct, if it need encryption, etc.

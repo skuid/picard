@@ -8,6 +8,7 @@ import (
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	_ "github.com/lib/pq"
 	uuid "github.com/satori/go.uuid"
+	"github.com/skuid/picard/metadata"
 	"github.com/skuid/picard/testdata"
 	"github.com/stretchr/testify/assert"
 )
@@ -1774,6 +1775,285 @@ func TestDeployments(t *testing.T) {
 			} else {
 				assert.Error(t, err)
 				assert.EqualError(t, err, c.WantErr)
+			}
+		})
+	}
+}
+
+type Item struct {
+	metadata.Metadata `picard:"tablename=test_tablename"`
+
+	PrimaryKeyField        string `picard:"primary_key,column=primary_key_column"`
+	TestMultitenancyColumn string `picard:"multitenancy_key,column=multitenancy_key_column"`
+	TestFieldOne           string `picard:"column=test_column_one"`
+}
+
+func TestStartTransaction(t *testing.T) {
+	testCases := []struct {
+		testDescription string
+		methodFunc      func(ORM) error
+		expectationFunc func(ORM, sqlmock.Sqlmock)
+	}{
+		{
+			"ORM methods should use an existing transaction set in StartTransaction",
+			func(orm ORM) error {
+				_, err := orm.StartTransaction()
+				newModel := &Item{
+					TestFieldOne: "kayak",
+				}
+				err = orm.CreateModel(newModel)
+				if err != nil {
+					return err
+				}
+
+				newModel.TestFieldOne = "canoe"
+				err = orm.SaveModel(newModel)
+				if err != nil {
+					return err
+				}
+
+				deleteModel := Item{
+					PrimaryKeyField: "00000000-0000-0000-0000-000000000555",
+				}
+				_, err = orm.DeleteModel(deleteModel)
+				if err != nil {
+					return err
+				}
+
+				deployModels := []Item{
+					Item{
+						TestFieldOne: "ice",
+					},
+					Item{
+						TestFieldOne: "snow",
+					},
+				}
+				err = orm.Deploy(deployModels)
+				if err != nil {
+					return err
+				}
+
+				orm.Commit()
+
+				return nil
+			},
+			func(orm ORM, mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+
+				// createModel
+				mock.ExpectQuery(`^INSERT INTO test_tablename \(multitenancy_key_column,test_column_one\) VALUES \(\$1,\$2\) RETURNING "primary_key_column"$`).
+					WithArgs("00000000-0000-0000-0000-000000000005", "kayak").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
+					)
+
+				// saveModel
+				mock.ExpectQuery(`^SELECT test_tablename.primary_key_column FROM test_tablename WHERE test_tablename.primary_key_column = \$1 AND test_tablename.multitenancy_key_column = \$2$`).
+					WithArgs("00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000005").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
+					)
+				mock.ExpectExec(`^UPDATE test_tablename SET test_column_one = \$1 WHERE multitenancy_key_column = \$2 AND primary_key_column = \$3$`).
+					WithArgs("canoe", "00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000001").
+					WillReturnResult(sqlmock.NewResult(0, 1))
+
+				// deleteModel
+				mock.ExpectExec(testdata.FmtSQLRegex(`
+					DELETE FROM test_tablename AS t0
+					WHERE
+						t0.multitenancy_key_column = $1 AND
+						t0.primary_key_column = $2
+				`)).
+					WithArgs(
+						"00000000-0000-0000-0000-000000000005",
+						"00000000-0000-0000-0000-000000000555",
+					).
+					WillReturnResult(sqlmock.NewResult(0, 1))
+
+				// deployModel
+				mock.ExpectQuery(`^INSERT INTO test_tablename \(multitenancy_key_column,test_column_one\) VALUES \(\$1,\$2\),\(\$3,\$4\) RETURNING "primary_key_column"$`).
+					WithArgs("00000000-0000-0000-0000-000000000005", "ice", "00000000-0000-0000-0000-000000000005", "snow").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).
+							AddRow("00000000-0000-0000-0000-000000000001").
+							AddRow("00000000-0000-0000-0000-000000000002"),
+					)
+
+				mock.ExpectCommit()
+			},
+		},
+		{
+			"ORM methods should begin a new transaction if there has been a rollback",
+			func(orm ORM) error {
+				_, err := orm.StartTransaction()
+				newModel := &Item{
+					TestFieldOne: "kayak",
+				}
+				err = orm.CreateModel(newModel)
+				if err != nil {
+					return err
+				}
+
+				orm.Rollback()
+				_, err = orm.StartTransaction()
+				if err != nil {
+					return err
+				}
+
+				newModel.TestFieldOne = "canoe"
+				err = orm.SaveModel(newModel)
+				if err != nil {
+					return err
+				}
+				orm.Rollback()
+				_, err = orm.StartTransaction()
+				if err != nil {
+					return err
+				}
+
+				deleteModel := Item{
+					PrimaryKeyField: "00000000-0000-0000-0000-000000000555",
+				}
+				_, err = orm.DeleteModel(deleteModel)
+				if err != nil {
+					return err
+				}
+				orm.Rollback()
+				_, err = orm.StartTransaction()
+				if err != nil {
+					return err
+				}
+
+				deployModels := []Item{
+					Item{
+						TestFieldOne: "ice",
+					},
+					Item{
+						TestFieldOne: "snow",
+					},
+				}
+				err = orm.Deploy(deployModels)
+				if err != nil {
+					return err
+				}
+				orm.Rollback()
+
+				return nil
+			},
+			func(orm ORM, mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+
+				// createModel
+				mock.ExpectQuery(`^INSERT INTO test_tablename \(multitenancy_key_column,test_column_one\) VALUES \(\$1,\$2\) RETURNING "primary_key_column"$`).
+					WithArgs("00000000-0000-0000-0000-000000000005", "kayak").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
+					)
+
+				mock.ExpectRollback()
+				mock.ExpectBegin()
+
+				// saveModel
+				mock.ExpectQuery(`^SELECT test_tablename.primary_key_column FROM test_tablename WHERE test_tablename.primary_key_column = \$1 AND test_tablename.multitenancy_key_column = \$2$`).
+					WithArgs("00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000005").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).AddRow("00000000-0000-0000-0000-000000000001"),
+					)
+				mock.ExpectExec(`^UPDATE test_tablename SET test_column_one = \$1 WHERE multitenancy_key_column = \$2 AND primary_key_column = \$3$`).
+					WithArgs("canoe", "00000000-0000-0000-0000-000000000005", "00000000-0000-0000-0000-000000000001").
+					WillReturnResult(sqlmock.NewResult(0, 1))
+
+				mock.ExpectRollback()
+				mock.ExpectBegin()
+
+				// deleteModel
+				mock.ExpectExec(testdata.FmtSQLRegex(`
+						DELETE FROM test_tablename AS t0
+						WHERE
+							t0.multitenancy_key_column = $1 AND
+							t0.primary_key_column = $2
+					`)).
+					WithArgs(
+						"00000000-0000-0000-0000-000000000005",
+						"00000000-0000-0000-0000-000000000555",
+					).
+					WillReturnResult(sqlmock.NewResult(0, 1))
+
+				mock.ExpectRollback()
+				mock.ExpectBegin()
+				// deployModel
+				mock.ExpectQuery(`^INSERT INTO test_tablename \(multitenancy_key_column,test_column_one\) VALUES \(\$1,\$2\),\(\$3,\$4\) RETURNING "primary_key_column"$`).
+					WithArgs("00000000-0000-0000-0000-000000000005", "ice", "00000000-0000-0000-0000-000000000005", "snow").
+					WillReturnRows(
+						sqlmock.NewRows([]string{"primary_key_column"}).
+							AddRow("00000000-0000-0000-0000-000000000001").
+							AddRow("00000000-0000-0000-0000-000000000002"),
+					)
+
+				mock.ExpectRollback()
+			},
+		},
+		{
+			"StartTransaction shouldn't start another transaction if there is an existing one",
+			func(orm ORM) error {
+				orm.StartTransaction()
+				orm.StartTransaction()
+				orm.Commit()
+				return nil
+			},
+			func(orm ORM, mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectCommit()
+			},
+		},
+		{
+			"Commit shouldn't commit if transaction already finished",
+			func(orm ORM) error {
+				orm.StartTransaction()
+				orm.Commit()
+				orm.Commit()
+				return nil
+			},
+			func(orm ORM, mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectCommit()
+			},
+		},
+		{
+			"Rollback shouldn't commit if transaction already finished",
+			func(orm ORM) error {
+				orm.StartTransaction()
+				orm.Rollback()
+				orm.Rollback()
+				return nil
+			},
+			func(orm ORM, mock sqlmock.Sqlmock) {
+				mock.ExpectBegin()
+				mock.ExpectRollback()
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.testDescription, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
+			}
+			SetConnection(db)
+			defer CloseConnection()
+			orm := &PersistenceORM{
+				multitenancyValue: "00000000-0000-0000-0000-000000000005",
+				performedBy:       "00000000-0000-0000-0000-000000000006",
+				batchSize:         2,
+			}
+			tc.expectationFunc(orm, mock)
+			assert.NoError(t, err)
+
+			err = tc.methodFunc(orm)
+			assert.NoError(t, err)
+
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("there were unmet sqlmock expectations: %s", err)
 			}
 		})
 	}

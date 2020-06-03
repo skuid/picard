@@ -2,6 +2,7 @@
 package picard_test
 
 import (
+	"database/sql"
 	"errors"
 	"reflect"
 
@@ -24,6 +25,10 @@ type MockORM struct {
 	DeleteModelRowsAffected  int64
 	DeleteModelError         error
 	DeleteModelCalledWith    interface{}
+	StartTransactionReturns  *sql.Tx
+	StartTransactionError    error
+	CommitError              error
+	RollbackError            error
 }
 
 // FilterModel simply returns an error or return objects when set on the MockORM
@@ -65,13 +70,37 @@ func (morm *MockORM) DeployMultiple(data []interface{}) error {
 	return morm.DeployMultipleError
 }
 
+// StartTransaction returns the error stored in MockORM and returns the value stored in the orm
+func (morm *MockORM) StartTransaction() (*sql.Tx, error) {
+	if morm.StartTransactionError != nil {
+		return nil, morm.StartTransactionError
+	}
+	return morm.StartTransactionReturns, nil
+}
+
+// Commit returns the error stored in MockORM
+func (morm *MockORM) Commit() error {
+	if morm.CommitError != nil {
+		return morm.CommitError
+	}
+	return nil
+}
+
+// Rollback returns the error stored in MockORM
+func (morm *MockORM) Rollback() error {
+	if morm.CommitError != nil {
+		return morm.CommitError
+	}
+	return nil
+}
+
 // MultiMockORM can be used to string together a series of calls to picard.ORM
 type MultiMockORM struct {
 	MockORMs []MockORM
 	index    int
 	// If initialized, you can use TypeMap instead of the MockORMs array to return specific types of results for specific
 	// requests (for example, when using goroutines to do parallel fetching of many models at once).
-	TypeMap  map[string]MockORM
+	TypeMap map[string]MockORM
 }
 
 // Returns the next mock in the series of mocks
@@ -86,7 +115,7 @@ func (multi *MultiMockORM) next() (*MockORM, error) {
 
 // FilterModel simply returns an error or return objects when set on the MockORM
 func (multi *MultiMockORM) FilterModel(request picard.FilterRequest) ([]interface{}, error) {
-	if (len(multi.TypeMap) > 0) {
+	if len(multi.TypeMap) > 0 {
 		typeof := reflect.TypeOf(request.FilterModel)
 		typename := typeof.Name()
 		if next, ok := multi.TypeMap[typename]; ok {
@@ -143,4 +172,31 @@ func (multi *MultiMockORM) DeployMultiple(data []interface{}) error {
 		return err
 	}
 	return next.DeployMultiple(data)
+}
+
+// StartTransaction returns the error stored in MockORM and returns the value stored in the orm
+func (multi *MultiMockORM) StartTransaction() (*sql.Tx, error) {
+	next, err := multi.next()
+	if err != nil {
+		return nil, err
+	}
+	return next.StartTransaction()
+}
+
+// Commit returns the error stored in MockORM
+func (multi *MultiMockORM) Commit() error {
+	next, err := multi.next()
+	if err != nil {
+		return nil
+	}
+	return next.Commit()
+}
+
+// Commit returns the error stored in MockORM
+func (multi *MultiMockORM) Rollback() error {
+	next, err := multi.next()
+	if err != nil {
+		return nil
+	}
+	return next.Rollback()
 }

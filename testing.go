@@ -401,7 +401,7 @@ func RunImportTest(testObjects interface{}, testFunction func(*sqlmock.Sqlmock, 
 	testFunction(&mock, testObjects)
 	mock.ExpectCommit()
 
-	p := New(orgID, userID).(PersistenceORM)
+	p := New(orgID, userID).(*PersistenceORM)
 	p.batchSize = batchSize
 	// Deploy the list of data sources
 	return p.Deploy(testObjects)
