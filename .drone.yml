@@ -4,8 +4,8 @@ workspace:
 
 pipeline:
   test:
-    image: golang:1.10-alpine
+    image: golang:1.13-alpine
     environment:
-      CGO_ENABLED: '1'
+      CGO_ENABLED: '0'
     commands:
       - go test ./...
