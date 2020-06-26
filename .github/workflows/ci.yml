@@ -22,7 +22,6 @@ jobs:
     - name: Get dependencies
       run: |
         go get -v -t -d ./...
-        go mod vendor
         if [ -f Gopkg.toml ]; then
             curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
             dep ensure
@@ -31,13 +30,13 @@ jobs:
     - name: Test
       run: go test -race -timeout 3m -cover -v ./...
 
+    - name: Go vet
+      run: go vet $(go list ./...)
+
     - name: Golint
       run: |
         go get -u golang.org/x/lint/golint
         golint ./...
-      
-    - name: Go vet
-      run: go vet $(go list ./...)
 
     - name: Spelling
       run: |
