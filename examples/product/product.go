@@ -30,7 +30,7 @@ type Order struct {
 	Metadata    metadata.Metadata `picard:"tablename=orders"`
 	ID          string            `picard:"primary_key,column=id"`
 	StoreID     string            `picard:"multitenancy_key,column=store_id"`
-	ProductID   string            `picard:foreign_key,required,related=Product,column=product_id`
+	ProductID   string            `picard:"foreign_key,required,related=Product,column=product_id"`
 	Product     Product
 	Quantity    int       `picard:"column=quantity"`
 	CustomerID  string    `picard:"column=customer_id"`
