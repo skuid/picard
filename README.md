@@ -556,3 +556,15 @@ Under the hood, deployments are just upserts for a slice of models.
  ### Error types
 
 `ModelNotFoundError` is returned when attempting to delete a model that doesn't exist.
+
+## Contributing
+
+See [CONTRIBUTING.md](/CONTRIBUTING.md)
+
+## License
+
+MIT (See [License](/LICENSE))
+
+[![ci status](https://github.com/skuid/picard/workflows/ci/badge.svg)](https://github.com/skuid/picard/actions)
+[![go report card](https://goreportcard.com/badge/github.com/skuid/picard "go report card")](https://goreportcard.com/report/github.com/skuid/picard)
+[![MIT license](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
