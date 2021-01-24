@@ -19,7 +19,7 @@ Here are some ways you can use picard:
 Create a picard connection to your database.
 
 ```go
-err := picard.CreateConnection("postgres://localhost:5432/sampledb&user=user&password=password")
+err := picard.CreateConnection("host=localhost port=5432 dbname=sampledb user=user password=password sslmode=disable")
 ```
 
 To create a new Picard ORM object for use in your project, you'll need a multitenancy value and performer id.
