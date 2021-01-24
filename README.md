@@ -51,12 +51,12 @@ Example:
 
 ```go
 type tableA struct {
-	Metadata       picard.Metadata `picard:"tablename=table_a"`
-	ID             string          `picard:"primary_key,column=id"`
-	TenantID       string          `picard:"multitenancy_key,column=tenant_id"`
-	FieldA         string          `picard:"lookup,column=field_a"`
-	FieldB         string          `picard:"column=field_b"`
-	Secret	       string	       `picard:encrypted,column=secret`
+	Metadata       metadata.Metadata `picard:"tablename=table_a"`
+	ID             string            `picard:"primary_key,column=id"`
+	TenantID       string            `picard:"multitenancy_key,column=tenant_id"`
+	FieldA         string            `picard:"lookup,column=field_a"`
+	FieldB         string            `picard:"column=field_b"`
+	Secret	       string	           `picard:encrypted,column=secret`
 }
 ```
 
