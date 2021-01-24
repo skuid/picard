@@ -50,6 +50,10 @@ Structs are mapped to database tables and their columns through picard struct ta
 Example:
 
 ```go
+import (
+	"github.com/skuid/picard/metadata"
+)
+
 type tableA struct {
 	Metadata       metadata.Metadata `picard:"tablename=table_a"`
 	ID             string            `picard:"primary_key,column=id"`
