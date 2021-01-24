@@ -16,9 +16,9 @@ Here are some ways you can use picard:
 
 ## Initialization
 
-Create a picard connection to your database.
 
 ```go
+// This is forwarded to the "database/sql" Open method, targeting "postgres"
 err := picard.CreateConnection("host=localhost port=5432 dbname=sampledb user=user password=password sslmode=disable")
 ```
 
