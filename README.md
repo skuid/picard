@@ -16,10 +16,10 @@ Here are some ways you can use picard:
 
 ## Initialization
 
-Create a picard connection to your database.
 
 ```go
-err := picard.CreateConnection("postgres://localhost:5432/sampledb&user=user&password=password")
+// This is forwarded to the "database/sql" Open method, targeting "postgres"
+err := picard.CreateConnection("host=localhost port=5432 dbname=sampledb user=user password=password sslmode=disable")
 ```
 
 To create a new Picard ORM object for use in your project, you'll need a multitenancy value and performer id.
@@ -50,18 +50,22 @@ Structs are mapped to database tables and their columns through picard struct ta
 Example:
 
 ```go
+import (
+	"github.com/skuid/picard/metadata"
+)
+
 type tableA struct {
-	Metadata       picard.Metadata `picard:"tablename=table_a"`
-	ID             string          `picard:"primary_key,column=id"`
-	TenantID       string          `picard:"multitenancy_key,column=tenant_id"`
-	FieldA         string          `picard:"lookup,column=field_a"`
-	FieldB         string          `picard:"column=field_b"`
-	Secret	       string	       `picard:encrypted,column=secret`
+	Metadata       metadata.Metadata `picard:"tablename=table_a"`
+	ID             string            `picard:"primary_key,column=id"`
+	TenantID       string            `picard:"multitenancy_key,column=tenant_id"`
+	FieldA         string            `picard:"lookup,column=field_a"`
+	FieldB         string            `picard:"column=field_b"`
+	Secret	       string	           `picard:encrypted,column=secret`
 }
 ```
 
 #### Table Metadata
-A special field of the type `picard.Metadata` is required in all structs used with picard. This field stores information about that particular struct as well as metadata about the associated database table. 
+A special field of the type `metadata.Metadata` is required in all structs used with picard. This field stores information about that particular struct as well as metadata about the associated database table. 
 
 ##### tablename
 Specifies the name of the table in the database.
@@ -86,16 +90,16 @@ Tells picard that this column may be used in the `where` clause as part of the u
 
 
 type tableA struct {
-	Metadata       picard.Metadata `picard:"tablename=table_a"`
-	ID             string          `picard:"primary_key,column=id"`
-	Name           string          `picard:"lookup,column=name"`
+	Metadata       metadata.Metadata 	`picard:"tablename=table_a"`
+	ID             string          		`picard:"primary_key,column=id"`
+	Name           string          		`picard:"lookup,column=name"`
 }
 
 type tableB struct {
-	Metadata picard.Metadata 	`picard:"tablename=table_b"`
-	ID       	string          `picard:"primary_key,column=id"`
-	Name     	string          `picard:"lookup,column=name"`
-	TableAID 	string 		`picard:"foreign_key,required,column=tablea_id"`
+	Metadata metadata.Metadata 	`picard:"tablename=table_b"`
+	ID       	string         	  `picard:"primary_key,column=id"`
+	Name     	string          	`picard:"lookup,column=name"`
+	TableAID 	string 						`picard:"foreign_key,required,column=tablea_id"`
 	// tableB belongsTo tableA
 	OneTableA   tableA
 }
@@ -108,21 +112,21 @@ Specifies the field on the related struct that contains the foreign key for this
 
 ```go
 type tableA struct {
-	Metadata       picard.Metadata `picard:"tablename=table_a"`
-	ID             string          `picard:"primary_key,column=id"`
-	OrganizationID string          `picard:"multitenancy_key,column=organization_id"`
-	Name           string          `picard:"lookup,column=name"`
-	Password       string          `picard:"encrypted,column=password"`
+	Metadata       metadata.Metadata 	`picard:"tablename=table_a"`
+	ID             string          		`picard:"primary_key,column=id"`
+	OrganizationID string          		`picard:"multitenancy_key,column=organization_id"`
+	Name           string          		`picard:"lookup,column=name"`
+	Password       string          		`picard:"encrypted,column=password"`
 
 	// tableA has many tableBs
 	AllTheBs       []tableB        `picard:"child,foreign_key=TableAID"`
 }
 
 type tableB struct {
-	Metadata picard.Metadata 	`picard:"tablename=table_b"`
-	ID       string          	`picard:"primary_key,column=id"`
-	Name     string          	`picard:"lookup,column=name"`
-	TableAID string 		`picard:"foreign_key,required,column=tablea_id"`
+	Metadata metadata.Metadata 	`picard:"tablename=table_b"`
+	ID       string          		`picard:"primary_key,column=id"`
+	Name     string          		`picard:"lookup,column=name"`
+	TableAID string 						`picard:"foreign_key,required,column=tablea_id"`
 }
 ```
 
@@ -155,16 +159,16 @@ Add `delete_orphans` to cascade delete related data for fields annotated with `f
 
 ```go
 type tableA struct {
-	Metadata       	picard.Metadata `picard:"tablename=table_a"`
-	ID             	string          `picard:"primary_key,column=id"`
-	Name           	string          `picard:"lookup,column=name"`
-	AllTheBs       	[]tableB        `picard:"child,foreign_key=TableAID,delete_orphans"`
+	Metadata       	metadata.Metadata 	`picard:"tablename=table_a"`
+	ID             	string          		`picard:"primary_key,column=id"`
+	Name           	string          		`picard:"lookup,column=name"`
+	AllTheBs       	[]tableB       		  `picard:"child,foreign_key=TableAID,delete_orphans"`
 }
 
 type tableB struct {
-	Metadata 	picard.Metadata `picard:"tablename=table_b"`
-	ID       	string          `picard:"primary_key,column=id"`
-	TableAID	string 		`picard:"foreign_key,required,column=tablea_id"`
+	Metadata 	metadata.Metadata 	`picard:"tablename=table_b"`
+	ID       	string          		`picard:"primary_key,column=id"`
+	TableAID	string 							`picard:"foreign_key,required,column=tablea_id"`
 }
 ```
 
@@ -179,9 +183,9 @@ Save and update audit fields without needing to hardcode their value for every s
 
 ```go
 type tableA struct {
-	Metadata       	picard.Metadata `picard:"tablename=table_a"`
-	ID             	string          `picard:"primary_key,column=id"`
-	Name           	string          `picard:"lookup,column=name"`
+	Metadata       	metadata.Metadata `picard:"tablename=table_a"`
+	ID             	string          	`picard:"primary_key,column=id"`
+	Name           	string         	  `picard:"lookup,column=name"`
 
 	// audit fields
 	CreatedByID string    `picard:"column=created_by_id,audit=created_by"`
@@ -199,18 +203,18 @@ The `key_mapping` annotation is an advanced way to link the key of a `map[string
 
 ``` go
 type tableA struct {
-	Metadata       picard.Metadata 		`picard:"tablename=table_a"`
-	ID             string          		`picard:"primary_key,column=id"`
-	OrganizationID string          		`picard:"multitenancy_key,column=organization_id"`
-	Name           string          		`picard:"lookup,column=name"`
-	BMap           map[string]tableB        `picard:"child,foreign_key=TableAID,key_mapping=Name"`
+	Metadata       metadata.Metadata 		`picard:"tablename=table_a"`
+	ID             string          			`picard:"primary_key,column=id"`
+	OrganizationID string          			`picard:"multitenancy_key,column=organization_id"`
+	Name           string          			`picard:"lookup,column=name"`
+	BMap           map[string]tableB    `picard:"child,foreign_key=TableAID,key_mapping=Name"`
 }
 
 type tableB struct {
-	Metadata picard.Metadata 	`picard:"tablename=table_b"`
-	ID       string          	`picard:"primary_key,column=id"`
-	Name     string          	`picard:"lookup,column=name"`
-	TableAID string 		`picard:"foreign_key,lookup,required,column=tablea_id"`
+	Metadata metadata.Metadata 	`picard:"tablename=table_b"`
+	ID       string          		`picard:"primary_key,column=id"`
+	Name     string          		`picard:"lookup,column=name"`
+	TableAID string 						`picard:"foreign_key,lookup,required,column=tablea_id"`
 }
 ```
 
@@ -224,18 +228,18 @@ This indicates which fields on the parent to map to fields of the child during a
 
 ``` go
 type tableA struct {
-	Metadata       picard.Metadata 		`picard:"tablename=table_a"`
-	ID             string          		`picard:"primary_key,column=id"`
-	OrganizationID string          		`picard:"multitenancy_key,column=organization_id"`
-	Name           string          		`picard:"lookup,column=name"`
-	BMap           map[string]tableB        `picard:"child,foreign_key=TableAID,value_mapping=Name"`
+	Metadata       metadata.Metadata 		`picard:"tablename=table_a"`
+	ID             string          			`picard:"primary_key,column=id"`
+	OrganizationID string          			`picard:"multitenancy_key,column=organization_id"`
+	Name           string          			`picard:"lookup,column=name"`
+	BMap           map[string]tableB    `picard:"child,foreign_key=TableAID,value_mapping=Name"`
 }
 
 type tableB struct {
-	Metadata picard.Metadata 	`picard:"tablename=table_b"`
-	ID       string          	`picard:"primary_key,column=id"`
-	Name     string          	`picard:"lookup,column=name"`
-	TableAID string 		`picard:"foreign_key,lookup,required,column=tablea_id"`
+	Metadata metadata.Metadata 	`picard:"tablename=table_b"`
+	ID       string          		`picard:"primary_key,column=id"`
+	Name     string          		`picard:"lookup,column=name"`
+	TableAID string 						`picard:"foreign_key,lookup,required,column=tablea_id"`
 }
 ```
 This is similar to `key_mapping`, except that the value type of the map is linked to the `Name` field in `tableB`.
@@ -248,19 +252,19 @@ The `grouping_criteria` annotation is used to describe which field on the parent
 
 ``` go
 type tableA struct {
-	Metadata       picard.Metadata 		`picard:"tablename=table_a"`
-	ID             string          		`picard:"primary_key,column=id"`
-	OrganizationID string          		`picard:"multitenancy_key,column=organization_id"`
-	Name           string          		`picard:"lookup,column=name"`
-	AllTheBs []ChildModel          `picard:"child,grouping_criteria=ParentA.ID->ID"`
+	Metadata       metadata.Metadata 		`picard:"tablename=table_a"`
+	ID             string          			`picard:"primary_key,column=id"`
+	OrganizationID string          			`picard:"multitenancy_key,column=organization_id"`
+	Name           string          			`picard:"lookup,column=name"`
+	AllTheBs []ChildModel          			`picard:"child,grouping_criteria=ParentA.ID->ID"`
 
 }
 
 type tableB struct {
-	Metadata picard.Metadata 	`picard:"tablename=table_b"`
-	ID       string          	`picard:"primary_key,column=id"`
-	Name     string          	`picard:"lookup,column=name"`
-	TableAID string 		`picard:"foreign_key,lookup,required,column=tablea_id,related=ParentA"`
+	Metadata metadata.Metadata 	`picard:"tablename=table_b"`
+	ID       string          		`picard:"primary_key,column=id"`
+	Name     string          		`picard:"lookup,column=name"`
+	TableAID string 						`picard:"foreign_key,lookup,required,column=tablea_id,related=ParentA"`
 	ParentA  tableA
 
 }
@@ -398,34 +402,34 @@ We can eager load associations of a model by passing in a slice of `tags.Associa
 
 ```go
 type tableA struct {
-	Metadata       picard.Metadata `picard:"tablename=table_a"`
-	ID             string          `picard:"primary_key,column=id"`
-	OrganizationID string          `picard:"multitenancy_key,column=organization_id"`
-	Name           string          `picard:"lookup,column=name"`
-	Password       string          `picard:"encrypted,column=password"`
-	AllTheBs       []tableB        `picard:"child,foreign_key=TableAID"`
+	Metadata       metadata.Metadata 	`picard:"tablename=table_a"`
+	ID             string          		`picard:"primary_key,column=id"`
+	OrganizationID string          		`picard:"multitenancy_key,column=organization_id"`
+	Name           string          		`picard:"lookup,column=name"`
+	Password       string          		`picard:"encrypted,column=password"`
+	AllTheBs       []tableB        		`picard:"child,foreign_key=TableAID"`
 }
 
 type tableB struct {
-	Metadata picard.Metadata 	`picard:"tablename=table_b"`
-	ID       string          	`picard:"primary_key,column=id"`
-	Name     string          	`picard:"lookup,column=name"`
-	TableAID string 		`picard:"foreign_key,lookup,required,column=tablea_id"`
-	AllTheCs []tableC		`picard:"child,foreign_key=TableBID"`
+	Metadata metadata.Metadata 	`picard:"tablename=table_b"`
+	ID       string          		`picard:"primary_key,column=id"`
+	Name     string          		`picard:"lookup,column=name"`
+	TableAID string 						`picard:"foreign_key,lookup,required,column=tablea_id"`
+	AllTheCs []tableC						`picard:"child,foreign_key=TableBID"`
 }
 
 type tableC struct {
-	Metadata picard.Metadata 	`picard:"tablename=table_c"`
-	ID       string          	`picard:"primary_key,column=id"`
-	Name     string          	`picard:"lookup,column=name"`
-	TableBID string 		`picard:"foreign_key,lookup,required,column=tableb_id"`
+	Metadata metadata.Metadata 	`picard:"tablename=table_c"`
+	ID       string          		`picard:"primary_key,column=id"`
+	Name     string          		`picard:"lookup,column=name"`
+	TableBID string 						`picard:"foreign_key,lookup,required,column=tableb_id"`
 }
 
 type tableD struct {
-	Metadata picard.Metadata 	`picard:"tablename=table_d"`
-	ID       string          	`picard:"primary_key,column=id"`
-	Name     string          	`picard:"lookup,column=name"`
-	TableCID string 		`picard:"foreign_key,lookup,required,related=ParentC,column=tablec_id"`
+	Metadata metadata.Metadata 	`picard:"tablename=table_d"`
+	ID       string          		`picard:"primary_key,column=id"`
+	Name     string          		`picard:"lookup,column=name"`
+	TableCID string 						`picard:"foreign_key,lookup,required,related=ParentC,column=tablec_id"`
 	ParentC  tableC
 }
 
