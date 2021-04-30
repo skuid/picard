@@ -180,7 +180,40 @@ func TestQueryJoins(t *testing.T) {
 		wheres       []whereTest
 		expected     string
 		expectedArgs []interface{}
-	}{
+	}{{
+		"should create the proper SQL for a simple table select with columns and two joins",
+		[]string{
+
+			"col_one",
+			"col_two",
+			"col_three",
+		},
+		[]joinTest{
+			{
+				tbl:         "table_b",
+				joinField:   "my_id",
+				parentField: "col_two",
+				jType:       "",
+			},
+			{
+				tbl:         "table_b",
+				joinField:   "my_id",
+				parentField: "col_two",
+				jType:       "",
+			},
+		},
+		whereTest{},
+		nil,
+		testdata.FmtSQL(`
+			SELECT t0.col_one AS "t0.col_one",
+				t0.col_two AS "t0.col_two",
+				t0.col_three AS "t0.col_three"
+			FROM foo AS t0
+			JOIN table_b AS t1 ON t1.my_id = t0.col_two
+			JOIN table_b AS t2 ON t2.my_id = t0.col_two
+		`),
+		nil,
+	},
 		{
 			"should create the proper SQL for a simple table select with columns and one join",
 			[]string{

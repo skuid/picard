@@ -139,8 +139,9 @@ func (p PersistenceORM) getSingleFilterResults(request FilterRequest, filterMeta
 	if err != nil {
 		return nil, err
 	}
+	tblAlias := tbl.Alias
 	aliasMap := tbl.FieldAliases()
-	return query.Hydrate(filterModel, aliasMap, rows, filterMetadata)
+	return query.Hydrate(filterModel, tblAlias, aliasMap, rows, filterMetadata)
 }
 
 func (p PersistenceORM) getMultiFilterResults(request FilterRequest, filterMetadata *tags.TableMetadata) ([]*reflect.Value, error) {
@@ -196,8 +197,9 @@ func (p PersistenceORM) getMultiFilterResults(request FilterRequest, filterMetad
 	if err != nil {
 		return nil, err
 	}
+	tblAlias := tbl.Alias
 	aliasMap := tbl.FieldAliases()
-	return query.Hydrate(filterModel, aliasMap, rows, filterMetadata)
+	return query.Hydrate(filterModel, tblAlias, aliasMap, rows, filterMetadata)
 }
 
 func (p PersistenceORM) getFilterResults(request FilterRequest, filterMetadata *tags.TableMetadata) ([]*reflect.Value, error) {

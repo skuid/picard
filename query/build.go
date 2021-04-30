@@ -23,7 +23,9 @@ func Build(multitenancyVal, model interface{}, filters tags.Filterable, associat
 
 	typ := val.Type()
 
-	tbl, err := buildQuery(multitenancyVal, typ, &val, filters, associations, selectFields, false, 0, "", filterMetadata)
+	stringutil.ResetAliasCounter()
+
+	tbl, err := buildQuery(multitenancyVal, typ, &val, filters, associations, selectFields, false, "", filterMetadata)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +74,6 @@ func buildQuery(
 	associations []tags.Association,
 	selectFields []string,
 	onlyJoin bool,
-	counter int,
 	refPath string,
 	filterMetadata *tags.TableMetadata,
 ) (*qp.Table, error) {
@@ -81,7 +82,7 @@ func buildQuery(
 	pkName := filterMetadata.GetPrimaryKeyColumnName()
 	tableName := filterMetadata.GetTableName()
 
-	tbl := NewIndexed(tableName, counter, refPath)
+	tbl := NewAliased(tableName, stringutil.GenerateTableAlias(), refPath)
 
 	cols := make([]string, 0, modelType.NumField())
 	seen := make(map[string]bool)
@@ -145,9 +146,7 @@ func buildQuery(
 					fkRefPath = refPath + "." + fieldName
 				}
 
-				counter = counter + 1
-
-				refTbl, err := buildQuery(multitenancyVal, refTyp, &relatedVal, association.FieldFilters, association.Associations, association.SelectFields, childOnlyJoin, counter, fkRefPath, refMetadata)
+				refTbl, err := buildQuery(multitenancyVal, refTyp, &relatedVal, association.FieldFilters, association.Associations, association.SelectFields, childOnlyJoin, fkRefPath, refMetadata)
 				if err != nil {
 					return nil, err
 				}
