@@ -24,6 +24,7 @@ func TestHydrate(t *testing.T) {
 	testCases := []struct {
 		desc     string
 		model    interface{}
+		tblAlias string
 		aliasMap map[string]qp.FieldDescriptor
 		rows     *sqlmock.Rows
 		expected []interface{}
@@ -33,6 +34,7 @@ func TestHydrate(t *testing.T) {
 			field{
 				Name: "pops",
 			},
+			"t0",
 			map[string]qp.FieldDescriptor{
 				"t0.id": qp.FieldDescriptor{
 					Alias:  "t0",
@@ -73,6 +75,7 @@ func TestHydrate(t *testing.T) {
 			field{
 				Name: "pops",
 			},
+			"t0",
 			map[string]qp.FieldDescriptor{
 				"t0.id": {
 					Alias:  "t0",
@@ -122,6 +125,7 @@ func TestHydrate(t *testing.T) {
 			field{
 				Name: "pops",
 			},
+			"t0",
 			map[string]qp.FieldDescriptor{
 				"t0.id": {
 					Alias:  "t0",
@@ -170,6 +174,7 @@ func TestHydrate(t *testing.T) {
 			field{
 				Name: "a_field",
 			},
+			"t0",
 			map[string]qp.FieldDescriptor{
 				"t0.id": qp.FieldDescriptor{
 					Alias:  "t0",
@@ -348,7 +353,7 @@ func TestHydrate(t *testing.T) {
 			}
 
 			// Testing our Hydrate function
-			actuals, err := Hydrate(tc.model, tc.aliasMap, rows, metadata)
+			actuals, err := Hydrate(tc.model, tc.tblAlias, tc.aliasMap, rows, metadata)
 			assert.NoError(err)
 			for i, actual := range actuals {
 				assert.Equal(tc.expected[i], actual.Interface().(field))

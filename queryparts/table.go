@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	sql "github.com/Masterminds/squirrel"
+	"github.com/skuid/picard/stringutil"
 )
 
 const (
@@ -18,7 +19,6 @@ a query by calling
 */
 type Table struct {
 	root         *Table
-	Counter      int
 	Alias        string
 	RefPath      string
 	Name         string
@@ -33,16 +33,14 @@ type Table struct {
 New returns a new table.
 */
 func New(name string) *Table {
-	return NewIndexed(name, 0, "")
+	index := 0
+	return NewAliased(name, stringutil.GenerateTableAlias(&index), "")
 }
 
-/*
-NewIndexed returns a new table.
-*/
-func NewIndexed(name string, index int, refPath string) *Table {
+// NewAliased returns a new table with the given alias
+func NewAliased(name string, alias string, refPath string) *Table {
 	return &Table{
-		Counter: index + 1,
-		Alias:   fmt.Sprintf("t%d", index),
+		Alias:   alias,
 		RefPath: refPath,
 		Name:    name,
 		columns: make([]string, 0),
@@ -84,7 +82,7 @@ func (t *Table) AddMultitenancyWhere(column string, val interface{}) {
 AppendJoin adds a join with the proper aliasing, including any columns requested
 from that table
 */
-func (t *Table) AppendJoin(tbl, joinField, parentField, jType string) *Table {
+func (t *Table) AppendJoin(tbl, joinField, parentField, jType string, counter *int) *Table {
 	var root *Table
 	if t.root != nil {
 		root = t.root
@@ -92,8 +90,7 @@ func (t *Table) AppendJoin(tbl, joinField, parentField, jType string) *Table {
 		root = t
 	}
 
-	alias := fmt.Sprintf("t%d", root.Counter)
-	root.Counter++
+	alias := stringutil.GenerateTableAlias(counter)
 
 	join := Join{
 		Table: &Table{
@@ -117,17 +114,6 @@ AppendJoinTable adds a join with the proper aliasing, including any columns requ
 from that table
 */
 func (t *Table) AppendJoinTable(tbl *Table, joinField, parentField, jType string) *Table {
-	var root *Table
-	if t.root != nil {
-		root = t.root
-	} else {
-		root = t
-	}
-
-	// alias := fmt.Sprintf("t%d", root.Counter)
-	// tbl.Alias = alias
-	root.Counter++
-
 	join := Join{
 		Table:       tbl,
 		Parent:      t,

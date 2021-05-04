@@ -18,7 +18,7 @@ import (
 Hydrate takes the rows and pops them into the correct struct, in the correct
 order. This is usually called after you've built and executed the query model.
 */
-func Hydrate(filterModel interface{}, aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows, meta *tags.TableMetadata) ([]*reflect.Value, error) {
+func Hydrate(filterModel interface{}, tblAlias string, aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows, meta *tags.TableMetadata) ([]*reflect.Value, error) {
 	modelVal, err := stringutil.GetStructValue(filterModel)
 	if err != nil {
 		return nil, err
@@ -33,7 +33,7 @@ func Hydrate(filterModel interface{}, aliasMap map[string]qp.FieldDescriptor, ro
 	}
 
 	hydrateds := make([]*reflect.Value, 0, len(mappedCols))
-	alias := fmt.Sprintf(qp.AliasedField, "t0", meta.GetTableName())
+	alias := fmt.Sprintf(qp.AliasedField, tblAlias, meta.GetTableName())
 	for _, mapped := range mappedCols {
 		hydrated, err := hydrate(typ, mapped, alias, aliasMap, "", meta)
 

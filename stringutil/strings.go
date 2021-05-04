@@ -5,6 +5,7 @@ package stringutil
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 )
@@ -50,4 +51,21 @@ func GetFilterType(v interface{}) (reflect.Type, error) {
 		return value.Type().Elem(), nil
 	}
 	return nil, errors.New("Filter must be struct or slice of structs")
+}
+
+// GenerateTableAlias generates a table alias for queries, joins, etc
+// in the format of `t0`, `t1`, etc. This is to conform with existing tests
+// as well as maintain state across recursive functions.
+func GenerateTableAlias(index *int) (alias string) {
+	alias = fmt.Sprintf("t%v", *index)
+	*index += 1
+	return
+}
+
+// GenerateNewTableAlias is used to signify that we're starting a new
+// query and also need to reset the alias counter to t0
+func GenerateNewTableAlias(index *int) (alias string) {
+	*index = 0
+	alias = GenerateTableAlias(index)
+	return
 }
