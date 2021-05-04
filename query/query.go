@@ -11,7 +11,8 @@ import (
 
 // New returns a new table with a generated alias and the given name
 func New(name string) *qp.Table {
-	return qp.NewAliased(name, stringutil.GenerateNewTableAlias(), "")
+	index := 0
+	return qp.NewAliased(name, stringutil.GenerateNewTableAlias(&index), "")
 }
 
 // NewAliases returns a new table with the given alias

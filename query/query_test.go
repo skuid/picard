@@ -437,6 +437,7 @@ func TestQueryJoins(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
+			counter := 1
 			assert := assert.New(t)
 
 			tbl := New("foo")
@@ -447,7 +448,7 @@ func TestQueryJoins(t *testing.T) {
 			}
 
 			for _, jt := range tc.joins {
-				appendTestJoin(tbl, jt)
+				appendTestJoin(tbl, jt, &counter)
 			}
 
 			for _, where := range tc.wheres {
@@ -469,8 +470,8 @@ func TestQueryJoins(t *testing.T) {
 	}
 }
 
-func appendTestJoin(tbl *qp.Table, jt joinTest) {
-	joinTbl := tbl.AppendJoin(jt.tbl, jt.joinField, jt.parentField, jt.jType)
+func appendTestJoin(tbl *qp.Table, jt joinTest, counter *int) {
+	joinTbl := tbl.AppendJoin(jt.tbl, jt.joinField, jt.parentField, jt.jType, counter)
 	if jt.joinMt != (whereTest{}) {
 		joinTbl.AddMultitenancyWhere(jt.joinMt.field, jt.joinMt.val)
 	}
@@ -480,7 +481,7 @@ func appendTestJoin(tbl *qp.Table, jt joinTest) {
 	}
 
 	for _, subJt := range jt.joins {
-		appendTestJoin(joinTbl, subJt)
+		appendTestJoin(joinTbl, subJt, counter)
 	}
 
 }
@@ -601,7 +602,8 @@ func TestFieldAliases(t *testing.T) {
 			tbl := New(tc.fixture.table)
 			tbl.AddColumns(tc.fixture.cols)
 
-			appendTestAliasJoin(tbl, tc.fixture.joins)
+			counter := 1
+			appendTestAliasJoin(tbl, tc.fixture.joins, &counter)
 			actual := tbl.FieldAliases()
 
 			assert.Equal(tc.expected, actual, "Expected the resulting SQL to match expected")
@@ -609,10 +611,10 @@ func TestFieldAliases(t *testing.T) {
 	}
 }
 
-func appendTestAliasJoin(tbl *qp.Table, joins []fieldAliasFixture) {
+func appendTestAliasJoin(tbl *qp.Table, joins []fieldAliasFixture, counter *int) {
 	for _, join := range joins {
-		joinTbl := tbl.AppendJoin(join.table, "foo", "bar", "")
+		joinTbl := tbl.AppendJoin(join.table, "foo", "bar", "", counter)
 		joinTbl.AddColumns(join.cols)
-		appendTestAliasJoin(tbl, join.joins)
+		appendTestAliasJoin(tbl, join.joins, counter)
 	}
 }

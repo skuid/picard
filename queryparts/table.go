@@ -33,7 +33,8 @@ type Table struct {
 New returns a new table.
 */
 func New(name string) *Table {
-	return NewAliased(name, stringutil.GenerateTableAlias(), "")
+	index := 0
+	return NewAliased(name, stringutil.GenerateTableAlias(&index), "")
 }
 
 // NewAliased returns a new table with the given alias
@@ -81,7 +82,7 @@ func (t *Table) AddMultitenancyWhere(column string, val interface{}) {
 AppendJoin adds a join with the proper aliasing, including any columns requested
 from that table
 */
-func (t *Table) AppendJoin(tbl, joinField, parentField, jType string) *Table {
+func (t *Table) AppendJoin(tbl, joinField, parentField, jType string, counter *int) *Table {
 	var root *Table
 	if t.root != nil {
 		root = t.root
@@ -89,7 +90,7 @@ func (t *Table) AppendJoin(tbl, joinField, parentField, jType string) *Table {
 		root = t
 	}
 
-	alias := stringutil.GenerateTableAlias()
+	alias := stringutil.GenerateTableAlias(counter)
 
 	join := Join{
 		Table: &Table{
