@@ -145,6 +145,25 @@ func setFieldValue(model *reflect.Value, field tags.FieldMetadata, value interfa
 			reflectedValue = reflectedValue.Convert(field.GetFieldType())
 			value = reflectedValue.Interface()
 			model.FieldByName(field.GetName()).Set(reflect.ValueOf(value))
+		} else if field.GetFieldType().Kind() == reflect.Ptr {
+			switch field.GetFieldType().Elem().Kind() {
+			case reflect.Float64:
+				if f, ok := value.(float64); ok {
+					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&f))
+				}
+			case reflect.Int:
+				if i, ok := value.(int); ok {
+					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&i))
+				}
+			case reflect.String:
+				if s, ok := value.(string); ok {
+					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&s))
+				}
+			case reflect.Bool:
+				if b, ok := value.(bool); ok {
+					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&b))
+				}
+			}
 		}
 	}
 

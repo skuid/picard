@@ -903,6 +903,12 @@ func serializeJSONBColumn(value interface{}) (interface{}, error) {
 	if value == nil || value == "" {
 		return value, nil
 	}
+
+	// If the value is a pointer to a pointer to null, this prevents json serialization from go nil to json "null"
+	if (reflect.ValueOf(value).Kind() == reflect.Ptr) && (reflect.ValueOf(value).IsNil()) {
+		return nil, nil
+	}
+
 	return json.Marshal(value)
 }
 
