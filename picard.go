@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/Masterminds/squirrel"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/lib/pq"
-	jsoniter "github.com/plusplusben/json-iterator-go"
 	"github.com/skuid/picard/crypto"
 	"github.com/skuid/picard/dbchange"
 	"github.com/skuid/picard/decoding"

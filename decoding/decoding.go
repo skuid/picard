@@ -8,8 +8,8 @@ import (
 	"strings"
 	"unsafe"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/modern-go/reflect2"
-	jsoniter "github.com/plusplusben/json-iterator-go"
 	"github.com/skuid/picard/metadata"
 	"github.com/skuid/picard/stringutil"
 )
