@@ -151,7 +151,7 @@ func setFieldValue(model *reflect.Value, field tags.FieldMetadata, value interfa
 				if f, ok := value.(float64); ok {
 					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&f))
 				} else {
-					// Error handling
+					return errors.New("failed setting float64 value during query hydration")
 				}
 			case reflect.Int:
 				if i, ok := value.(int); ok {
@@ -160,19 +160,19 @@ func setFieldValue(model *reflect.Value, field tags.FieldMetadata, value interfa
 					intValue := int(ui)
 					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&intValue))
 				} else {
-					// Error handling
+					return errors.New("failed setting int value during query hydration")
 				}
 			case reflect.String:
 				if s, ok := value.(string); ok {
 					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&s))
 				} else {
-					// Error handling
+					return errors.New("failed setting string value during query hydration")
 				}
 			case reflect.Bool:
 				if b, ok := value.(bool); ok {
 					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&b))
 				} else {
-					// Error handling
+					return errors.New("failed setting bool value during query hydration")
 				}
 			}
 		}
