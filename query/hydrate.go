@@ -150,18 +150,29 @@ func setFieldValue(model *reflect.Value, field tags.FieldMetadata, value interfa
 			case reflect.Float64:
 				if f, ok := value.(float64); ok {
 					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&f))
+				} else {
+					// Error handling
 				}
 			case reflect.Int:
 				if i, ok := value.(int); ok {
 					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&i))
+				} else if ui, ok := value.(int64); ok {
+					intValue := int(ui)
+					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&intValue))
+				} else {
+					// Error handling
 				}
 			case reflect.String:
 				if s, ok := value.(string); ok {
 					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&s))
+				} else {
+					// Error handling
 				}
 			case reflect.Bool:
 				if b, ok := value.(bool); ok {
 					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&b))
+				} else {
+					// Error handling
 				}
 			}
 		}
