@@ -16,7 +16,6 @@ type ConnectionProps struct {
 	ServiceName  *string
 	MaxIdleConns *int
 	MaxOpenConns *int
-	MaxIdleTime  *int
 	MaxLifeTime  *int
 }
 
@@ -77,10 +76,6 @@ func NewConnection(props ConnectionProps) error {
 
 	if props.MaxIdleConns != nil {
 		db.SetMaxIdleConns(*props.MaxIdleConns)
-	}
-
-	if props.MaxIdleTime != nil {
-		db.SetConnMaxIdleTime(time.Duration(*props.MaxIdleTime * int(time.Second)))
 	}
 
 	if props.MaxLifeTime != nil {
