@@ -159,6 +159,9 @@ func setFieldValue(model *reflect.Value, field tags.FieldMetadata, value interfa
 				} else if ui, ok := value.(int64); ok {
 					intValue := int(ui)
 					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&intValue))
+				} else if ui, ok := value.(int32); ok {
+					intValue := int(ui)
+					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&intValue))
 				} else {
 					return errors.New("failed setting int value during query hydration")
 				}
