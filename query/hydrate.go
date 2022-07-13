@@ -147,20 +147,28 @@ func setFieldValue(model *reflect.Value, field tags.FieldMetadata, value interfa
 			model.FieldByName(field.GetName()).Set(reflect.ValueOf(value))
 		} else if field.GetFieldType().Kind() == reflect.Ptr {
 			switch field.GetFieldType().Elem().Kind() {
-			case reflect.Float64:
+			case reflect.Float32, reflect.Float64:
 				if f, ok := value.(float64); ok {
+					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&f))
+				} else if f, ok := value.(float32); ok {
 					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&f))
 				} else {
 					return errors.New("failed setting float64 value during query hydration")
 				}
-			case reflect.Int:
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				if i, ok := value.(int); ok {
 					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&i))
-				} else if ui, ok := value.(int64); ok {
-					intValue := int(ui)
+				} else if i, ok := value.(int8); ok {
+					intValue := int(i)
 					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&intValue))
-				} else if ui, ok := value.(int32); ok {
-					intValue := int(ui)
+				} else if i, ok := value.(int16); ok {
+					intValue := int(i)
+					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&intValue))
+				} else if i, ok := value.(int32); ok {
+					intValue := int(i)
+					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&intValue))
+				} else if i, ok := value.(int64); ok {
+					intValue := int(i)
 					model.FieldByName(field.GetName()).Set(reflect.ValueOf(&intValue))
 				} else {
 					return errors.New("failed setting int value during query hydration")
