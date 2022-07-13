@@ -2,12 +2,22 @@ package picard
 
 import (
 	"database/sql"
+	"time"
 
 	"github.com/lib/pq"
 	sqltrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/database/sql"
 )
 
 var conn *sql.DB
+
+type ConnectionProps struct {
+	ConnString   string
+	Driver       string
+	ServiceName  *string
+	MaxIdleConns *int
+	MaxOpenConns *int
+	MaxLifeTime  *int
+}
 
 func testConnection(db *sql.DB) error {
 	var err error
@@ -22,7 +32,7 @@ func testConnection(db *sql.DB) error {
 	return nil
 }
 
-// CreateConnection creates a database connection using the provided arguments
+// Deprecated in favor of NewConnection: CreateConnection creates a database connection using the provided arguments
 func CreateConnection(connstr string) error {
 	db, err := sql.Open("postgres", connstr)
 	if err != nil {
@@ -31,7 +41,7 @@ func CreateConnection(connstr string) error {
 	return testConnection(db)
 }
 
-// CreateTracedConnection creates a database connection using the provided arguments
+// Deprecated in favor of NewConnection: CreateTracedConnection creates a database connection using the provided arguments
 func CreateTracedConnection(connstr, serviceName string) error {
 	sqltrace.Register(
 		"postgres",
@@ -42,6 +52,40 @@ func CreateTracedConnection(connstr, serviceName string) error {
 	if err != nil {
 		return err
 	}
+	return testConnection(db)
+}
+
+// NewConnection creates a database connection using the provided arguments
+func NewConnection(props ConnectionProps) error {
+	if props.ServiceName != nil {
+		sqltrace.Register(
+			props.Driver,
+			&pq.Driver{},
+			sqltrace.WithServiceName(*props.ServiceName),
+		)
+	}
+
+	if props.Driver == "" {
+		props.Driver = "postgres"
+	}
+
+	db, err := sql.Open(props.Driver, props.ConnString)
+	if err != nil {
+		return err
+	}
+
+	if props.MaxIdleConns != nil {
+		db.SetMaxIdleConns(*props.MaxIdleConns)
+	}
+
+	if props.MaxLifeTime != nil {
+		db.SetConnMaxLifetime(time.Duration(*props.MaxLifeTime * int(time.Second)))
+	}
+
+	if props.MaxOpenConns != nil {
+		db.SetMaxOpenConns(*props.MaxOpenConns)
+	}
+
 	return testConnection(db)
 }
 
