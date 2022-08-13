@@ -2,7 +2,7 @@ package picard
 
 import (
 	"database/sql/driver"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -19,7 +19,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-//Test structs for JSONB tests
+// Test structs for JSONB tests
 type modelMutitenantPKWithTwoFields struct {
 	Metadata              metadata.Metadata `picard:"tablename=test_table"`
 	TestMultitenancyField string            `picard:"multitenancy_key,column=test_multitenancy_column"`
@@ -84,7 +84,7 @@ func LoadFixturesFromFiles(names []string, path string, loadType reflect.Type, j
 
 	for _, name := range names {
 		testObject := reflect.New(loadType).Interface()
-		raw, err := ioutil.ReadFile(path + name + ".json")
+		raw, err := os.ReadFile(path + name + ".json")
 		if err != nil {
 			return nil, err
 		}
@@ -140,7 +140,7 @@ func (eh ExpectationHelper) getUpdateDBColumns() []string {
 	return tableMetadata.GetColumnNamesForUpdate()
 }
 
-//GetUpdateDBColumnsForFixture returnst the fields that should be updated for a particular fixture
+// GetUpdateDBColumnsForFixture returnst the fields that should be updated for a particular fixture
 func (eh ExpectationHelper) GetUpdateDBColumnsForFixture(fixtures interface{}, index int) []string {
 	tableMetadata := eh.getTableMetadata()
 	definedColumns := []string{}

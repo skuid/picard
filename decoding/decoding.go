@@ -6,6 +6,7 @@ package decoding
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"unsafe"
 
@@ -58,6 +59,12 @@ func (decoder *structDecoder) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator
 	var obj interface{}
 	iter.ReadVal(&obj)
 	if obj != nil {
+		ip := decoder.typ.UnsafeIndirect(ptr)
+		buf, err := jsoniter.Marshal(obj)
+		print(string(buf))
+		if err != nil {
+			return
+		}
 		// first initialize the defined fields
 		objectValue := reflect.NewAt(decoder.typ.Type1(), ptr)
 		metadataField := metadata.GetMetadataValue(objectValue.Elem())
@@ -67,29 +74,29 @@ func (decoder *structDecoder) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator
 
 		// now get the field keys in the object
 		if reflect.TypeOf(obj).Kind() == reflect.Map {
+			var fields []string
 			fmap := obj.(map[string]interface{})
 			for k, _ := range fmap {
 				for _, binding := range decoder.structDesc.Fields {
 					sf, ok := binding.Field.Tag().Lookup("json")
 					if ok && sf == k {
-						metadata.AddDefinedField(metadataField, binding.Field.Name())
+						fields = append(fields, binding.Field.Name())
 						break
 					}
 				}
 			}
+			sort.Strings(fields) // otherwise test comparison fails because the slice is in a random order. :facepalm:
+			for _, f := range fields {
+				metadata.AddDefinedField(metadataField, f)
+			}
 		}
 
-		//  ┬──┬◡ﾉ(° -°ﾉ)
-		buf, err := jsoniter.Marshal(obj)
-		if err != nil {
-			return
-		}
-
-		iter.ResetBytes(buf)
+		//  ┬──┬◡ﾉ(° -°ﾉ) newiter because we messed it up with iter.ReadVal()
+		newiter := iter.Pool().BorrowIterator(buf)
+		defer iter.Pool().ReturnIterator(newiter)
 
 		// now do the normal
-		decoder.valDecoder.Decode(ptr, iter)
-		ip := decoder.typ.UnsafeIndirect(ptr)
+		decoder.valDecoder.Decode(ptr, newiter)
 		fmt.Printf("%v\n", ip)
 	}
 }
@@ -114,31 +121,6 @@ func GetDecoder(config *Config) jsoniter.API {
 	})
 	return api
 }
-
-//func (extension *picardExtension) DecorateDecoder(typ reflect2.Type, decoder jsoniter.ValDecoder) jsoniter.ValDecoder {
-//	dec := &metadataDecoder{typ, decoder, extension}
-//	extension.decoder = dec
-//	return dec
-//}
-//
-//type metadataDecoder struct {
-//	typ        reflect2.Type
-//	valDecoder jsoniter.ValDecoder
-//	parent     *picardExtension
-//}
-//
-//func (decoder *metadataDecoder) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
-//	objectValue := reflect.NewAt(decoder.typ.Type1(), ptr)
-//	metadataField := metadata.GetMetadataValue(objectValue.Elem())
-//	k := metadataField.Kind()
-//	if k == reflect.Struct {
-//		if !metadata.HasDefinedFields(metadataField) {
-//			metadata.InitializeDefinedFields(metadataField)
-//		}
-//		decoder.parent.currentVal = &metadataField
-//	}
-//	decoder.valDecoder.Decode(ptr, iter)
-//}
 
 //func (extension *picardExtension) StructDecodedHook(ptr unsafe.Pointer, typ reflect2.Type) {
 //	objectValue := reflect.NewAt(typ.Type1(), ptr)
