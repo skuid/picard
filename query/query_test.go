@@ -459,12 +459,6 @@ func TestQueryJoins(t *testing.T) {
 
 			assert.Equal(tc.expected, actual, "Expected the resulting SQL to match expected")
 
-			expectedArgs := make([]interface{}, 0, len(tc.wheres))
-
-			for _, where := range tc.wheres {
-				expectedArgs = append(expectedArgs, where.val)
-			}
-
 			assert.Equal(tc.expectedArgs, actualArgs, "Should have the same arguments to the query")
 		})
 	}

@@ -12,8 +12,8 @@ import (
 	"github.com/skuid/picard/tags"
 )
 
-/* FilterRequest holds information about a request to filter on a model
-
+/*
+	FilterRequest holds information about a request to filter on a model
 
 Example:
 
@@ -36,7 +36,6 @@ Example:
 			FieldB: "bar",
 		},
 	}
-
 
 FieldFilters generates a `WHERE` clause grouping with either an `OR` grouping via `tags.OrFilterGroup` or an `AND` grouping via `tags.AndFilterGroup`. The `tags.FieldFilter`
 
@@ -170,14 +169,10 @@ func (p PersistenceORM) getMultiFilterResults(request FilterRequest, filterMetad
 
 		ands := sq.And{}
 
-		for _, where := range ftbl.Wheres {
-			ands = append(ands, where)
-		}
+		ands = append(ands, ftbl.Wheres...)
 
 		for _, join := range ftbl.Joins {
-			for _, where := range join.Table.Wheres {
-				ands = append(ands, where)
-			}
+			ands = append(ands, join.Table.Wheres...)
 		}
 
 		ors = append(ors, ands)
@@ -214,7 +209,7 @@ func (p PersistenceORM) getFilterResults(request FilterRequest, filterMetadata *
 		request.FilterModel = modelVal.Elem().Interface()
 		return p.getFilterResults(request, filterMetadata)
 	}
-	return nil, fmt.Errorf("Filter must be a struct, a slice of structs, or a pointer to a struct or slice of structs")
+	return nil, fmt.Errorf("filter must be a struct, a slice of structs, or a pointer to a struct or slice of structs")
 }
 
 // FilterModel returns models that match the provided struct, ignoring zero values.
@@ -231,7 +226,7 @@ func (p PersistenceORM) FilterModel(request FilterRequest) ([]interface{}, error
 	}
 
 	if filterModelType.Kind() != reflect.Struct {
-		return nil, errors.New("Filter Type is not a struct")
+		return nil, errors.New("filter type is not a struct")
 	}
 
 	filterMetadata := tags.TableMetadataFromType(filterModelType)
@@ -254,7 +249,7 @@ func (p PersistenceORM) FilterModel(request FilterRequest) ([]interface{}, error
 					pkval := getValueFromLookupString(*result, childMetadata.GetPrimaryKeyFieldName())
 
 					if !pkval.IsValid() {
-						return nil, fmt.Errorf("Missing 'primary_key' tag on type '%v'", result.Type().Name())
+						return nil, fmt.Errorf("missing 'primary_key' tag on type '%v'", result.Type().Name())
 					}
 
 					if fmf := newFilter.FieldByName(foreignKey.FieldName); fmf.CanSet() {
@@ -274,7 +269,7 @@ func (p PersistenceORM) FilterModel(request FilterRequest) ([]interface{}, error
 					for childMatchKey, parentMatchKey := range child.GroupingCriteria {
 						parentValue := getValueFromLookupString(*result, parentMatchKey)
 						if !parentValue.IsValid() {
-							return nil, fmt.Errorf("Missing 'grouping_criteria' value on type '%v'", result.Type().Name())
+							return nil, fmt.Errorf("missing 'grouping_criteria' value on type '%v'", result.Type().Name())
 						}
 
 						childValue := getValueFromLookupString(newFilter, childMatchKey)
@@ -288,7 +283,7 @@ func (p PersistenceORM) FilterModel(request FilterRequest) ([]interface{}, error
 					newFilterList = reflect.Append(newFilterList, newFilter)
 				}
 			} else {
-				return nil, fmt.Errorf("Missing 'foreign_key' tag or 'grouping_criteria' on child '%s' of type '%v'", association.Name, childType.Name())
+				return nil, fmt.Errorf("missing 'foreign_key' tag or 'grouping_criteria' on child '%s' of type '%v'", association.Name, childType.Name())
 			}
 
 			childResults, err := p.FilterModel(FilterRequest{

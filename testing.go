@@ -2,7 +2,7 @@ package picard
 
 import (
 	"database/sql/driver"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -19,31 +19,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-//Test structs for JSONB tests
-type modelMutitenantPKWithTwoFields struct {
-	Metadata              metadata.Metadata `picard:"tablename=test_table"`
-	TestMultitenancyField string            `picard:"multitenancy_key,column=test_multitenancy_column"`
-	TestPrimaryKeyField   string            `picard:"primary_key,column=primary_key_column"`
-	TestFieldOne          string            `picard:"column=test_column_one"`
-	TestFieldTwo          string            `picard:"column=test_column_two"`
-}
-
-type modelOneField struct {
-	Metadata     metadata.Metadata `picard:"tablename=test_table"`
-	TestFieldOne string            `picard:"column=test_column_one"`
-}
-
-type modelOneFieldEncrypted struct {
-	Metadata     metadata.Metadata `picard:"tablename=test_table"`
-	TestFieldOne string            `picard:"encrypted,column=test_column_one"`
-}
-
-type modelTwoFieldEncrypted struct {
-	Metadata     metadata.Metadata `picard:"tablename=test_table"`
-	TestFieldOne string            `picard:"encrypted,column=test_column_one"`
-	TestFieldTwo string            `picard:"encrypted,column=test_column_two"`
-}
-
+// Test structs for JSONB tests
 type modelOneFieldJSONB struct {
 	Metadata     metadata.Metadata             `picard:"tablename=test_table"`
 	TestFieldOne testdata.TestSerializedObject `picard:"jsonb,column=test_column_one"`
@@ -59,23 +35,48 @@ type modelOneArrayFieldJSONB struct {
 	TestFieldOne []testdata.TestSerializedObject `picard:"jsonb,column=test_column_one"`
 }
 
-type modelTwoField struct {
-	TestFieldOne string `picard:"column=test_column_one"`
-	TestFieldTwo string `picard:"column=test_column_two"`
-}
-
-type modelTwoFieldOneTagged struct {
-	TestFieldOne string `picard:"column=test_column_one"`
-	TestFieldTwo string
-}
-
-type modelMultitenant struct {
-	TestMultitenancyField string `picard:"multitenancy_key,column=test_multitenancy_column"`
-}
-
-type modelPK struct {
-	PrimaryKeyField string `picard:"primary_key,column=primary_key_column"`
-}
+// unused structs left in comments as examples
+//type modelMutitenantPKWithTwoFields struct {
+//	Metadata              metadata.Metadata `picard:"tablename=test_table"`
+//	TestMultitenancyField string            `picard:"multitenancy_key,column=test_multitenancy_column"`
+//	TestPrimaryKeyField   string            `picard:"primary_key,column=primary_key_column"`
+//	TestFieldOne          string            `picard:"column=test_column_one"`
+//	TestFieldTwo          string            `picard:"column=test_column_two"`
+//}
+//
+//type modelOneField struct {
+//	Metadata     metadata.Metadata `picard:"tablename=test_table"`
+//	TestFieldOne string            `picard:"column=test_column_one"`
+//}
+//
+//type modelOneFieldEncrypted struct {
+//	Metadata     metadata.Metadata `picard:"tablename=test_table"`
+//	TestFieldOne string            `picard:"encrypted,column=test_column_one"`
+//}
+//
+//type modelTwoFieldEncrypted struct {
+//	Metadata     metadata.Metadata `picard:"tablename=test_table"`
+//	TestFieldOne string            `picard:"encrypted,column=test_column_one"`
+//	TestFieldTwo string            `picard:"encrypted,column=test_column_two"`
+//}
+//
+//type modelTwoField struct {
+//	TestFieldOne string `picard:"column=test_column_one"`
+//	TestFieldTwo string `picard:"column=test_column_two"`
+//}
+//
+//type modelTwoFieldOneTagged struct {
+//	TestFieldOne string `picard:"column=test_column_one"`
+//	TestFieldTwo string
+//}
+//
+//type modelMultitenant struct {
+//	TestMultitenancyField string `picard:"multitenancy_key,column=test_multitenancy_column"`
+//}
+//
+//type modelPK struct {
+//	PrimaryKeyField string `picard:"primary_key,column=primary_key_column"`
+//}
 
 // LoadFixturesFromFiles creates a slice of structs from a slice of file names
 func LoadFixturesFromFiles(names []string, path string, loadType reflect.Type, jsonTagKey string) (interface{}, error) {
@@ -84,7 +85,7 @@ func LoadFixturesFromFiles(names []string, path string, loadType reflect.Type, j
 
 	for _, name := range names {
 		testObject := reflect.New(loadType).Interface()
-		raw, err := ioutil.ReadFile(path + name + ".json")
+		raw, err := os.ReadFile(path + name + ".json")
 		if err != nil {
 			return nil, err
 		}
@@ -135,12 +136,13 @@ func (eh ExpectationHelper) GetInsertDBColumns(includePrimaryKey bool) []string 
 	return tableMetadata.GetColumnNamesWithoutPrimaryKey()
 }
 
-func (eh ExpectationHelper) getUpdateDBColumns() []string {
-	tableMetadata := eh.getTableMetadata()
-	return tableMetadata.GetColumnNamesForUpdate()
-}
+// unused function left in comments as example
+//func (eh ExpectationHelper) getUpdateDBColumns() []string {
+//	tableMetadata := eh.getTableMetadata()
+//	return tableMetadata.GetColumnNamesForUpdate()
+//}
 
-//GetUpdateDBColumnsForFixture returnst the fields that should be updated for a particular fixture
+// GetUpdateDBColumnsForFixture returnst the fields that should be updated for a particular fixture
 func (eh ExpectationHelper) GetUpdateDBColumnsForFixture(fixtures interface{}, index int) []string {
 	tableMetadata := eh.getTableMetadata()
 	definedColumns := []string{}

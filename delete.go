@@ -86,7 +86,7 @@ func hasAssociations(model interface{}, metadata *tags.TableMetadata) (bool, err
 	}
 
 	if val.Kind() != reflect.Struct {
-		return false, fmt.Errorf("Model must be a struct in order to get associations. It was a %v instead", val.Kind())
+		return false, fmt.Errorf("model must be a struct in order to get associations. It was a %v instead", val.Kind())
 	}
 
 	for _, fkField := range metadata.GetForeignKeys() {

@@ -48,6 +48,7 @@ func syncLuxInventory(porm picard.ORM, products []Product) error {
 	return porm.Deploy(luxProducts)
 }
 
+//lint:ignore U1000 example code
 func main() {
 	storeID := "00000000-0000-0000-0000-000000000001"
 	userID := "00000000-0000-0000-0000-000000000001"
@@ -117,5 +118,8 @@ func main() {
 			},
 		},
 	})
+	if err != nil {
+		log.Fatal(err)
+	}
 	log.Printf("All deployed products: %#v\n", products)
 }

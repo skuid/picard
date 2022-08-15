@@ -16,12 +16,13 @@ import (
 
 const picardTagKey = "picard"
 
-/* Association represents a data model relationship in the form of hasOne, hasMany, belongsTo between parent and child structs.
+/*
+	Association represents a data model relationship in the form of hasOne, hasMany, belongsTo between parent and child structs.
 
 Including Associations in FilterRequests will eager load the model relationship results in a single query with JOINs.
 
 Name refers to the name of the struct field that will hold the filter results for the relationship.
-For belongsTo relationships, this is the `related` tag value on a `foreign_key`` field on the struct
+For belongsTo relationships, this is the `related` tag value on a `foreign_key“ field on the struct
 
 Example:
 
@@ -41,7 +42,7 @@ Example:
 		},
 	})
 
-For hasOne or hasMany relationships, this is the field with the `child` tag
+# For hasOne or hasMany relationships, this is the field with the `child` tag
 
 Example:
 
@@ -59,7 +60,6 @@ Example:
 			},
 		},
 	})
-
 
 Each association may have nested relationships, like so:
 
@@ -97,8 +97,7 @@ Each association may have nested relationships, like so:
 		},
 	})
 
-
-OrderBy lets you define the ordering of filter results by adding an ORDER BY clause with an OrderByRequest
+# OrderBy lets you define the ordering of filter results by adding an ORDER BY clause with an OrderByRequest
 
 Example:
 
@@ -163,7 +162,6 @@ FieldFilters generates a `WHERE` clause grouping with either an `OR` grouping vi
 		FieldB		string				`picard:"column=field_b"`
 	}
 
-
 import "github.com/skuid/picard/tags"
 
 	p.FilterModel(picard.FilterRequest{
@@ -218,8 +216,8 @@ type Association struct {
 	FieldFilters Filterable
 }
 
-/* FieldFilter defines an arbitrary filter on a FilterRequest
-
+/*
+	FieldFilter defines an arbitrary filter on a FilterRequest
 
 Specify the fields that should be added in a AndFilterGroup or a OrFilterGroup WHERE clause grouping.
 
@@ -419,9 +417,7 @@ func (tm TableMetadata) GetForeignKeys() []ForeignKey {
 	// Clone the foreign keys, don't just return a reference
 	// We wouldn't want code elsewhere to mutate it
 	keys := []ForeignKey{}
-	for _, key := range tm.foreignKeys {
-		keys = append(keys, key)
-	}
+	keys = append(keys, tm.foreignKeys...)
 	return keys
 }
 
@@ -594,11 +590,11 @@ func GetTableMetadata(data interface{}) (*TableMetadata, error) {
 	} else if t.Kind() == reflect.Struct {
 		tableMetadata = TableMetadataFromType(t)
 	} else {
-		return nil, errors.New("Can only get metadata structs or slices of structs")
+		return nil, errors.New("can only get metadata structs or slices of structs")
 	}
 
 	if tableMetadata.tableName == "" {
-		return nil, errors.New("No table name specified in struct metadata")
+		return nil, errors.New("no table name specified in struct metadata")
 	}
 	return tableMetadata, nil
 }
@@ -629,7 +625,7 @@ func TableMetadataFromType(t reflect.Type) *TableMetadata {
 		// _, isReference := tagsMap["reference"]
 		_, isEncrypted := tagsMap["encrypted"]
 		_, isJSONB := tagsMap["jsonb"]
-		auditType, _ := tagsMap["audit"]
+		auditType := tagsMap["audit"]
 
 		if field.Type == reflect.TypeOf(metadata) {
 			if hasTableName {
@@ -745,8 +741,9 @@ func TableMetadataFromType(t reflect.Type) *TableMetadata {
 
 // GetStructTagsMap generates a map of struct tag to values
 // Example
-// 	input: testKeyOne=test_value_one,testKeyTwo=test_value_two
-// 	output: map[string]string{"testKeyOne": "test_value_one", "testKeyTwo": "test_value_two"
+//
+//	input: testKeyOne=test_value_one,testKeyTwo=test_value_two
+//	output: map[string]string{"testKeyOne": "test_value_one", "testKeyTwo": "test_value_two"
 func GetStructTagsMap(field reflect.StructField, tagType string) map[string]string {
 	tagValue := field.Tag.Get(tagType)
 	if tagValue == "" {

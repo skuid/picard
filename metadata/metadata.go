@@ -37,11 +37,13 @@ func InitializeDefinedFields(metadataValue reflect.Value) {
 func GetMetadataValue(picardStruct reflect.Value) reflect.Value {
 	var metadataValue reflect.Value
 	var metadata Metadata
-	for i := 0; i < picardStruct.Type().NumField(); i++ {
-		field := picardStruct.Type().Field(i)
-		if field.Type == reflect.TypeOf(metadata) {
-			metadataValue = picardStruct.FieldByName(field.Name)
-			break
+	if picardStruct.Type().Kind() == reflect.Struct {
+		for i := 0; i < picardStruct.Type().NumField(); i++ {
+			field := picardStruct.Type().Field(i)
+			if field.Type == reflect.TypeOf(metadata) {
+				metadataValue = picardStruct.FieldByName(field.Name)
+				break
+			}
 		}
 	}
 	return metadataValue

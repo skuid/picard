@@ -3,7 +3,6 @@ package query
 import (
 	"testing"
 
-	"github.com/skuid/picard/metadata"
 	"github.com/skuid/picard/tags"
 	"github.com/skuid/picard/testdata"
 	"github.com/stretchr/testify/assert"
@@ -181,22 +180,23 @@ func TestQueryBuilder(t *testing.T) {
 	}
 }
 
-type noForeignKey struct {
-	Metadata       metadata.Metadata     `picard:"tablename=parentmodel"`
-	ID             string                `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string                `picard:"multitenancy_key,column=organization_id"`
-	Children       []testdata.ChildModel `json:"children" picard:"child"`
-}
-
-type noPrimaryKey struct {
-	Metadata       metadata.Metadata     `picard:"tablename=parentmodel"`
-	OrganizationID string                `picard:"multitenancy_key,column=organization_id"`
-	Children       []testdata.ChildModel `json:"children" picard:"child,foreign_key=parent_id"`
-}
-
-type childNotSlice struct {
-	Metadata       metadata.Metadata   `picard:"tablename=parentmodel"`
-	ID             string              `json:"id" picard:"primary_key,column=id"`
-	OrganizationID string              `picard:"multitenancy_key,column=organization_id"`
-	Children       testdata.ChildModel `json:"children" picard:"child,foreign_key=parent_id"`
-}
+//// unused structs, left in as an example I suppose
+//type noForeignKey struct {
+//	Metadata       metadata.Metadata     `picard:"tablename=parentmodel"`
+//	ID             string                `json:"id" picard:"primary_key,column=id"`
+//	OrganizationID string                `picard:"multitenancy_key,column=organization_id"`
+//	Children       []testdata.ChildModel `json:"children" picard:"child"`
+//}
+//
+//type noPrimaryKey struct {
+//	Metadata       metadata.Metadata     `picard:"tablename=parentmodel"`
+//	OrganizationID string                `picard:"multitenancy_key,column=organization_id"`
+//	Children       []testdata.ChildModel `json:"children" picard:"child,foreign_key=parent_id"`
+//}
+//
+//type childNotSlice struct {
+//	Metadata       metadata.Metadata   `picard:"tablename=parentmodel"`
+//	ID             string              `json:"id" picard:"primary_key,column=id"`
+//	OrganizationID string              `picard:"multitenancy_key,column=organization_id"`
+//	Children       testdata.ChildModel `json:"children" picard:"child,foreign_key=parent_id"`
+//}

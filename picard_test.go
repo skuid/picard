@@ -1573,18 +1573,8 @@ func TestDeployments(t *testing.T) {
 			testdata.ChildTestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				parentUUID := uuid.NewV4().String()
-				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
 				lookupKeys := []string{"ChildItem|Simple|"}
 				returnData := [][]driver.Value{}
-
-				childObjects := []testdata.ChildTestObject{}
-				for _, fixture := range fixtures {
-					childObjects = append(childObjects, testdata.ChildTestObject{
-						Name:     fixture.Name,
-						ParentID: parentUUID,
-					})
-				}
 
 				ExpectLookup(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
 
@@ -1600,18 +1590,8 @@ func TestDeployments(t *testing.T) {
 			testdata.ChildTestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				parentUUID := uuid.NewV4().String()
-				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
 				lookupKeys := []string{"ChildItem|Simple|", "ChildItem2|Simple2|"}
 				returnData := [][]driver.Value{}
-
-				childObjects := []testdata.ChildTestObject{}
-				for _, fixture := range fixtures {
-					childObjects = append(childObjects, testdata.ChildTestObject{
-						Name:     fixture.Name,
-						ParentID: parentUUID,
-					})
-				}
 
 				ExpectLookup(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
 
@@ -1627,18 +1607,8 @@ func TestDeployments(t *testing.T) {
 			testdata.ChildTestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				parentUUID := uuid.NewV4().String()
-				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
 				lookupKeys := []string{"ChildItem|Simple|"}
 				returnData := [][]driver.Value{}
-
-				childObjects := []testdata.ChildTestObject{}
-				for _, fixture := range fixtures {
-					childObjects = append(childObjects, testdata.ChildTestObject{
-						Name:     fixture.Name,
-						ParentID: parentUUID,
-					})
-				}
 
 				ExpectLookup(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
 
@@ -1798,6 +1768,9 @@ func TestStartTransaction(t *testing.T) {
 			"ORM methods should use an existing transaction set in StartTransaction",
 			func(orm ORM) error {
 				_, err := orm.StartTransaction()
+				if err != nil {
+					return err
+				}
 				newModel := &Item{
 					TestFieldOne: "kayak",
 				}
@@ -1886,6 +1859,9 @@ func TestStartTransaction(t *testing.T) {
 			"ORM methods should begin a new transaction if there has been a rollback",
 			func(orm ORM) error {
 				_, err := orm.StartTransaction()
+				if err != nil {
+					return err
+				}
 				newModel := &Item{
 					TestFieldOne: "kayak",
 				}

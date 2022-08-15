@@ -10,10 +10,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Set up Go 1.14
+    - name: Set up Go 1.18
       uses: actions/setup-go@v2
       with:
-        go-version: 1.14.x
+        go-version: 1.18.x
       id: go
 
     - name: Check out code into the Go module directory
@@ -34,11 +34,7 @@ jobs:
       run: go vet $(go list ./...)
 
     - name: Golint
-      run: |
-        go get -u golang.org/x/lint/golint
-        golint ./...
-
-    - name: Spelling
-      run: |
-        go get -u github.com/client9/misspell/cmd/misspell
-        find . -name '*.go' -not -path './vendor/*' -not -path './_repos/*' | xargs misspell
+      uses: dominikh/staticcheck-action@v1.2.0
+      with:
+        version: "2022.1.1"
+        install-go: false
