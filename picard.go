@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"reflect"
 	"strconv"
 	"strings"
@@ -96,7 +95,7 @@ func (p *PersistenceORM) Rollback() error {
 
 // Decode decodes a reader using a specified decoder, but also writes metadata to picard StructMetadata
 func Decode(body io.Reader, destination interface{}) error {
-	bytes, err := ioutil.ReadAll(body)
+	bytes, err := io.ReadAll(body)
 	if err != nil {
 		return err
 	}
@@ -112,13 +111,14 @@ func GetDecoder(config *decoding.Config) jsoniter.API {
 	return decoding.GetDecoder(config)
 }
 
-func getStructValue(v interface{}) (reflect.Value, error) {
-	value := reflect.Indirect(reflect.ValueOf(v))
-	if value.Kind() != reflect.Struct {
-		return value, errors.New("Models must be structs")
-	}
-	return value, nil
-}
+//// example code, unused
+//func getStructValue(v interface{}) (reflect.Value, error) {
+//	value := reflect.Indirect(reflect.ValueOf(v))
+//	if value.Kind() != reflect.Struct {
+//		return value, errors.New("models must be structs")
+//	}
+//	return value, nil
+//}
 
 // Deploy is the public method to start a Picard deployment. Send in a table name and a slice of structs
 // and it will attempt a deployment.
@@ -927,10 +927,7 @@ func isFieldDefinedOnStruct(modelMetadata metadata.Metadata, fieldName string, d
 	// Finally, check to see if we have a non-zero value in the struct for this field
 	// If so, it doesn't matter if it's in our defined list, it's defined
 	fieldValue := data.FieldByName(fieldName)
-	if !reflectutil.IsZeroValue(fieldValue) {
-		return true
-	}
-	return false
+	return !reflectutil.IsZeroValue(fieldValue)
 }
 
 func (p PersistenceORM) processObject(
@@ -1003,9 +1000,9 @@ func (p PersistenceORM) processObject(
 		var valueAsBytes []byte
 
 		// Handle both non-interface and interface types as we convert to byte array
-		switch value.(type) {
+		switch value := value.(type) {
 		case string:
-			valueAsBytes = []byte(value.(string))
+			valueAsBytes = []byte(value)
 		default:
 			assertedBytes, ok := value.([]byte)
 			if !ok {

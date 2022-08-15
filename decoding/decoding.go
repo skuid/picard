@@ -77,7 +77,7 @@ func (decoder *structDecoder) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator
 		if reflect.TypeOf(obj).Kind() == reflect.Map {
 			var fields []string
 			fmap := obj.(map[string]interface{})
-			for k, _ := range fmap {
+			for k := range fmap {
 				for _, binding := range decoder.structDesc.Fields {
 					sf, ok := binding.Field.Tag().Lookup("json")
 					if ok && sf == k {

@@ -23,7 +23,7 @@ func (p PersistenceORM) persistModel(model interface{}, alwaysInsert bool) error
 	// This makes modelValue a reflect.Value of model whether model is a pointer or not.
 	modelValue := reflect.Indirect(reflect.ValueOf(model))
 	if modelValue.Kind() != reflect.Struct {
-		return errors.New("Models must be structs")
+		return errors.New("models must be structs")
 	}
 
 	if p.transaction == nil {

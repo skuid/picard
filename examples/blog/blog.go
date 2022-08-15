@@ -55,6 +55,8 @@ func insertTag(p picard.ORM, newTag *Tag) error {
 }
 
 // insert data creates users, blogs, and tags
+//
+//lint:ignore U1000 example code
 func insertData(p picard.ORM) error {
 	newUser := User{
 		Name: "Deanna_Troi",
@@ -167,6 +169,7 @@ func getBlog(p picard.ORM, name string) ([]interface{}, error) {
 	return blog, nil
 }
 
+//lint:ignore U1000 example code
 func getBlogs(p picard.ORM) ([]interface{}, error) {
 	blogs, err := p.FilterModel(picard.FilterRequest{
 		FilterModel: Blog{},
@@ -208,6 +211,7 @@ func updateBlog(p picard.ORM, id string, name string) error {
 	return nil
 }
 
+//lint:ignore U1000 example code
 func main() {
 	orgID := "00000000-0000-0000-0000-000000000001"
 	userID := "00000000-0000-0000-0000-000000000001"

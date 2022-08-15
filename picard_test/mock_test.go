@@ -23,7 +23,7 @@ func TestMockFilterModel(t *testing.T) {
 				"test 1",
 				"test 2",
 			},
-			errors.New("Some error"),
+			errors.New("some error"),
 		},
 		{
 			"Should return set return interfaces",
@@ -273,7 +273,7 @@ func TestMultiMockFilter(t *testing.T) {
 				})
 				var expectedResult []interface{}
 				assert.Equal(t, result, expectedResult)
-				assert.Equal(t, err, errors.New("Mock Function was called but not expected"))
+				assert.Equal(t, err, errors.New("mock Function was called but not expected"))
 			},
 		},
 	}

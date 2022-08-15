@@ -110,7 +110,7 @@ func (multi *MultiMockORM) next() (*MockORM, error) {
 		multi.index = multi.index + 1
 		return &multi.MockORMs[currentIndex], nil
 	}
-	return nil, errors.New("Mock Function was called but not expected")
+	return nil, errors.New("mock Function was called but not expected")
 }
 
 // FilterModel simply returns an error or return objects when set on the MockORM

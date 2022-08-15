@@ -35,7 +35,7 @@ func GetValueFromLookupString(value reflect.Value, lookupString string) reflect.
 func GetStructValue(v interface{}) (reflect.Value, error) {
 	value := reflect.Indirect(reflect.ValueOf(v))
 	if value.Kind() != reflect.Struct {
-		return value, errors.New("Models must be structs")
+		return value, errors.New("models must be structs")
 	}
 	return value, nil
 }
@@ -50,7 +50,7 @@ func GetFilterType(v interface{}) (reflect.Type, error) {
 	} else if kind == reflect.Slice {
 		return value.Type().Elem(), nil
 	}
-	return nil, errors.New("Filter must be struct or slice of structs")
+	return nil, errors.New("filter must be struct or slice of structs")
 }
 
 // GenerateTableAlias generates a table alias for queries, joins, etc
