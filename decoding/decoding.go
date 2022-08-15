@@ -43,7 +43,7 @@ func (extension *picardExtension) UpdateStructDescriptor(structDescriptor *jsoni
 
 func (extension *picardExtension) DecorateDecoder(typ reflect2.Type, decoder jsoniter.ValDecoder) jsoniter.ValDecoder {
 	if typ.Kind() == reflect.Struct {
-		return &structDecoder{decoder, typ, extension.structDesc}
+		return &structDecoder{decoder, typ, extension.structDesc, extension.config}
 	}
 	return decoder
 }
@@ -52,6 +52,7 @@ type structDecoder struct {
 	valDecoder jsoniter.ValDecoder
 	typ        reflect2.Type
 	structDesc *jsoniter.StructDescriptor
+	config     *Config
 }
 
 func (decoder *structDecoder) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
@@ -79,7 +80,7 @@ func (decoder *structDecoder) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator
 			fmap := obj.(map[string]interface{})
 			for k := range fmap {
 				for _, binding := range decoder.structDesc.Fields {
-					sf, ok := binding.Field.Tag().Lookup("json")
+					sf, ok := binding.Field.Tag().Lookup(decoder.config.TagKey)
 					if ok && sf == k {
 						fields = append(fields, binding.Field.Name())
 						break
