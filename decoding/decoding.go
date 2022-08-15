@@ -4,7 +4,6 @@ Package decoder is used to default to jsoniter for its decoder
 package decoding
 
 import (
-	"fmt"
 	"reflect"
 	"sort"
 	"strings"
@@ -59,9 +58,11 @@ func (decoder *structDecoder) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator
 	var obj interface{}
 	iter.ReadVal(&obj)
 	if obj != nil {
-		ip := decoder.typ.UnsafeIndirect(ptr)
+		// AC: I'm leaving the next line in as a comment because it took me hours of docs-reading to figure out
+		// how to get the unsafe.Pointer into something my debugger could read.
+		// ip := decoder.typ.UnsafeIndirect(ptr)
+
 		buf, err := jsoniter.Marshal(obj)
-		print(string(buf))
 		if err != nil {
 			return
 		}
@@ -97,7 +98,6 @@ func (decoder *structDecoder) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator
 
 		// now do the normal
 		decoder.valDecoder.Decode(ptr, newiter)
-		fmt.Printf("%v\n", ip)
 	}
 }
 
