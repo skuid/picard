@@ -38,8 +38,3 @@ jobs:
       with:
         version: "2022.1.1"
         install-go: false
-
-    - name: Spelling
-      run: |
-        go get -u github.com/client9/misspell/cmd/misspell
-        find . -name '*.go' -not -path './vendor/*' -not -path './_repos/*' | xargs misspell
