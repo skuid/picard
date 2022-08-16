@@ -74,10 +74,6 @@ func (decoder *structDecoder) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator
 			metadata.InitializeDefinedFields(metadataField)
 		}
 
-		if decoder.structDesc == nil {
-			print("oh no")
-		}
-
 		// now get the field keys in the object
 		if reflect.TypeOf(obj).Kind() == reflect.Map && decoder.structDesc != nil {
 			var fields []string
