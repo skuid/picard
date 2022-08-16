@@ -75,7 +75,7 @@ func (decoder *structDecoder) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator
 		}
 
 		// now get the field keys in the object
-		if reflect.TypeOf(obj).Kind() == reflect.Map {
+		if reflect.TypeOf(obj).Kind() == reflect.Map && decoder.structDesc != nil {
 			var fields []string
 			fmap := obj.(map[string]interface{})
 			for k := range fmap {
