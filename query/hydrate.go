@@ -69,6 +69,12 @@ func hydrate(
 		if field.IsFK() {
 			refTyp := field.GetRelatedType()
 			fkField := meta.GetForeignKeyField(field.GetName())
+
+			// There is not related tag with the foreign key, just continue without hydrating
+			if fkField == nil {
+				continue
+			}
+
 			foreignMetadata := fkField.TableMetadata
 			foreignTableName := foreignMetadata.GetTableName()
 			fieldName := field.GetName()

@@ -133,6 +133,13 @@ func (p PersistenceORM) getSingleFilterResults(request FilterRequest, filterMeta
 		return nil, err
 	}
 	sql := tbl.BuildSQL()
+	queryStr, args, err := sql.ToSql()
+	fmt.Println("QUERY")
+	fmt.Println(queryStr)
+	for index, value := range args {
+		fmt.Printf("Item %v - %s\n", index, reflect.TypeOf(value).String())
+	}
+
 	sql = addOrderBy(sql, request.OrderBy, filterMetadata, tbl.Alias)
 	rows, err := sql.RunWith(request.Runner).Query()
 	if err != nil {

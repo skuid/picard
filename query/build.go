@@ -2,6 +2,7 @@ package query
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 
 	qp "github.com/skuid/picard/queryparts"
@@ -121,6 +122,9 @@ func buildQuery(
 		case isFk:
 			relatedName := field.GetRelatedName()
 			relatedVal := modelVal.FieldByName(relatedName)
+			fmt.Println("FOREIGN ON BUILD")
+			fmt.Println(relatedName)
+			fmt.Println(relatedVal.IsValid())
 
 			association, ok := getAssociation(associations, relatedName)
 
@@ -133,11 +137,16 @@ func buildQuery(
 				tbl.AddWhere(column, val.Interface())
 			}
 
-			// If the association wasn't asked for, but there is a value in the related structure, just join but don't
-			// add the fields to the select.
-			childOnlyJoin := !ok && !reflectutil.IsZeroValue(relatedVal)
+			// If the association wasn't asked for, but there is a value in the related structure,
+			// just join but don't add the fields to the select.
+			childJoin := false
+			if relatedVal.IsValid() {
+				childJoin = true
+			}
 
-			if ok || childOnlyJoin {
+			fmt.Println(childJoin)
+
+			if ok || childJoin {
 				// Get type, load it as a model so we can build it out
 				refTyp := relatedVal.Type()
 				refMetadata := filterMetadata.GetForeignKeyField(fieldName).TableMetadata
@@ -147,15 +156,18 @@ func buildQuery(
 					fkRefPath = refPath + "." + fieldName
 				}
 
-				refTbl, err := buildQuery(multitenancyVal, refTyp, &relatedVal, association.FieldFilters, association.Associations, association.SelectFields, childOnlyJoin, fkRefPath, refMetadata, counter)
+				refTbl, err := buildQuery(multitenancyVal, refTyp, &relatedVal, association.FieldFilters,
+					association.Associations, association.SelectFields, onlyJoin, fkRefPath, refMetadata,
+					counter)
 				if err != nil {
 					return nil, err
 				}
+				fmt.Println(refTbl.ToSQL())
 
 				joinField := column
 
 				direction := "left"
-				if childOnlyJoin {
+				if onlyJoin {
 					direction = ""
 				}
 				tbl.AppendJoinTable(refTbl, pkName, joinField, direction)
