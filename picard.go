@@ -647,7 +647,7 @@ func getQueryParts(tableMetadata *tags.TableMetadata, lookupsToUse []tags.Lookup
 			_, alreadyAddedJoin := joinMap[tableAlias]
 			if !alreadyAddedJoin {
 				joinMap[tableAlias] = true
-				joins = append(joins, fmt.Sprintf("%[1]v as %[4]v on %[4]v.%[2]v = %[3]v", tableToUse, primaryKeyColumnName, lookup.JoinKey, tableAlias))
+				joins = append(joins, fmt.Sprintf("%[1]v as %[4]v on %[4]v.%[2]v::\"varchar\" = %[3]v::\"varchar\"", tableToUse, primaryKeyColumnName, lookup.JoinKey, tableAlias))
 			}
 		}
 		columns = append(columns, fmt.Sprintf("%[3]v.%[2]v as %[3]v_%[2]v", tableToUse, lookup.MatchDBColumn, tableAlias))
@@ -713,6 +713,11 @@ func (p PersistenceORM) performChildUpserts(changeObjects []dbchange.Change, tab
 			originalValue := changeObject.OriginalValue
 			childValue := originalValue.FieldByName(child.FieldName)
 			foreignKeyValue := changeObject.Changes[primaryKeyColumnName]
+			if child.ForeignKey != "" {
+				if v, ok := changeObject.Changes[child.ForeignKey]; ok {
+					foreignKeyValue = v
+				}
+			}
 
 			if child.DeleteOrphans && !childValue.IsNil() && changeObject.Type == dbchange.Update {
 				// If we're doing deletes
@@ -737,19 +742,19 @@ func (p PersistenceORM) performChildUpserts(changeObjects []dbchange.Change, tab
 				for _, key := range mapKeys {
 					value := childValue.MapIndex(key)
 					data = reflect.Append(data, value)
-					addressibleData := data.Index(index)
+					addressableData := data.Index(index)
 					index = index + 1
 					if child.ForeignKey != "" {
-						valueToChange := getValueFromLookupString(addressibleData, child.ForeignKey)
+						valueToChange := getValueFromLookupString(addressableData, child.ForeignKey)
 						valueToChange.SetString(foreignKeyValue.(string))
 					}
 					if child.KeyMapping != "" {
-						valueToChange := getValueFromLookupString(addressibleData, child.KeyMapping)
+						valueToChange := getValueFromLookupString(addressableData, child.KeyMapping)
 						valueToChange.SetString(key.String())
 					}
 					if len(child.ValueMappings) > 0 {
 						for valueLocation, valueDestination := range child.ValueMappings {
-							valueToChange := getValueFromLookupString(addressibleData, valueDestination)
+							valueToChange := getValueFromLookupString(addressableData, valueDestination)
 							valueToSet := getValueFromLookupString(originalValue, valueLocation)
 							valueToChange.SetString(valueToSet.String())
 						}
