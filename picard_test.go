@@ -47,7 +47,7 @@ var testChildObjectHelper = ExpectationHelper{
 
 var testChildObjectWithLookupHelper = ExpectationHelper{
 	FixtureType:      testdata.ChildTestObject{},
-	LookupFrom:       "childtest JOIN testobject as t1 on t1.id = parent_id",
+	LookupFrom:       `childtest JOIN testobject as t1 on t1.id::"varchar" = parent_id::"varchar"`,
 	LookupSelect:     "childtest.id, childtest.name as childtest_name, t1.name as t1_name, t1.nullable_lookup as t1_nullable_lookup",
 	LookupWhere:      `COALESCE(childtest.name::"varchar",'') || '|' || COALESCE(t1.name::"varchar",'') || '|' || COALESCE(t1.nullable_lookup::"varchar",'')`,
 	LookupReturnCols: []string{"id", "childtest_name", "t1_name", "t1_nullable_lookup"},
@@ -56,7 +56,7 @@ var testChildObjectWithLookupHelper = ExpectationHelper{
 
 var siblingJunctionHelper = ExpectationHelper{
 	FixtureType:      testdata.SiblingJunctionModel{},
-	LookupFrom:       "siblingjunction JOIN personmodel as t1 on t1.id = child_id JOIN personmodel as t2 on t2.id = sibling_id",
+	LookupFrom:       `siblingjunction JOIN personmodel as t1 on t1.id::"varchar" = child_id::"varchar" JOIN personmodel as t2 on t2.id::"varchar" = sibling_id::"varchar"`,
 	LookupSelect:     "siblingjunction.id, t1.name as t1_name, t2.name as t2_name",
 	LookupWhere:      `COALESCE(t1.name::"varchar",'') || '|' || COALESCE(t2.name::"varchar",'')`,
 	LookupReturnCols: []string{"id", "t1_name", "t2_name"},
@@ -65,7 +65,7 @@ var siblingJunctionHelper = ExpectationHelper{
 
 var siblingJunctionHelperWithChildKey = ExpectationHelper{
 	FixtureType:      testdata.SiblingJunctionModel{},
-	LookupFrom:       "siblingjunction JOIN personmodel as t1 on t1.id = sibling_id",
+	LookupFrom:       `siblingjunction JOIN personmodel as t1 on t1.id::"varchar" = sibling_id::"varchar"`,
 	LookupSelect:     "siblingjunction.id, siblingjunction.child_id as siblingjunction_child_id, t1.name as t1_name",
 	LookupWhere:      `COALESCE(siblingjunction.child_id::"varchar",'') || '|' || COALESCE(t1.name::"varchar",'')`,
 	LookupReturnCols: []string{"id", "child_id", "t1_name"},
