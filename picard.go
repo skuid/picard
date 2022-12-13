@@ -158,6 +158,36 @@ func (p PersistenceORM) upsert(data interface{}, deleteFilters interface{}) erro
 	dataValue := reflect.ValueOf(data)
 	dataCount := dataValue.Len()
 	var changeSets []*dbchange.ChangeSet
+
+	// the delete queries should be executed first because of posible UNIQUE restrictions on the DB
+
+	deleteLookupResults, _, err := p.checkForExisting(data, tableMetadata, nil, true)
+	if err != nil {
+		return err
+	}
+
+	deletes := []dbchange.Change{}
+
+	for _, value := range deleteLookupResults {
+		deletes = append(deletes, dbchange.Change{
+			Changes: value.(map[string]interface{}),
+			Type:    dbchange.Delete,
+		})
+	}
+
+	if len(deletes) > 0 {
+		for i := 0; i < len(deletes); i += p.batchSize {
+			end := i + p.batchSize
+			if end > len(deletes) {
+				end = len(deletes)
+			}
+			err = p.upsertBatch(&dbchange.ChangeSet{Deletes: deletes[i:end]}, tableMetadata)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	if dataCount > 0 {
 		for i := 0; i < dataCount; i += p.batchSize {
 			end := i + p.batchSize
@@ -420,6 +450,7 @@ func (p PersistenceORM) checkForExisting(
 	data interface{},
 	tableMetadata *tags.TableMetadata,
 	foreignKey *tags.ForeignKey,
+	nonExisting bool, // negates the query to check which items shouldn't exist anymore in the DB
 ) (
 	map[string]interface{},
 	[]tags.Lookup,
@@ -457,7 +488,11 @@ func (p PersistenceORM) checkForExisting(
 				}
 			}
 		}
-		query = query.Where(strings.Join(wheres, " || '"+separator+"' || ")+" = ANY(?)", pq.Array(lookupObjectKeys))
+		if nonExisting {
+			query = query.Where("NOT "+strings.Join(wheres, " || '"+separator+"' || ")+" = ANY(?)", pq.Array(lookupObjectKeys))
+		} else {
+			query = query.Where(strings.Join(wheres, " || '"+separator+"' || ")+" = ANY(?)", pq.Array(lookupObjectKeys))
+		}
 	}
 
 	if multitenancyKeyColumnName != "" {
@@ -785,14 +820,14 @@ func (p PersistenceORM) generateChanges(
 	foreignKeys := tableMetadata.GetForeignKeys()
 	insertsHavePrimaryKey := false
 	primaryKeyColumnName := tableMetadata.GetPrimaryKeyColumnName()
-	lookupResults, lookups, err := p.checkForExisting(data, tableMetadata, nil)
+	lookupResults, lookups, err := p.checkForExisting(data, tableMetadata, nil, false)
 	if err != nil {
 		return nil, err
 	}
 
 	for index := range foreignKeys {
 		foreignKey := &foreignKeys[index]
-		foreignResults, foreignLookupsUsed, err := p.checkForExisting(data, foreignKey.TableMetadata, foreignKey)
+		foreignResults, foreignLookupsUsed, err := p.checkForExisting(data, foreignKey.TableMetadata, foreignKey, false)
 		if err != nil {
 			return nil, err
 		}
