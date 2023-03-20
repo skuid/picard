@@ -284,11 +284,6 @@ func (afg AndFilterGroup) Apply(table *qp.Table, metadata *TableMetadata) squirr
 	for _, filter := range afg {
 		ands = append(ands, filter.Apply(table, metadata))
 	}
-	ats, args, _ := ands.ToSql()
-	fmt.Println(ats)
-	for _, v := range args {
-		fmt.Printf("%v\n", v)
-	}
 	return ands
 }
 
