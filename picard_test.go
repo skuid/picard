@@ -162,7 +162,6 @@ func TestDeployments(t *testing.T) {
 				helper := testObjectWithPKHelper
 				returnData := GetReturnDataForLookup(helper, nil)
 				lookupKeys := GetLookupKeys(helper, fixtures)
-				ExpectLookupNegated(mock, helper, lookupKeys, returnData)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectInsert(mock, helper, helper.GetInsertDBColumns(true), [][]driver.Value{
 					[]driver.Value{
@@ -192,8 +191,6 @@ func TestDeployments(t *testing.T) {
 				helper := testObjectWithPKHelper
 				returnData := GetReturnDataForLookup(helper, fixtures)
 				lookupKeys := GetLookupKeys(helper, fixtures)
-				ExpectLookupNegated(mock, helper, lookupKeys, returnData)
-				ExpectDelete(mock, helper, []string{returnData[0][0].(string)})
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
 					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
@@ -218,7 +215,6 @@ func TestDeployments(t *testing.T) {
 				helper := testObjectHelper
 				returnData := GetReturnDataForLookup(helper, nil)
 				lookupKeys := GetLookupKeys(helper, fixtures)
-				ExpectLookupNegated(mock, helper, lookupKeys, returnData)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectInsert(mock, helper, helper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
@@ -247,8 +243,6 @@ func TestDeployments(t *testing.T) {
 				helper := testObjectHelper
 				returnData := GetReturnDataForLookup(helper, fixtures)
 				lookupKeys := GetLookupKeys(helper, fixtures)
-				ExpectLookupNegated(mock, helper, lookupKeys, returnData)
-				ExpectDelete(mock, helper, []string{returnData[0][0].(string)})
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
 					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
@@ -288,8 +282,6 @@ func TestDeployments(t *testing.T) {
 					},
 				}
 				lookupKeys := GetLookupKeys(helper, fixtures)
-				ExpectLookupNegated(mock, helper, lookupKeys, returnData)
-				ExpectDelete(mock, helper, []string{returnData[0][0].(string)})
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
 					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
@@ -315,7 +307,6 @@ func TestDeployments(t *testing.T) {
 				helper := testObjectHelper
 				returnData := GetReturnDataForLookup(helper, nil)
 				lookupKeys := GetLookupKeys(helper, fixtures)
-				ExpectLookupNegated(mock, helper, lookupKeys, returnData)
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectInsert(mock, helper, helper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
@@ -357,8 +348,6 @@ func TestDeployments(t *testing.T) {
 				helper := testObjectHelper
 				returnData := GetReturnDataForLookup(helper, fixtures)
 				lookupKeys := GetLookupKeys(helper, fixtures)
-				ExpectLookupNegated(mock, helper, lookupKeys, returnData)
-				ExpectDelete(mock, helper, []string{returnData[0][0].(string), returnData[1][0].(string)})
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
 					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
@@ -394,8 +383,6 @@ func TestDeployments(t *testing.T) {
 					fixtures[0],
 				})
 				lookupKeys := GetLookupKeys(helper, fixtures)
-				ExpectLookupNegated(mock, helper, lookupKeys, returnData)
-				ExpectDelete(mock, helper, []string{returnData[0][0].(string)})
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
 					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
@@ -451,7 +438,6 @@ func TestDeployments(t *testing.T) {
 
 				testReturnData := GetReturnDataForLookup(testObjectHelper, nil)
 				testLookupKeys := GetLookupKeys(testObjectHelper, testObjects)
-				ExpectLookupNegated(mock, testObjectHelper, testLookupKeys, testReturnData)
 				ExpectLookup(mock, testObjectHelper, testLookupKeys, testReturnData)
 
 				childInsertRows := ExpectInsert(mock, testObjectHelper, testObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
@@ -480,7 +466,6 @@ func TestDeployments(t *testing.T) {
 
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
-				ExpectLookupNegated(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
@@ -503,7 +488,6 @@ func TestDeployments(t *testing.T) {
 				fixtures := fixturesAbstract.([]testdata.TestObject)
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
 				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
-				ExpectLookupNegated(mock, testObjectHelper, lookupKeys, returnData)
 				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
 				insertRows := ExpectInsert(mock, testObjectHelper, testObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
@@ -531,7 +515,6 @@ func TestDeployments(t *testing.T) {
 
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
-				ExpectLookupNegated(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
@@ -561,7 +544,6 @@ func TestDeployments(t *testing.T) {
 				fixtures := fixturesAbstract.([]testdata.TestObject)
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
 				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
-				ExpectLookupNegated(mock, testObjectHelper, lookupKeys, returnData)
 				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
 				insertRows := ExpectInsert(mock, testObjectHelper, testObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
@@ -591,10 +573,6 @@ func TestDeployments(t *testing.T) {
 				childLookupKeysBatch1 := GetLookupKeys(testChildObjectHelper, []testdata.ChildTestObject{
 					childObjects[0],
 				})
-				childLookupKeysBatch2 := GetLookupKeys(testChildObjectHelper, []testdata.ChildTestObject{
-					childObjects[1],
-				})
-				ExpectLookupNegated(mock, testChildObjectHelper, append(childLookupKeysBatch1, childLookupKeysBatch2...), childReturnData)
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeysBatch1, childReturnData)
 				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
@@ -604,6 +582,9 @@ func TestDeployments(t *testing.T) {
 						testChildObjectHelper.GetFixtureValue(childObjects, 0, "ParentID"),
 						nil,
 					},
+				})
+				childLookupKeysBatch2 := GetLookupKeys(testChildObjectHelper, []testdata.ChildTestObject{
+					childObjects[1],
 				})
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeysBatch2, childReturnData)
 				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
@@ -627,7 +608,6 @@ func TestDeployments(t *testing.T) {
 				fixtures := fixturesAbstract.([]testdata.TestObjectWithOrphans)
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
 				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
-				ExpectLookupNegated(mock, testObjectHelper, lookupKeys, returnData)
 				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
 				insertRows := ExpectInsert(mock, testObjectHelper, testObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
@@ -655,7 +635,6 @@ func TestDeployments(t *testing.T) {
 
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
-				ExpectLookupNegated(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
@@ -685,7 +664,6 @@ func TestDeployments(t *testing.T) {
 				fixtures := fixturesAbstract.([]testdata.TestObject)
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
 				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
-				ExpectLookupNegated(mock, testObjectHelper, lookupKeys, returnData)
 				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
 				insertRows := ExpectInsert(mock, testObjectHelper, testObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
@@ -713,7 +691,6 @@ func TestDeployments(t *testing.T) {
 
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
-				ExpectLookupNegated(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
@@ -739,8 +716,6 @@ func TestDeployments(t *testing.T) {
 				fixtures := fixturesAbstract.([]testdata.TestObject)
 				returnData := GetReturnDataForLookup(helper, fixtures)
 				lookupKeys := GetLookupKeys(helper, fixtures)
-				ExpectLookupNegated(mock, helper, lookupKeys, returnData)
-				ExpectDelete(mock, helper, []string{returnData[0][0].(string)})
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
 					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
@@ -763,7 +738,6 @@ func TestDeployments(t *testing.T) {
 
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
-				ExpectLookupNegated(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					[]driver.Value{
@@ -794,8 +768,6 @@ func TestDeployments(t *testing.T) {
 				fixtures := fixturesAbstract.([]testdata.TestObjectWithOrphans)
 				returnData := GetReturnDataForLookup(helper, fixtures)
 				lookupKeys := GetLookupKeys(helper, fixtures)
-				ExpectLookupNegated(mock, testObjectHelper, lookupKeys, returnData)
-				ExpectDelete(mock, helper, []string{returnData[0][0].(string)})
 				ExpectLookup(mock, testObjectHelper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
 					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
@@ -821,7 +793,6 @@ func TestDeployments(t *testing.T) {
 
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
-				ExpectLookupNegated(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 				// Expect the normal lookup
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 
@@ -877,8 +848,6 @@ func TestDeployments(t *testing.T) {
 				fixtures := fixturesAbstract.([]testdata.TestObjectWithOrphans)
 				returnData := GetReturnDataForLookup(helper, fixtures)
 				lookupKeys := GetLookupKeys(helper, fixtures)
-				ExpectLookupNegated(mock, helper, lookupKeys, returnData)
-				ExpectDelete(mock, helper, []string{returnData[0][0].(string)})
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
 					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
@@ -904,7 +873,6 @@ func TestDeployments(t *testing.T) {
 
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, nil)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
-				ExpectLookupNegated(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 				// Expect the normal lookup
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 				ExpectInsert(mock, testChildObjectHelper, testChildObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
@@ -978,8 +946,6 @@ func TestDeployments(t *testing.T) {
 				fixtures := fixturesAbstract.([]testdata.TestObject)
 				returnData := GetReturnDataForLookup(helper, fixtures)
 				lookupKeys := GetLookupKeys(helper, fixtures)
-				ExpectLookupNegated(mock, helper, lookupKeys, returnData)
-				ExpectDelete(mock, helper, []string{returnData[0][0].(string)})
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
 					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
@@ -1002,8 +968,6 @@ func TestDeployments(t *testing.T) {
 
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, childObjects)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
-				ExpectLookupNegated(mock, testChildObjectHelper, childLookupKeys, childReturnData)
-				ExpectDelete(mock, testChildObjectHelper, []string{childReturnData[0][0].(string), childReturnData[1][0].(string)})
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 				ExpectUpdate(mock, testChildObjectHelper, [][]string{
 					testChildObjectHelper.GetUpdateDBColumnsForFixture(childObjects, 0),
@@ -1031,8 +995,6 @@ func TestDeployments(t *testing.T) {
 				fixtures := fixturesAbstract.([]testdata.TestObjectWithOrphans)
 				returnData := GetReturnDataForLookup(helper, fixtures)
 				lookupKeys := GetLookupKeys(helper, fixtures)
-				ExpectLookupNegated(mock, helper, lookupKeys, returnData)
-				ExpectDelete(mock, helper, []string{returnData[0][0].(string)})
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
 					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
@@ -1058,8 +1020,6 @@ func TestDeployments(t *testing.T) {
 
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, childObjects)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
-				ExpectLookupNegated(mock, testChildObjectHelper, childLookupKeys, childReturnData)
-				ExpectDelete(mock, testChildObjectHelper, []string{childReturnData[0][0].(string), childReturnData[1][0].(string)})
 				// Expect the normal lookup
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 
@@ -1131,8 +1091,6 @@ func TestDeployments(t *testing.T) {
 				fixtures := fixturesAbstract.([]testdata.TestObjectWithOrphans)
 				returnData := GetReturnDataForLookup(helper, fixtures)
 				lookupKeys := GetLookupKeys(helper, fixtures)
-				ExpectLookupNegated(mock, helper, lookupKeys, returnData)
-				ExpectDelete(mock, helper, []string{returnData[0][0].(string), returnData[1][0].(string)})
 				ExpectLookup(mock, helper, lookupKeys, returnData)
 				ExpectUpdate(mock, helper, [][]string{
 					helper.GetUpdateDBColumnsForFixture(fixtures, 0),
@@ -1165,13 +1123,6 @@ func TestDeployments(t *testing.T) {
 
 				childReturnData := GetReturnDataForLookup(testChildObjectHelper, childObjects)
 				childLookupKeys := GetLookupKeys(testChildObjectHelper, childObjects)
-				ExpectLookupNegated(mock, testChildObjectHelper, childLookupKeys, childReturnData)
-				ExpectDelete(mock, testChildObjectHelper, []string{
-					childReturnData[0][0].(string),
-					childReturnData[1][0].(string),
-					childReturnData[2][0].(string),
-					childReturnData[3][0].(string),
-				})
 				// Expect the normal lookup
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeys, childReturnData)
 
@@ -1273,8 +1224,6 @@ func TestDeployments(t *testing.T) {
 				parentIDs := []string{}
 				childObjects := []testdata.ChildTestObject{}
 
-				ExpectLookupNegated(mock, helper, append(batch1LookupKeys, batch2LookupKeys...), batch1ReturnData)
-				ExpectDelete(mock, helper, []string{batch1ReturnData[0][0].(string)})
 				ExpectLookup(mock, helper, batch1LookupKeys, batch1ReturnData)
 				ExpectUpdate(mock, helper, [][]string{
 					helper.GetUpdateDBColumnsForFixture(batch1Fixtures, 0),
@@ -1338,11 +1287,7 @@ func TestDeployments(t *testing.T) {
 				childLookupKeysBatch3 := GetLookupKeys(testChildObjectHelper, batch3ChildFixtures)
 				childReturnDataBatch4 := GetReturnDataForLookup(testChildObjectHelper, batch4ChildFixtures)
 				childLookupKeysBatch4 := GetLookupKeys(testChildObjectHelper, batch4ChildFixtures)
-				childLookupKeys := append(childLookupKeysBatch1, childLookupKeysBatch2...)
-				childLookupKeys = append(childLookupKeys, childLookupKeysBatch3...)
-				childLookupKeys = append(childLookupKeys, childLookupKeysBatch4...)
-				ExpectLookupNegated(mock, testChildObjectHelper, childLookupKeys, childReturnDataBatch1)
-				ExpectDelete(mock, testChildObjectHelper, []string{childReturnDataBatch1[0][0].(string)})
+
 				// Expect the normal lookup
 				ExpectLookup(mock, testChildObjectHelper, childLookupKeysBatch1, childReturnDataBatch1)
 
@@ -1460,8 +1405,6 @@ func TestDeployments(t *testing.T) {
 					},
 				}
 
-				ExpectLookupNegated(mock, testChildObjectWithLookupHelper, []string{"ChildItem|Simple|"}, returnData)
-				ExpectDelete(mock, testChildObjectHelper, []string{returnData[0][0].(string)})
 				ExpectLookup(mock, testChildObjectWithLookupHelper, []string{"ChildItem|Simple|"}, returnData)
 
 				// Expect the foreign key lookup next
@@ -1506,7 +1449,6 @@ func TestDeployments(t *testing.T) {
 					})
 				}
 
-				ExpectLookupNegated(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
 				ExpectLookup(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
 
 				// Expect the foreign key lookup next
@@ -1549,7 +1491,6 @@ func TestDeployments(t *testing.T) {
 					})
 				}
 
-				ExpectLookupNegated(mock, testChildObjectHelper, lookupKeys, returnData)
 				ExpectLookup(mock, testChildObjectHelper, lookupKeys, returnData)
 
 				// Expect the foreign key lookup next
@@ -1594,7 +1535,6 @@ func TestDeployments(t *testing.T) {
 					})
 				}
 
-				ExpectLookupNegated(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
 				ExpectLookup(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
 
 				// Expect the foreign key lookup next
@@ -1636,7 +1576,6 @@ func TestDeployments(t *testing.T) {
 				lookupKeys := []string{"ChildItem|Simple|"}
 				returnData := [][]driver.Value{}
 
-				ExpectLookupNegated(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
 				ExpectLookup(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
 
 				// Expect the foreign key lookup next
@@ -1654,7 +1593,6 @@ func TestDeployments(t *testing.T) {
 				lookupKeys := []string{"ChildItem|Simple|", "ChildItem2|Simple2|"}
 				returnData := [][]driver.Value{}
 
-				ExpectLookupNegated(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
 				ExpectLookup(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
 
 				// Expect the foreign key lookup next
@@ -1672,7 +1610,6 @@ func TestDeployments(t *testing.T) {
 				lookupKeys := []string{"ChildItem|Simple|"}
 				returnData := [][]driver.Value{}
 
-				ExpectLookupNegated(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
 				ExpectLookup(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
 
 				// Expect the foreign key lookup next
@@ -1701,7 +1638,6 @@ func TestDeployments(t *testing.T) {
 				})
 				junctionLookupKeys := []string{"George|Fred"}
 
-				ExpectLookupNegated(mock, junctionHelper, junctionLookupKeys, junctionReturnData)
 				ExpectLookup(mock, junctionHelper, junctionLookupKeys, junctionReturnData)
 
 				ExpectLookup(mock, personHelper, []string{"George"}, personReturnData1)
@@ -1743,7 +1679,6 @@ func TestDeployments(t *testing.T) {
 				})
 				junctionLookupKeys := []string{"|Fred"}
 
-				ExpectLookupNegated(mock, junctionHelper, junctionLookupKeys, junctionReturnData)
 				ExpectLookup(mock, junctionHelper, junctionLookupKeys, junctionReturnData)
 
 				ExpectLookup(mock, personWithPKHelper, []string{"00000000-0000-0000-0000-000000C0FFEE"}, personReturnData1)
@@ -1778,7 +1713,6 @@ func TestDeployments(t *testing.T) {
 
 				junctionLookupKeys := []string{"00000000-0000-0000-0000-000000C0FFEE|Fred"}
 
-				ExpectLookupNegated(mock, junctionHelper, junctionLookupKeys, junctionReturnData)
 				ExpectLookup(mock, junctionHelper, junctionLookupKeys, junctionReturnData)
 
 				ExpectLookup(mock, personHelper, []string{"Fred"}, personReturnData1)
@@ -1798,9 +1732,6 @@ func TestDeployments(t *testing.T) {
 
 	// Run first with the default batch size
 	for _, c := range cases {
-		// if c.TestName != "Test name" { // uncomment to test single cases
-		// 	continue
-		// }
 		t.Run(c.TestName, func(t *testing.T) {
 			fixtures, err := loadTestObjects(c.FixtureNames, c.FixtureType)
 			if err != nil {

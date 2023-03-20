@@ -267,32 +267,9 @@ func ExpectLookup(mock *sqlmock.Sqlmock, expect ExpectationHelper, lookupKeys []
 	(*mock).ExpectQuery(expectSQL).WithArgs(expectedArgs...).WillReturnRows(returnRows)
 }
 
-func ExpectLookupNegated(mock *sqlmock.Sqlmock, expect ExpectationHelper, lookupKeys []string, returnData [][]driver.Value) {
-	expectNegated := expect
-	expectNegated.LookupWhere = "NOT " + expectNegated.LookupWhere
-	ExpectLookup(mock, expectNegated, lookupKeys, returnData)
-}
-
 // ExpectQuery is just a wrapper around sqlmock
 func ExpectQuery(mock *sqlmock.Sqlmock, expectSQL string) *sqlmock.ExpectedQuery {
 	return (*mock).ExpectQuery(expectSQL)
-}
-
-type VerifyArgs struct {
-	values []string
-}
-
-func (a VerifyArgs) Match(v driver.Value) bool {
-	actual, ok := v.(string)
-	if !ok {
-		return false
-	}
-	for _, expected := range a.values {
-		if actual == expected {
-			return true
-		}
-	}
-	return false
 }
 
 // ExpectDelete Mocks a delete request to the database.
@@ -305,26 +282,13 @@ func ExpectDelete(mock *sqlmock.Sqlmock, expect ExpectationHelper, expectedIDs [
 	expectSQL := `
 		DELETE FROM ` + expect.getTableName() + `
 		WHERE ` + deletePKField + ` IN \(` + strings.Join(valueParams, ",") + `\) AND organization_id = \$` + strconv.Itoa(len(expectedIDs)+1)
-	expectedArgs := append(expectedIDs, sampleOrgID)
 
-	exec := (*mock).ExpectExec(expectSQL)
-
-	// doing this because WithArgs doesn't accept custom interfaces in a variadic way
-	// either way, it shouldn't be a major problem because of unit tests using static size arrays
-	switch len(expectedIDs) {
-	case 1:
-		exec = exec.WithArgs(VerifyArgs{expectedArgs}, VerifyArgs{expectedArgs})
-	case 2:
-		exec = exec.WithArgs(VerifyArgs{expectedArgs}, VerifyArgs{expectedArgs}, VerifyArgs{expectedArgs})
-	case 3:
-		exec = exec.WithArgs(VerifyArgs{expectedArgs}, VerifyArgs{expectedArgs}, VerifyArgs{expectedArgs}, VerifyArgs{expectedArgs})
-	case 4:
-		exec = exec.WithArgs(VerifyArgs{expectedArgs}, VerifyArgs{expectedArgs}, VerifyArgs{expectedArgs}, VerifyArgs{expectedArgs}, VerifyArgs{expectedArgs})
-	default:
-		exec = exec.WithArgs(VerifyArgs{expectedArgs})
+	expectedArgs := []driver.Value{}
+	for _, ID := range expectedIDs {
+		expectedArgs = append(expectedArgs, ID)
 	}
-
-	exec.WillReturnResult(sqlmock.NewResult(1, 1))
+	expectedArgs = append(expectedArgs, sampleOrgID)
+	(*mock).ExpectExec(expectSQL).WithArgs(expectedArgs...).WillReturnResult(sqlmock.NewResult(1, 1))
 	return nil
 }
 
