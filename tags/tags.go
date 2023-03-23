@@ -235,8 +235,9 @@ SQL translation in WHERE clause grouping:
 	t0.field_B = "bar"
 */
 type FieldFilter struct {
-	FieldName   string
-	FilterValue interface{}
+	FieldName      string
+	FilterValue    interface{}
+	FilterOperator string
 }
 
 // Apply applies the filter
@@ -247,7 +248,19 @@ func (ff FieldFilter) Apply(table *qp.Table, metadata *TableMetadata) squirrel.S
 	}
 	fieldMetadata := metadata.GetField(ff.FieldName)
 	columnName := fieldMetadata.GetColumnName()
-	return squirrel.Eq{fmt.Sprintf(qp.AliasedField, table.Alias, columnName): ff.FilterValue}
+	expr := fmt.Sprintf(qp.AliasedField, table.Alias, columnName)
+	switch ff.FilterOperator {
+	case "<":
+		return squirrel.Lt{expr: ff.FilterValue}
+	case "<=":
+		return squirrel.LtOrEq{expr: ff.FilterValue}
+	case ">":
+		return squirrel.Gt{expr: ff.FilterValue}
+	case ">=":
+		return squirrel.GtOrEq{expr: ff.FilterValue}
+	default:
+		return squirrel.Eq{expr: ff.FilterValue}
+	}
 }
 
 // OrFilterGroup applies a group of filters using ors
