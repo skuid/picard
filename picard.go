@@ -196,8 +196,9 @@ func (p PersistenceORM) upsert(data interface{}, deleteFilters interface{}) erro
 	if deleteFilters != nil {
 		deletes := []dbchange.Change{}
 		deleteResults, err := p.FilterModel(FilterRequest{
-			FilterModel: deleteFilters,
-			Runner:      p.transaction,
+			FilterModel:  deleteFilters,
+			Runner:       p.transaction,
+			Associations: getAssociations(tableMetadata),
 		})
 		if err != nil {
 			return err
@@ -416,6 +417,19 @@ func (p PersistenceORM) getExistingObjectByID(tableMetadata *tags.TableMetadata,
 	return results[0], nil
 }
 
+func getAssociations(tableMetadata *tags.TableMetadata) []tags.Association {
+	assocs := []tags.Association{}
+	foreignKeys := tableMetadata.GetForeignKeys()
+	for _, foreignKey := range foreignKeys {
+		a := tags.Association{
+			Name:         foreignKey.RelatedFieldName,
+			Associations: getAssociations(foreignKey.TableMetadata),
+		}
+		assocs = append(assocs, a)
+	}
+	return assocs
+}
+
 func (p PersistenceORM) checkForExisting(
 	data interface{},
 	tableMetadata *tags.TableMetadata,
@@ -574,16 +588,35 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tags.TableMetadata, fo
 			}, lookupsToUse...)
 		}
 
-		// Iterate over foreign keys to check in reverse so we can remove items without consequence
+		// Iterate over foreign keys to check in reverse so we can remove foreign keys that already have values
 		for i := len(foreignKeysToCheck) - 1; i >= 0; i-- {
 			foreignKeyToCheck := foreignKeysToCheck[i]
 			fkValue := item.FieldByName(foreignKeyToCheck.FieldName)
-			if fkValue.IsValid() && fkValue.String() != "" && foreignKeyToCheck.NeedsLookup {
+			fkValueType := fkValue.Kind()
+			fkValueActual := ""
+			if fkValueType == reflect.String {
+				fkValueActual = fkValue.String()
+			} else if fkValueType == reflect.Pointer {
+				v := fkValue.Elem()
+				if v.IsValid() {
+					fkValueActual = v.String()
+				}
+			} else {
+				fkValueActual = fkValue.String()
+			}
+			if fkValue.IsValid() && fkValueActual != "" && foreignKeyToCheck.NeedsLookup {
+				// Take this foreign key out because we already have its id and do not need to look it up
 				foreignKeysToCheck = append(foreignKeysToCheck[:i], foreignKeysToCheck[i+1:]...)
 				lookupsToUse = append(lookupsToUse, tags.Lookup{
 					MatchDBColumn:       foreignKeyToCheck.KeyColumn,
 					MatchObjectProperty: foreignKeyToCheck.FieldName,
 				})
+			} else {
+				// We don't have the id value for this foreign key so it does need a lookup
+				// But we should only pass on the ones where the original data has the values to lookup
+				if !hasForeignKeyData(item, foreignKeyToCheck) {
+					foreignKeysToCheck = append(foreignKeysToCheck[:i], foreignKeysToCheck[i+1:]...)
+				}
 			}
 		}
 	}
@@ -595,6 +628,21 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tags.TableMetadata, fo
 	lookupsToUse = append(lookupsToUse, getLookupsFromForeignKeys(foreignKeysToCheck, "", "", tableAliasCache)...)
 
 	return lookupsToUse
+}
+
+func hasForeignKeyData(item reflect.Value, foreignKey tags.ForeignKey) bool {
+	fk := item.FieldByName(foreignKey.RelatedFieldName)
+	tableMetadata := foreignKey.TableMetadata
+	hasData := true
+
+	// We're checking this way because we need to make sure that all lookups have data
+	// AKA if even one part of the lookup doesn't have data don't use it
+	for _, lookup := range tableMetadata.GetLookups() {
+		if fk.FieldByName(lookup.MatchObjectProperty).String() == "" {
+			hasData = false
+		}
+	}
+	return hasData
 }
 
 func getLookupObjectKeys(data interface{}, lookupsToUse []tags.Lookup, foreignKey *tags.ForeignKey) []string {
@@ -732,7 +780,15 @@ func (p PersistenceORM) performChildUpserts(changeObjects []dbchange.Change, tab
 					value := childValue.Index(i)
 					if child.ForeignKey != "" {
 						keyField := getValueFromLookupString(value, child.ForeignKey)
-						keyField.SetString(foreignKeyValue.(string))
+						keyFieldType := keyField.Kind()
+						if keyFieldType == reflect.String {
+							keyField.SetString(foreignKeyValue.(string))
+						} else if keyFieldType == reflect.Pointer {
+							stringValue := foreignKeyValue.(string)
+							keyField.Set(reflect.ValueOf(&stringValue))
+						} else {
+							keyField.SetString(foreignKeyValue.(string))
+						}
 					}
 					data = reflect.Append(data, value)
 					index = index + 1
@@ -1116,7 +1172,16 @@ func getValueFromLookupString(value reflect.Value, lookupString string) reflect.
 }
 
 func getObjectProperty(value reflect.Value, lookupString string) string {
-	return getValueFromLookupString(value, lookupString).String()
+	val := getValueFromLookupString(value, lookupString)
+	valueKind := val.Kind()
+	if valueKind == reflect.String {
+		return val.String()
+	} else if valueKind == reflect.Pointer {
+		v := val.Elem().String()
+		return v
+	} else {
+		return val.String()
+	}
 }
 
 func getQueryResults(rows *sql.Rows) ([]map[string]interface{}, error) {
