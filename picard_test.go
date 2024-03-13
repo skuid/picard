@@ -47,10 +47,10 @@ var testChildObjectHelper = ExpectationHelper{
 
 var testChildObjectWithLookupHelper = ExpectationHelper{
 	FixtureType:      testdata.ChildTestObject{},
-	LookupFrom:       `childtest JOIN testobject as t1 on t1.id::"varchar" = parent_id::"varchar"`,
-	LookupSelect:     "childtest.id, childtest.name as childtest_name, t1.name as t1_name, t1.nullable_lookup as t1_nullable_lookup",
-	LookupWhere:      `COALESCE(childtest.name::"varchar",'') || '|' || COALESCE(t1.name::"varchar",'') || '|' || COALESCE(t1.nullable_lookup::"varchar",'')`,
-	LookupReturnCols: []string{"id", "childtest_name", "t1_name", "t1_nullable_lookup"},
+	LookupFrom:       `childtest`,
+	LookupSelect:     "childtest.id, childtest.name as childtest_name",
+	LookupWhere:      `COALESCE(childtest.name::"varchar",'')`,
+	LookupReturnCols: []string{"id", "childtest_name"},
 	LookupFields:     []string{"Name", "ParentID"},
 }
 
@@ -60,6 +60,15 @@ var siblingJunctionHelper = ExpectationHelper{
 	LookupSelect:     "siblingjunction.id, t1.name as t1_name, t2.name as t2_name",
 	LookupWhere:      `COALESCE(t1.name::"varchar",'') || '|' || COALESCE(t2.name::"varchar",'')`,
 	LookupReturnCols: []string{"id", "t1_name", "t2_name"},
+	LookupFields:     []string{"ChildID", "SiblingID"},
+}
+
+var simpleSiblingJunctionHelper = ExpectationHelper{
+	FixtureType:      testdata.SiblingJunctionModel{},
+	LookupFrom:       `siblingjunction JOIN personmodel as t1 on t1.id::"varchar" = sibling_id::"varchar"`,
+	LookupSelect:     "siblingjunction.id, t1.name as t1_name",
+	LookupWhere:      `COALESCE(t1.name::"varchar",'')`,
+	LookupReturnCols: []string{"id", "t1_name"},
 	LookupFields:     []string{"ChildID", "SiblingID"},
 }
 
@@ -821,11 +830,49 @@ func TestDeployments(t *testing.T) {
 							t0.name AS "t0.name",
 							t0.other_info AS "t0.other_info",
 							t0.parent_id AS "t0.parent_id",
-							t0.optional_parent_id AS "t0.optional_parent_id"
-						FROM childtest AS t0
-						WHERE t0.organization_id = $1 AND ((t0.parent_id = $2))
+							t0.optional_parent_id AS "t0.optional_parent_id",
+							t1.id AS "t1.id",
+							t1.organization_id AS "t1.organization_id",
+							t1.name AS "t1.name",
+							t1.nullable_lookup AS "t1.nullable_lookup",
+							t1.type AS "t1.type",
+							t1.is_active AS "t1.is_active",
+							t1.parent_id AS "t1.parent_id",
+							t1.config AS "t1.config",
+							t1.created_by_id AS "t1.created_by_id",
+							t1.updated_by_id AS "t1.updated_by_id",
+							t1.created_at AS "t1.created_at",
+							t1.updated_at AS "t1.updated_at",
+							t2.id AS "t2.id",
+							t2.organization_id AS "t2.organization_id",
+							t2.name AS "t2.name",
+							t3.id AS "t3.id",
+							t3.organization_id AS "t3.organization_id",
+							t3.name AS "t3.name",
+							t3.nullable_lookup AS "t3.nullable_lookup",
+							t3.type AS "t3.type",
+							t3.is_active AS "t3.is_active",
+							t3.parent_id AS "t3.parent_id",
+							t3.config AS "t3.config",
+							t3.created_by_id AS "t3.created_by_id",
+							t3.updated_by_id AS "t3.updated_by_id",
+							t3.created_at AS "t3.created_at",
+							t3.updated_at AS "t3.updated_at",
+							t4.id AS "t4.id",
+							t4.organization_id AS "t4.organization_id",
+							t4.name AS "t4.name" 
+						FROM childtest AS t0 
+						LEFT JOIN testobject AS t1 
+							ON (t1.id = t0.parent_id AND t1.organization_id = $1) 
+						LEFT JOIN parenttest AS t2 
+							ON (t2.id = t1.parent_id AND t2.organization_id = $2) 
+						LEFT JOIN testobject AS t3 
+							ON (t3.id = t0.optional_parent_id AND t3.organization_id = $3) 
+						LEFT JOIN parenttest AS t4 
+							ON (t4.id = t3.parent_id AND t4.organization_id = $4) 
+						WHERE t0.organization_id = $5 AND ((t0.parent_id = $6))
 					`)).
-					WithArgs(sampleOrgID, parentIDs[0]).
+					WithArgs(sampleOrgID, sampleOrgID, sampleOrgID, sampleOrgID, sampleOrgID, parentIDs[0]).
 					WillReturnRows(
 						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
@@ -900,11 +947,49 @@ func TestDeployments(t *testing.T) {
 							t0.name AS "t0.name",
 							t0.other_info AS "t0.other_info",
 							t0.parent_id AS "t0.parent_id",
-							t0.optional_parent_id AS "t0.optional_parent_id"
-						FROM childtest AS t0
-						WHERE t0.organization_id = $1 AND ((t0.parent_id = $2))
+							t0.optional_parent_id AS "t0.optional_parent_id",
+							t1.id AS "t1.id",
+							t1.organization_id AS "t1.organization_id",
+							t1.name AS "t1.name",
+							t1.nullable_lookup AS "t1.nullable_lookup",
+							t1.type AS "t1.type",
+							t1.is_active AS "t1.is_active",
+							t1.parent_id AS "t1.parent_id",
+							t1.config AS "t1.config",
+							t1.created_by_id AS "t1.created_by_id",
+							t1.updated_by_id AS "t1.updated_by_id",
+							t1.created_at AS "t1.created_at",
+							t1.updated_at AS "t1.updated_at",
+							t2.id AS "t2.id",
+							t2.organization_id AS "t2.organization_id",
+							t2.name AS "t2.name",
+							t3.id AS "t3.id",
+							t3.organization_id AS "t3.organization_id",
+							t3.name AS "t3.name",
+							t3.nullable_lookup AS "t3.nullable_lookup",
+							t3.type AS "t3.type",
+							t3.is_active AS "t3.is_active",
+							t3.parent_id AS "t3.parent_id",
+							t3.config AS "t3.config",
+							t3.created_by_id AS "t3.created_by_id",
+							t3.updated_by_id AS "t3.updated_by_id",
+							t3.created_at AS "t3.created_at",
+							t3.updated_at AS "t3.updated_at",
+							t4.id AS "t4.id",
+							t4.organization_id AS "t4.organization_id",
+							t4.name AS "t4.name" 
+						FROM childtest AS t0 
+						LEFT JOIN testobject AS t1 
+							ON (t1.id = t0.parent_id AND t1.organization_id = $1) 
+						LEFT JOIN parenttest AS t2 
+							ON (t2.id = t1.parent_id AND t2.organization_id = $2) 
+						LEFT JOIN testobject AS t3 
+							ON (t3.id = t0.optional_parent_id AND t3.organization_id = $3) 
+						LEFT JOIN parenttest AS t4 
+							ON (t4.id = t3.parent_id AND t4.organization_id = $4) 
+						WHERE t0.organization_id = $5 AND ((t0.parent_id = $6))
 					`)).
-					WithArgs(sampleOrgID, parentIDs[0]).
+					WithArgs(sampleOrgID, sampleOrgID, sampleOrgID, sampleOrgID, sampleOrgID, parentIDs[0]).
 					WillReturnRows(
 						sqlmock.NewRows([]string{"t0.name", "t0.id"}).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001").
@@ -921,11 +1006,49 @@ func TestDeployments(t *testing.T) {
 							t0.name AS "t0.name",
 							t0.other_info AS "t0.other_info",
 							t0.parent_id AS "t0.parent_id",
-							t0.optional_parent_id AS "t0.optional_parent_id"
-						FROM childtest AS t0
-						WHERE t0.organization_id = $1 AND ((t0.parent_id = $2))
+							t0.optional_parent_id AS "t0.optional_parent_id",
+							t1.id AS "t1.id",
+							t1.organization_id AS "t1.organization_id",
+							t1.name AS "t1.name",
+							t1.nullable_lookup AS "t1.nullable_lookup",
+							t1.type AS "t1.type",
+							t1.is_active AS "t1.is_active",
+							t1.parent_id AS "t1.parent_id",
+							t1.config AS "t1.config",
+							t1.created_by_id AS "t1.created_by_id",
+							t1.updated_by_id AS "t1.updated_by_id",
+							t1.created_at AS "t1.created_at",
+							t1.updated_at AS "t1.updated_at",
+							t2.id AS "t2.id",
+							t2.organization_id AS "t2.organization_id",
+							t2.name AS "t2.name",
+							t3.id AS "t3.id",
+							t3.organization_id AS "t3.organization_id",
+							t3.name AS "t3.name",
+							t3.nullable_lookup AS "t3.nullable_lookup",
+							t3.type AS "t3.type",
+							t3.is_active AS "t3.is_active",
+							t3.parent_id AS "t3.parent_id",
+							t3.config AS "t3.config",
+							t3.created_by_id AS "t3.created_by_id",
+							t3.updated_by_id AS "t3.updated_by_id",
+							t3.created_at AS "t3.created_at",
+							t3.updated_at AS "t3.updated_at",
+							t4.id AS "t4.id",
+							t4.organization_id AS "t4.organization_id",
+							t4.name AS "t4.name" 
+						FROM childtest AS t0 
+						LEFT JOIN testobject AS t1 
+							ON (t1.id = t0.parent_id AND t1.organization_id = $1) 
+						LEFT JOIN parenttest AS t2 
+							ON (t2.id = t1.parent_id AND t2.organization_id = $2) 
+						LEFT JOIN testobject AS t3 
+							ON (t3.id = t0.optional_parent_id AND t3.organization_id = $3) 
+						LEFT JOIN parenttest AS t4 
+							ON (t4.id = t3.parent_id AND t4.organization_id = $4) 
+						WHERE t0.organization_id = $5 AND ((t0.parent_id = $6))
 					`)).
-					WithArgs(sampleOrgID, parentIDs[0]).
+					WithArgs(sampleOrgID, sampleOrgID, sampleOrgID, sampleOrgID, sampleOrgID, parentIDs[0]).
 					WillReturnRows(
 						sqlmock.NewRows([]string{"t0.name", "t0.id"}).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001").
@@ -1045,11 +1168,49 @@ func TestDeployments(t *testing.T) {
 							t0.name AS "t0.name",
 							t0.other_info AS "t0.other_info",
 							t0.parent_id AS "t0.parent_id",
-							t0.optional_parent_id AS "t0.optional_parent_id"
-						FROM childtest AS t0
-						WHERE t0.organization_id = $1 AND ((t0.parent_id = $2))
+							t0.optional_parent_id AS "t0.optional_parent_id",
+							t1.id AS "t1.id",
+							t1.organization_id AS "t1.organization_id",
+							t1.name AS "t1.name",
+							t1.nullable_lookup AS "t1.nullable_lookup",
+							t1.type AS "t1.type",
+							t1.is_active AS "t1.is_active",
+							t1.parent_id AS "t1.parent_id",
+							t1.config AS "t1.config",
+							t1.created_by_id AS "t1.created_by_id",
+							t1.updated_by_id AS "t1.updated_by_id",
+							t1.created_at AS "t1.created_at",
+							t1.updated_at AS "t1.updated_at",
+							t2.id AS "t2.id",
+							t2.organization_id AS "t2.organization_id",
+							t2.name AS "t2.name",
+							t3.id AS "t3.id",
+							t3.organization_id AS "t3.organization_id",
+							t3.name AS "t3.name",
+							t3.nullable_lookup AS "t3.nullable_lookup",
+							t3.type AS "t3.type",
+							t3.is_active AS "t3.is_active",
+							t3.parent_id AS "t3.parent_id",
+							t3.config AS "t3.config",
+							t3.created_by_id AS "t3.created_by_id",
+							t3.updated_by_id AS "t3.updated_by_id",
+							t3.created_at AS "t3.created_at",
+							t3.updated_at AS "t3.updated_at",
+							t4.id AS "t4.id",
+							t4.organization_id AS "t4.organization_id",
+							t4.name AS "t4.name" 
+						FROM childtest AS t0 
+						LEFT JOIN testobject AS t1 
+							ON (t1.id = t0.parent_id AND t1.organization_id = $1) 
+						LEFT JOIN parenttest AS t2 
+							ON (t2.id = t1.parent_id AND t2.organization_id = $2) 
+						LEFT JOIN testobject AS t3 
+							ON (t3.id = t0.optional_parent_id AND t3.organization_id = $3) 
+						LEFT JOIN parenttest AS t4 
+							ON (t4.id = t3.parent_id AND t4.organization_id = $4) 
+						WHERE t0.organization_id = $5 AND ((t0.parent_id = $6))
 					`)).
-					WithArgs(sampleOrgID, parentIDs[0]).
+					WithArgs(sampleOrgID, sampleOrgID, sampleOrgID, sampleOrgID, sampleOrgID, parentIDs[0]).
 					WillReturnRows(
 						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("ChildRecord", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
@@ -1065,11 +1226,49 @@ func TestDeployments(t *testing.T) {
 							t0.name AS "t0.name",
 							t0.other_info AS "t0.other_info",
 							t0.parent_id AS "t0.parent_id",
-							t0.optional_parent_id AS "t0.optional_parent_id"
-						FROM childtest AS t0
-						WHERE t0.organization_id = $1 AND ((t0.parent_id = $2))
+							t0.optional_parent_id AS "t0.optional_parent_id",
+							t1.id AS "t1.id",
+							t1.organization_id AS "t1.organization_id",
+							t1.name AS "t1.name",
+							t1.nullable_lookup AS "t1.nullable_lookup",
+							t1.type AS "t1.type",
+							t1.is_active AS "t1.is_active",
+							t1.parent_id AS "t1.parent_id",
+							t1.config AS "t1.config",
+							t1.created_by_id AS "t1.created_by_id",
+							t1.updated_by_id AS "t1.updated_by_id",
+							t1.created_at AS "t1.created_at",
+							t1.updated_at AS "t1.updated_at",
+							t2.id AS "t2.id",
+							t2.organization_id AS "t2.organization_id",
+							t2.name AS "t2.name",
+							t3.id AS "t3.id",
+							t3.organization_id AS "t3.organization_id",
+							t3.name AS "t3.name",
+							t3.nullable_lookup AS "t3.nullable_lookup",
+							t3.type AS "t3.type",
+							t3.is_active AS "t3.is_active",
+							t3.parent_id AS "t3.parent_id",
+							t3.config AS "t3.config",
+							t3.created_by_id AS "t3.created_by_id",
+							t3.updated_by_id AS "t3.updated_by_id",
+							t3.created_at AS "t3.created_at",
+							t3.updated_at AS "t3.updated_at",
+							t4.id AS "t4.id",
+							t4.organization_id AS "t4.organization_id",
+							t4.name AS "t4.name" 
+						FROM childtest AS t0 
+						LEFT JOIN testobject AS t1 
+							ON (t1.id = t0.parent_id AND t1.organization_id = $1) 
+						LEFT JOIN parenttest AS t2 
+							ON (t2.id = t1.parent_id AND t2.organization_id = $2) 
+						LEFT JOIN testobject AS t3 
+							ON (t3.id = t0.optional_parent_id AND t3.organization_id = $3) 
+						LEFT JOIN parenttest AS t4 
+							ON (t4.id = t3.parent_id AND t4.organization_id = $4) 
+						WHERE t0.organization_id = $5 AND ((t0.parent_id = $6))
 					`)).
-					WithArgs(sampleOrgID, parentIDs[0]).
+					WithArgs(sampleOrgID, sampleOrgID, sampleOrgID, sampleOrgID, sampleOrgID, parentIDs[0]).
 					WillReturnRows(
 						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
@@ -1158,13 +1357,49 @@ func TestDeployments(t *testing.T) {
 							t0.name AS "t0.name",
 							t0.other_info AS "t0.other_info",
 							t0.parent_id AS "t0.parent_id",
-							t0.optional_parent_id AS "t0.optional_parent_id"
-						FROM childtest AS t0
-						WHERE
-							t0.organization_id = $1 AND
-							((t0.parent_id = $2) OR (t0.parent_id = $3))
+							t0.optional_parent_id AS "t0.optional_parent_id",
+							t1.id AS "t1.id",
+							t1.organization_id AS "t1.organization_id",
+							t1.name AS "t1.name",
+							t1.nullable_lookup AS "t1.nullable_lookup",
+							t1.type AS "t1.type",
+							t1.is_active AS "t1.is_active",
+							t1.parent_id AS "t1.parent_id",
+							t1.config AS "t1.config",
+							t1.created_by_id AS "t1.created_by_id",
+							t1.updated_by_id AS "t1.updated_by_id",
+							t1.created_at AS "t1.created_at",
+							t1.updated_at AS "t1.updated_at",
+							t2.id AS "t2.id",
+							t2.organization_id AS "t2.organization_id",
+							t2.name AS "t2.name",
+							t3.id AS "t3.id",
+							t3.organization_id AS "t3.organization_id",
+							t3.name AS "t3.name",
+							t3.nullable_lookup AS "t3.nullable_lookup",
+							t3.type AS "t3.type",
+							t3.is_active AS "t3.is_active",
+							t3.parent_id AS "t3.parent_id",
+							t3.config AS "t3.config",
+							t3.created_by_id AS "t3.created_by_id",
+							t3.updated_by_id AS "t3.updated_by_id",
+							t3.created_at AS "t3.created_at",
+							t3.updated_at AS "t3.updated_at",
+							t4.id AS "t4.id",
+							t4.organization_id AS "t4.organization_id",
+							t4.name AS "t4.name" 
+						FROM childtest AS t0 
+						LEFT JOIN testobject AS t1 
+							ON (t1.id = t0.parent_id AND t1.organization_id = $1) 
+						LEFT JOIN parenttest AS t2 
+							ON (t2.id = t1.parent_id AND t2.organization_id = $2) 
+						LEFT JOIN testobject AS t3 
+							ON (t3.id = t0.optional_parent_id AND t3.organization_id = $3) 
+						LEFT JOIN parenttest AS t4 
+							ON (t4.id = t3.parent_id AND t4.organization_id = $4) 
+						WHERE t0.organization_id = $5 AND ((t0.parent_id = $6) OR (t0.parent_id = $7))
 					`)).
-					WithArgs(sampleOrgID, parentIDs[0], parentIDs[1]).
+					WithArgs(sampleOrgID, sampleOrgID, sampleOrgID, sampleOrgID, sampleOrgID, parentIDs[0], parentIDs[1]).
 					WillReturnRows(
 						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("ChildRecord", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
@@ -1186,12 +1421,48 @@ func TestDeployments(t *testing.T) {
 							t0.name AS "t0.name",
 							t0.other_info AS "t0.other_info",
 							t0.parent_id AS "t0.parent_id",
-							t0.optional_parent_id AS "t0.optional_parent_id"
-						FROM childtest AS t0
-						WHERE
-							t0.organization_id = $1 AND ((t0.parent_id = $2))
+							t0.optional_parent_id AS "t0.optional_parent_id",
+							t1.id AS "t1.id",
+							t1.organization_id AS "t1.organization_id",
+							t1.name AS "t1.name",
+							t1.nullable_lookup AS "t1.nullable_lookup",
+							t1.type AS "t1.type",
+							t1.is_active AS "t1.is_active",
+							t1.parent_id AS "t1.parent_id",
+							t1.config AS "t1.config",
+							t1.created_by_id AS "t1.created_by_id",
+							t1.updated_by_id AS "t1.updated_by_id",
+							t1.created_at AS "t1.created_at",
+							t1.updated_at AS "t1.updated_at",
+							t2.id AS "t2.id",
+							t2.organization_id AS "t2.organization_id",
+							t2.name AS "t2.name",
+							t3.id AS "t3.id",
+							t3.organization_id AS "t3.organization_id",
+							t3.name AS "t3.name",
+							t3.nullable_lookup AS "t3.nullable_lookup",
+							t3.type AS "t3.type",
+							t3.is_active AS "t3.is_active",
+							t3.parent_id AS "t3.parent_id",
+							t3.config AS "t3.config",
+							t3.created_by_id AS "t3.created_by_id",
+							t3.updated_by_id AS "t3.updated_by_id",
+							t3.created_at AS "t3.created_at",
+							t3.updated_at AS "t3.updated_at",
+							t4.id AS "t4.id",
+							t4.organization_id AS "t4.organization_id",
+							t4.name AS "t4.name" 
+						FROM childtest AS t0 
+						LEFT JOIN testobject AS t1 
+						ON (t1.id = t0.parent_id AND t1.organization_id = $1) 
+						LEFT JOIN parenttest AS t2 
+						ON (t2.id = t1.parent_id AND t2.organization_id = $2) 
+						LEFT JOIN testobject AS t3 
+						ON (t3.id = t0.optional_parent_id AND t3.organization_id = $3) 
+						LEFT JOIN parenttest AS t4 
+						ON (t4.id = t3.parent_id AND t4.organization_id = $4) WHERE t0.organization_id = $5 AND ((t0.parent_id = $6))
 					`)).
-					WithArgs(sampleOrgID, parentIDs[0]).
+					WithArgs(sampleOrgID, sampleOrgID, sampleOrgID, sampleOrgID, sampleOrgID, parentIDs[0]).
 					WillReturnRows(
 						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
@@ -1338,18 +1609,55 @@ func TestDeployments(t *testing.T) {
 
 				// Expect the lookup to find orphans to delete for the first child field
 				ExpectQuery(mock, testdata.FmtSQLRegex(`
-							SELECT
-								t0.id AS "t0.id",
-								t0.organization_id AS "t0.organization_id",
-								t0.name AS "t0.name",
-								t0.other_info AS "t0.other_info",
-								t0.parent_id AS "t0.parent_id",
-								t0.optional_parent_id AS "t0.optional_parent_id"
-							FROM childtest AS t0
-							WHERE
-								t0.organization_id = $1 AND ((t0.parent_id = $2) OR (t0.parent_id = $3))
+						SELECT
+							t0.id AS "t0.id",
+							t0.organization_id AS "t0.organization_id",
+							t0.name AS "t0.name",
+							t0.other_info AS "t0.other_info",
+							t0.parent_id AS "t0.parent_id",
+							t0.optional_parent_id AS "t0.optional_parent_id",
+							t1.id AS "t1.id",
+							t1.organization_id AS "t1.organization_id",
+							t1.name AS "t1.name",
+							t1.nullable_lookup AS "t1.nullable_lookup",
+							t1.type AS "t1.type",
+							t1.is_active AS "t1.is_active",
+							t1.parent_id AS "t1.parent_id",
+							t1.config AS "t1.config",
+							t1.created_by_id AS "t1.created_by_id",
+							t1.updated_by_id AS "t1.updated_by_id",
+							t1.created_at AS "t1.created_at",
+							t1.updated_at AS "t1.updated_at",
+							t2.id AS "t2.id",
+							t2.organization_id AS "t2.organization_id",
+							t2.name AS "t2.name",
+							t3.id AS "t3.id",
+							t3.organization_id AS "t3.organization_id",
+							t3.name AS "t3.name",
+							t3.nullable_lookup AS "t3.nullable_lookup",
+							t3.type AS "t3.type",
+							t3.is_active AS "t3.is_active",
+							t3.parent_id AS "t3.parent_id",
+							t3.config AS "t3.config",
+							t3.created_by_id AS "t3.created_by_id",
+							t3.updated_by_id AS "t3.updated_by_id",
+							t3.created_at AS "t3.created_at",
+							t3.updated_at AS "t3.updated_at",
+							t4.id AS "t4.id",
+							t4.organization_id AS "t4.organization_id",
+							t4.name AS "t4.name" 
+						FROM childtest AS t0 
+						LEFT JOIN testobject AS t1 
+							ON (t1.id = t0.parent_id AND t1.organization_id = $1) 
+						LEFT JOIN parenttest AS t2 
+							ON (t2.id = t1.parent_id AND t2.organization_id = $2) 
+						LEFT JOIN testobject AS t3 
+							ON (t3.id = t0.optional_parent_id AND t3.organization_id = $3) 
+						LEFT JOIN parenttest AS t4 
+							ON (t4.id = t3.parent_id AND t4.organization_id = $4) 
+						WHERE t0.organization_id = $5 AND ((t0.parent_id = $6) OR (t0.parent_id = $7))
 						`)).
-					WithArgs(sampleOrgID, parentIDs[0], parentIDs[1]).
+					WithArgs(sampleOrgID, sampleOrgID, sampleOrgID, sampleOrgID, sampleOrgID, parentIDs[0], parentIDs[1]).
 					WillReturnRows(
 						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("ChildRecord", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
@@ -1371,12 +1679,49 @@ func TestDeployments(t *testing.T) {
 								t0.name AS "t0.name",
 								t0.other_info AS "t0.other_info",
 								t0.parent_id AS "t0.parent_id",
-								t0.optional_parent_id AS "t0.optional_parent_id"
-							FROM childtest AS t0
-							WHERE
-								t0.organization_id = $1 AND ((t0.parent_id = $2))
+								t0.optional_parent_id AS "t0.optional_parent_id",
+								t1.id AS "t1.id",
+								t1.organization_id AS "t1.organization_id",
+								t1.name AS "t1.name",
+								t1.nullable_lookup AS "t1.nullable_lookup",
+								t1.type AS "t1.type",
+								t1.is_active AS "t1.is_active",
+								t1.parent_id AS "t1.parent_id",
+								t1.config AS "t1.config",
+								t1.created_by_id AS "t1.created_by_id",
+								t1.updated_by_id AS "t1.updated_by_id",
+								t1.created_at AS "t1.created_at",
+								t1.updated_at AS "t1.updated_at",
+								t2.id AS "t2.id",
+								t2.organization_id AS "t2.organization_id",
+								t2.name AS "t2.name",
+								t3.id AS "t3.id",
+								t3.organization_id AS "t3.organization_id",
+								t3.name AS "t3.name",
+								t3.nullable_lookup AS "t3.nullable_lookup",
+								t3.type AS "t3.type",
+								t3.is_active AS "t3.is_active",
+								t3.parent_id AS "t3.parent_id",
+								t3.config AS "t3.config",
+								t3.created_by_id AS "t3.created_by_id",
+								t3.updated_by_id AS "t3.updated_by_id",
+								t3.created_at AS "t3.created_at",
+								t3.updated_at AS "t3.updated_at",
+								t4.id AS "t4.id",
+								t4.organization_id AS "t4.organization_id",
+								t4.name AS "t4.name"
+							FROM childtest AS t0 
+							LEFT JOIN testobject AS t1 
+							ON (t1.id = t0.parent_id AND t1.organization_id = $1) 
+							LEFT JOIN parenttest AS t2 
+							ON (t2.id = t1.parent_id AND t2.organization_id = $2) 
+							LEFT JOIN testobject AS t3 
+							ON (t3.id = t0.optional_parent_id AND t3.organization_id = $3) 
+							LEFT JOIN parenttest AS t4 
+							ON (t4.id = t3.parent_id AND t4.organization_id = $4) 
+							WHERE t0.organization_id = $5 AND ((t0.parent_id = $6))
 						`)).
-					WithArgs(sampleOrgID, parentIDs[0]).
+					WithArgs(sampleOrgID, sampleOrgID, sampleOrgID, sampleOrgID, sampleOrgID, parentIDs[0]).
 					WillReturnRows(
 						sqlmock.NewRows([]string{"t0.name", "t0.id", "t0.parent_id"}).
 							AddRow("Orphan1", "00000000-0000-0000-0000-000000000001", parentIDs[0]).
@@ -1400,12 +1745,10 @@ func TestDeployments(t *testing.T) {
 					[]driver.Value{
 						childUUID,
 						"ChildItem",
-						"Simple",
-						"",
 					},
 				}
 
-				ExpectLookup(mock, testChildObjectWithLookupHelper, []string{"ChildItem|Simple|"}, returnData)
+				ExpectLookup(mock, testChildObjectWithLookupHelper, []string{"ChildItem"}, returnData)
 
 				// Expect the foreign key lookup next
 				ExpectLookup(mock, testObjectHelper, []string{"Simple|"}, [][]driver.Value{
@@ -1438,7 +1781,7 @@ func TestDeployments(t *testing.T) {
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
 				parentUUID := uuid.NewV4().String()
 				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
-				lookupKeys := []string{"ChildItem|Simple|"}
+				lookupKeys := []string{"ChildItem"}
 				returnData := [][]driver.Value{}
 
 				childObjects := []testdata.ChildTestObject{}
@@ -1523,7 +1866,7 @@ func TestDeployments(t *testing.T) {
 				parentUUID := uuid.NewV4().String()
 				optionalParentUUID := uuid.NewV4().String()
 				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
-				lookupKeys := []string{"ChildItem|Simple|"}
+				lookupKeys := []string{"ChildItem"}
 				returnData := [][]driver.Value{}
 
 				childObjects := []testdata.ChildTestObject{}
@@ -1573,7 +1916,7 @@ func TestDeployments(t *testing.T) {
 			testdata.ChildTestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				lookupKeys := []string{"ChildItem|Simple|"}
+				lookupKeys := []string{"ChildItem"}
 				returnData := [][]driver.Value{}
 
 				ExpectLookup(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
@@ -1590,7 +1933,7 @@ func TestDeployments(t *testing.T) {
 			testdata.ChildTestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				lookupKeys := []string{"ChildItem|Simple|", "ChildItem2|Simple2|"}
+				lookupKeys := []string{"ChildItem", "ChildItem2"}
 				returnData := [][]driver.Value{}
 
 				ExpectLookup(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
@@ -1607,7 +1950,7 @@ func TestDeployments(t *testing.T) {
 			testdata.ChildTestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				lookupKeys := []string{"ChildItem|Simple|"}
+				lookupKeys := []string{"ChildItem"}
 				returnData := [][]driver.Value{}
 
 				ExpectLookup(mock, testChildObjectWithLookupHelper, lookupKeys, returnData)
@@ -1660,7 +2003,7 @@ func TestDeployments(t *testing.T) {
 			testdata.SiblingJunctionModel{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
-				junctionHelper := siblingJunctionHelper
+				junctionHelper := simpleSiblingJunctionHelper
 				personHelper := personModelHelper
 				personWithPKHelper := personModelWithIDHelper
 				junctionReturnData := GetReturnDataForLookup(junctionHelper, nil)
@@ -1677,7 +2020,7 @@ func TestDeployments(t *testing.T) {
 						Name: "Fred",
 					},
 				})
-				junctionLookupKeys := []string{"|Fred"}
+				junctionLookupKeys := []string{"Fred"}
 
 				ExpectLookup(mock, junctionHelper, junctionLookupKeys, junctionReturnData)
 
