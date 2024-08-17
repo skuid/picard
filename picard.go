@@ -555,6 +555,7 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tags.TableMetadata, fo
 
 	// Create a new slice of all the foreign keys for this type
 	foreignKeysToCheck := tableMetadata.GetForeignKeys()[:]
+	foreignKeysToLookUp := map[string]tags.ForeignKey{}
 
 	hasValidPK := false
 	// Determine which lookups are necessary based on whether keys exist in the data
@@ -613,11 +614,19 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tags.TableMetadata, fo
 				})
 			} else {
 				// We don't have the id value for this foreign key so it does need a lookup
-				// But we should only pass on the ones where the original data has the values to lookup
-				if !hasForeignKeyData(item, foreignKeyToCheck) {
+				if hasForeignKeyData(item, foreignKeyToCheck) {
+					foreignKeysToLookUp[foreignKeyToCheck.KeyColumn] = foreignKeyToCheck
 					foreignKeysToCheck = append(foreignKeysToCheck[:i], foreignKeysToCheck[i+1:]...)
 				}
 			}
+		}
+	}
+
+	// But we should only pass on the ones where the original data has the values to lookup
+	if len(foreignKeysToLookUp) > 0 {
+		foreignKeysToCheck = []tags.ForeignKey{}
+		for _, foreignKey := range foreignKeysToLookUp {
+			foreignKeysToCheck = append(foreignKeysToCheck, foreignKey)
 		}
 	}
 
