@@ -285,6 +285,9 @@ func (p PersistenceORM) performDeletes(deletes []dbchange.Change, tableMetadata 
 		}
 
 		_, err := deleteQuery.RunWith(p.transaction).Exec()
+		q, params, _ := deleteQuery.ToSql()
+		pa, _ := json.Marshal(params)
+		fmt.Println("DELETE QUERY: ", q, string(pa), "\n")
 		if err != nil {
 			q, _, _ := deleteQuery.ToSql()
 			return NewQueryError(err, q)
@@ -322,7 +325,9 @@ func (p PersistenceORM) performUpdates(updates []dbchange.Change, tableMetadata 
 			updateQuery = updateQuery.Where(squirrel.Eq{primaryKeyColumnName: changes[primaryKeyColumnName]})
 
 			_, err := updateQuery.RunWith(p.transaction).Exec()
-
+			q, params, _ := updateQuery.ToSql()
+			pa, _ := json.Marshal(params)
+			fmt.Println("UPDATE QUERY: ", q, string(pa), "\n")
 			if err != nil {
 				q, _, _ := updateQuery.ToSql()
 				return NewQueryError(err, q)
@@ -375,12 +380,17 @@ func (p PersistenceORM) performInserts(inserts []dbchange.Change, insertsHavePri
 		insertQuery = insertQuery.Suffix(fmt.Sprintf("RETURNING \"%s\"", primaryKeyColumnName))
 
 		rows, err := insertQuery.RunWith(p.transaction).Query()
+		q, params, _ := insertQuery.ToSql()
+		pa, _ := json.Marshal(params)
+		fmt.Println("INSERT QUERY: ", q, string(pa), "\n")
 		if err != nil {
 			q, _, _ := insertQuery.ToSql()
 			return NewQueryError(err, q)
 		}
 
 		insertResults, err := getQueryResults(rows)
+		// re, _ := json.Marshal(insertResults)
+		// fmt.Println("INSERT QUERY: ", q, string(pa), string(re), "\n")
 		if err != nil {
 			return err
 		}
@@ -477,13 +487,16 @@ func (p PersistenceORM) checkForExisting(
 	if multitenancyKeyColumnName != "" {
 		query = query.Where(fmt.Sprintf("%v.%v = ?", tableName, multitenancyKeyColumnName), p.multitenancyValue)
 	}
-
+	q, params, _ := query.ToSql()
+	pa, _ := json.Marshal(params)
 	rows, err := query.PlaceholderFormat(squirrel.Dollar).RunWith(p.transaction).Query()
 	if err != nil {
 		return nil, nil, err
 	}
 
 	results, err := getLookupQueryResults(rows, tableName, lookupsToUse, tableAliasCache)
+	re, _ := json.Marshal(results)
+	fmt.Println("Check for existing: ", q, string(pa), string(re), "\n")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -552,16 +565,24 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tags.TableMetadata, fo
 	primaryKeyColumnName := tableMetadata.GetPrimaryKeyColumnName()
 	primaryKeyFieldName := tableMetadata.GetPrimaryKeyFieldName()
 	lookups := tableMetadata.GetLookups()
-
+	//fmt.Println("LOOKUP1", tableName, lookupsToUse)
 	// Create a new slice of all the foreign keys for this type
 	foreignKeysToCheck := tableMetadata.GetForeignKeys()[:]
+	foreignKeysToLookUp := map[string]tags.ForeignKey{}
 
 	hasValidPK := false
 	// Determine which lookups are necessary based on whether keys exist in the data
 	s := reflect.ValueOf(data)
+	// if tableName == "parameter" && s.CanInterface() {
+	// 	fmt.Println("IS PARAM")
+	// }
 
 	for i := 0; i < s.Len(); i++ {
 		item := s.Index(i)
+		// if tableName == "parameter" && item.CanInterface() {
+		// 	d, _ := json.Marshal(item.Interface())
+		// 	fmt.Println("ITEM PARAM", string(d))
+		// }
 
 		if foreignKey != nil {
 			keyMapField := foreignKey.KeyMapField
@@ -614,10 +635,18 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tags.TableMetadata, fo
 			} else {
 				// We don't have the id value for this foreign key so it does need a lookup
 				// But we should only pass on the ones where the original data has the values to lookup
-				if !hasForeignKeyData(item, foreignKeyToCheck) {
+				if hasForeignKeyData(item, foreignKeyToCheck) {
+					foreignKeysToLookUp[foreignKeyToCheck.KeyColumn] = foreignKeyToCheck
 					foreignKeysToCheck = append(foreignKeysToCheck[:i], foreignKeysToCheck[i+1:]...)
 				}
 			}
+		}
+	}
+
+	if len(foreignKeysToLookUp) > 0 {
+		foreignKeysToCheck = []tags.ForeignKey{}
+		for _, foreignKey := range foreignKeysToLookUp {
+			foreignKeysToCheck = append(foreignKeysToCheck, foreignKey)
 		}
 	}
 
@@ -626,7 +655,7 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tags.TableMetadata, fo
 	}
 
 	lookupsToUse = append(lookupsToUse, getLookupsFromForeignKeys(foreignKeysToCheck, "", "", tableAliasCache)...)
-
+	//fmt.Println("LOOKUP2", tableName, lookupsToUse)
 	return lookupsToUse
 }
 
@@ -637,11 +666,22 @@ func hasForeignKeyData(item reflect.Value, foreignKey tags.ForeignKey) bool {
 
 	// We're checking this way because we need to make sure that all lookups have data
 	// AKA if even one part of the lookup doesn't have data don't use it
+	values := []string{}
 	for _, lookup := range tableMetadata.GetLookups() {
-		if fk.FieldByName(lookup.MatchObjectProperty).String() == "" {
+		field := fk.FieldByName(lookup.MatchObjectProperty)
+
+		value := field.String()
+		if value == "" {
 			hasData = false
+		} else {
+			values = append(values, value)
 		}
 	}
+
+	if hasData {
+		fmt.Println("FOREING VALUES", values, tableMetadata.GetLookups())
+	}
+
 	return hasData
 }
 
@@ -738,8 +778,9 @@ func createQueryFromParts(tableName string, columnNames []string, joinClauses []
 func (p PersistenceORM) performChildUpserts(changeObjects []dbchange.Change, tableMetadata *tags.TableMetadata) error {
 
 	primaryKeyColumnName := tableMetadata.GetPrimaryKeyColumnName()
+	childrens := tableMetadata.GetChildren()
 
-	for _, child := range tableMetadata.GetChildren() {
+	for _, child := range childrens {
 
 		var data reflect.Value
 		var deleteFiltersValue reflect.Value
