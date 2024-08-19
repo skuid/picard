@@ -615,7 +615,7 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tags.TableMetadata, fo
 				// We don't have the id value for this foreign key so it does need a lookup
 				if hasForeignKeyData(item, foreignKeyToCheck) {
 					foreignKeysToCheck = append(foreignKeysToCheck[:i], foreignKeysToCheck[i+1:]...)
-					// Lets keep the order
+					// Let's keep the order
 					foreignKeysToLookUp = append([]tags.ForeignKey{foreignKeyToCheck}, foreignKeysToLookUp...)
 				}
 			}
