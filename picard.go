@@ -614,15 +614,17 @@ func getLookupsForDeploy(data interface{}, tableMetadata *tags.TableMetadata, fo
 			} else {
 				// We don't have the id value for this foreign key so it does need a lookup
 				if hasForeignKeyData(item, foreignKeyToCheck) {
-					foreignKeysToCheck = append(foreignKeysToCheck[:i], foreignKeysToCheck[i+1:]...)
 					// Let's keep the order
 					foreignKeysToLookUp = append([]tags.ForeignKey{foreignKeyToCheck}, foreignKeysToLookUp...)
+				} else {
+					// No way to look up without foreign key data, take it out
+					foreignKeysToCheck = append(foreignKeysToCheck[:i], foreignKeysToCheck[i+1:]...)
 				}
 			}
 		}
 	}
 
-	// But we should only pass on the ones where the original data has the values to lookup
+	// We should only pass on the ones where the original data has the values to lookup
 	foreignKeysToCheck = foreignKeysToLookUp
 
 	if !hasValidPK {
