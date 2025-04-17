@@ -1,0 +1,20 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  title: Picard
+  name: picard
+  description: Nintex Apps (Skuid) Database interaction layer for go services
+  annotations:
+    github.com/project-slug: skuid/picard
+  links:
+    - url: https://devdocs.skuid.tools/software-engineering/setup/getting_started/
+      title: Getting Started
+      icon: docs
+      type: guide
+spec:
+  type: service
+  owner: group:nintexglobal/kraken
+  system: apps-nlx
+  lifecycle: production
+  dependsOn:
+    - system:default/nintex-shared-platform
