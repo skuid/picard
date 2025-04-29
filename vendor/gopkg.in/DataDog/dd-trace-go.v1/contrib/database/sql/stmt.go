@@ -1,11 +1,15 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016 Datadog, Inc.
+
 package sql
 
 import (
 	"context"
 	"database/sql/driver"
 	"errors"
-
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+	"time"
 )
 
 var _ driver.Stmt = (*tracedStmt)(nil)
@@ -20,21 +24,23 @@ type tracedStmt struct {
 
 // Close sends a span before closing a statement
 func (s *tracedStmt) Close() (err error) {
-	span := s.newChildSpanFromContext(s.ctx, "Close", "")
-	defer func() {
-		span.Finish(tracer.WithError(err))
-	}()
-	return s.Stmt.Close()
+	start := time.Now()
+	ctx, end := startTraceTask(s.ctx, QueryTypeClose)
+	defer end()
+	err = s.Stmt.Close()
+	s.tryTrace(ctx, QueryTypeClose, "", start, err)
+	return err
 }
 
 // ExecContext is needed to implement the driver.StmtExecContext interface
 func (s *tracedStmt) ExecContext(ctx context.Context, args []driver.NamedValue) (res driver.Result, err error) {
-	span := s.newChildSpanFromContext(ctx, "Exec", s.query)
-	defer func() {
-		span.Finish(tracer.WithError(err))
-	}()
+	start := time.Now()
 	if stmtExecContext, ok := s.Stmt.(driver.StmtExecContext); ok {
-		return stmtExecContext.ExecContext(ctx, args)
+		ctx, end := startTraceTask(ctx, QueryTypeExec)
+		defer end()
+		res, err := stmtExecContext.ExecContext(ctx, args)
+		s.tryTrace(ctx, QueryTypeExec, s.query, start, err)
+		return res, err
 	}
 	dargs, err := namedValueToValue(args)
 	if err != nil {
@@ -45,17 +51,22 @@ func (s *tracedStmt) ExecContext(ctx context.Context, args []driver.NamedValue) 
 		return nil, ctx.Err()
 	default:
 	}
-	return s.Exec(dargs)
+	ctx, end := startTraceTask(ctx, QueryTypeExec)
+	defer end()
+	res, err = s.Exec(dargs)
+	s.tryTrace(ctx, QueryTypeExec, s.query, start, err)
+	return res, err
 }
 
 // QueryContext is needed to implement the driver.StmtQueryContext interface
 func (s *tracedStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (rows driver.Rows, err error) {
-	span := s.newChildSpanFromContext(ctx, "Query", s.query)
-	defer func() {
-		span.Finish(tracer.WithError(err))
-	}()
+	start := time.Now()
 	if stmtQueryContext, ok := s.Stmt.(driver.StmtQueryContext); ok {
-		return stmtQueryContext.QueryContext(ctx, args)
+		ctx, end := startTraceTask(ctx, QueryTypeQuery)
+		defer end()
+		rows, err := stmtQueryContext.QueryContext(ctx, args)
+		s.tryTrace(ctx, QueryTypeQuery, s.query, start, err)
+		return rows, err
 	}
 	dargs, err := namedValueToValue(args)
 	if err != nil {
@@ -66,7 +77,11 @@ func (s *tracedStmt) QueryContext(ctx context.Context, args []driver.NamedValue)
 		return nil, ctx.Err()
 	default:
 	}
-	return s.Query(dargs)
+	ctx, end := startTraceTask(ctx, QueryTypeQuery)
+	defer end()
+	rows, err = s.Query(dargs)
+	s.tryTrace(ctx, QueryTypeQuery, s.query, start, err)
+	return rows, err
 }
 
 // copied from stdlib database/sql package: src/database/sql/ctxutil.go

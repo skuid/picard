@@ -1,3 +1,8 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016 Datadog, Inc.
+
 package ext // import "gopkg.in/DataDog/dd-trace-go.v1/ddtrace/ext"
 
 // App types determine how to categorize a trace in the Datadog application.
@@ -25,7 +30,7 @@ const (
 
 // Span types have similar behaviour to "app types" and help categorize
 // traces in the Datadog application. They can also help fine grain agent
-// level bahviours such as obfuscation and quantization, when these are
+// level behaviours such as obfuscation and quantization, when these are
 // enabled in the agent's configuration.
 const (
 	// SpanTypeWeb marks a span as an HTTP server request.
@@ -45,6 +50,9 @@ const (
 	// SpanTypeRedis marks a span as a Redis operation. These spans may
 	// also have a "redis.raw_command" tag.
 	SpanTypeRedis = "redis"
+
+	// SpanTypeRedis marks a span as a Valkey operation.
+	SpanTypeValkey = "valkey"
 
 	// SpanTypeMemcached marks a span as a memcached operation.
 	SpanTypeMemcached = "memcached"
@@ -67,4 +75,10 @@ const (
 
 	// SpanTypeMessageProducer marks a span as a queue operation.
 	SpanTypeMessageProducer = "queue"
+
+	// SpanTypeConsul marks a span as a Consul operation.
+	SpanTypeConsul = "consul"
+
+	// SpanTypeGraphql marks a span as a graphql operation.
+	SpanTypeGraphQL = "graphql"
 )

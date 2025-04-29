@@ -14,9 +14,9 @@ func TestFilterModelWithAssociations(t *testing.T) {
 	orgID := "00000000-0000-0000-0000-000000000001"
 	testCases := []struct {
 		description          string
-		filterModel          interface{}
+		filterModel          any
 		associations         []tags.Association
-		wantReturnInterfaces []interface{}
+		wantReturnInterfaces []any
 		expectationFunction  func(sqlmock.Sqlmock)
 		wantErr              error
 	}{
@@ -26,7 +26,7 @@ func TestFilterModelWithAssociations(t *testing.T) {
 				Name: "pops",
 			},
 			nil,
-			[]interface{}{
+			[]any{
 				testdata.ParentModel{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
@@ -67,7 +67,7 @@ func TestFilterModelWithAssociations(t *testing.T) {
 			"happy path for multiple parent filter w/o eager loading",
 			testdata.ParentModel{},
 			nil,
-			[]interface{}{
+			[]any{
 				testdata.ParentModel{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
@@ -126,7 +126,7 @@ func TestFilterModelWithAssociations(t *testing.T) {
 					Name: "GrandParent",
 				},
 			},
-			[]interface{}{
+			[]any{
 				testdata.ParentModel{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
@@ -198,7 +198,7 @@ func TestFilterModelWithAssociations(t *testing.T) {
 					Name: "GrandMother",
 				},
 			},
-			[]interface{}{
+			[]any{
 				testdata.ParentModel{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
@@ -298,7 +298,7 @@ func TestFilterModelWithAssociations(t *testing.T) {
 					Name: "Animals",
 				},
 			},
-			[]interface{}{
+			[]any{
 				testdata.ParentModel{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
@@ -486,7 +486,7 @@ func TestFilterModelWithAssociations(t *testing.T) {
 					Name: "ChildrenMap",
 				},
 			},
-			[]interface{}{
+			[]any{
 				testdata.ParentModel{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
@@ -593,7 +593,7 @@ func TestFilterModelWithAssociations(t *testing.T) {
 					Name: "ChildrenWithGrouping",
 				},
 			},
-			[]interface{}{
+			[]any{
 				testdata.ParentModel{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
@@ -705,7 +705,7 @@ func TestFilterModelWithAssociations(t *testing.T) {
 					},
 				},
 			},
-			[]interface{}{
+			[]any{
 				testdata.ParentModel{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
@@ -866,14 +866,14 @@ func TestFilterModels(t *testing.T) {
 	orgID := "00000000-0000-0000-0000-000000000001"
 	testCases := []struct {
 		description          string
-		filterModels         interface{}
-		wantReturnInterfaces []interface{}
+		filterModels         any
+		wantReturnInterfaces []any
 		expectationFunction  func(sqlmock.Sqlmock)
 	}{
 		{
 			"should return an empty object if an empty slice is passed in",
 			[]testdata.ToyModel{},
-			[]interface{}{},
+			[]any{},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectCommit()
@@ -886,7 +886,7 @@ func TestFilterModels(t *testing.T) {
 					ParentID: "00000000-0000-0000-0000-000000000002",
 				},
 			},
-			[]interface{}{
+			[]any{
 				testdata.ToyModel{
 					ID:             "00000000-0000-0000-0000-000000000011",
 					OrganizationID: orgID,
@@ -936,7 +936,7 @@ func TestFilterModels(t *testing.T) {
 					ParentID: "00000000-0000-0000-0000-000000000004",
 				},
 			},
-			[]interface{}{
+			[]any{
 				testdata.ToyModel{
 					ID:             "00000000-0000-0000-0000-000000000012",
 					OrganizationID: orgID,
@@ -1052,15 +1052,15 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
 	testCases := []struct {
 		description          string
-		filterModelType      interface{}
-		wantReturnInterfaces []interface{}
+		filterModelType      any
+		wantReturnInterfaces []any
 		expectationFunction  func(sqlmock.Sqlmock)
 		wantErr              error
 	}{
 		{
 			"Should do query correctly and return correct values with single JSONB field",
 			modelOneFieldJSONB{},
-			[]interface{}{
+			[]any{
 				modelOneFieldJSONB{
 					TestFieldOne: testdata.TestSerializedObject{
 						Name:               "Matt",
@@ -1084,7 +1084,7 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 		{
 			"Should do query correctly and return correct values with single JSONB field and string return",
 			modelOneFieldJSONB{},
-			[]interface{}{
+			[]any{
 				modelOneFieldJSONB{
 					TestFieldOne: testdata.TestSerializedObject{
 						Name:               "Matt",
@@ -1108,7 +1108,7 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 		{
 			"Should do query correctly and return correct values with single pointer JSONB field",
 			modelOnePointerFieldJSONB{},
-			[]interface{}{
+			[]any{
 				modelOnePointerFieldJSONB{
 					TestFieldOne: &testdata.TestSerializedObject{
 						Name:               "Ben",
@@ -1132,15 +1132,15 @@ func TestDoFilterSelectWithJSONBField(t *testing.T) {
 		{
 			"Should do query correctly and return correct values with array JSONB field",
 			modelOneArrayFieldJSONB{},
-			[]interface{}{
+			[]any{
 				modelOneArrayFieldJSONB{
 					TestFieldOne: []testdata.TestSerializedObject{
-						testdata.TestSerializedObject{
+						{
 							Name:               "Matt",
 							Active:             true,
 							NonSerializedField: "",
 						},
-						testdata.TestSerializedObject{
+						{
 							Name:               "Ben",
 							Active:             true,
 							NonSerializedField: "",
@@ -1204,7 +1204,7 @@ func TestFilterModel(t *testing.T) {
 	testCases := []struct {
 		description          string
 		filterRequest        FilterRequest
-		wantReturnInterfaces []interface{}
+		wantReturnInterfaces []any
 		expectationFunction  func(sqlmock.Sqlmock)
 	}{
 		{
@@ -1214,7 +1214,7 @@ func TestFilterModel(t *testing.T) {
 					ParentID: parentID,
 				},
 			},
-			[]interface{}{
+			[]any{
 				testdata.ToyModel{
 					ID:             "00000000-0000-0000-0000-000000000011",
 					OrganizationID: orgID,
@@ -1258,7 +1258,7 @@ func TestFilterModel(t *testing.T) {
 					ParentID: parentID,
 				},
 			},
-			[]interface{}{},
+			[]any{},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectQuery(testdata.FmtSQLRegex(`
@@ -1292,7 +1292,7 @@ func TestFilterModel(t *testing.T) {
 					},
 				},
 			},
-			[]interface{}{},
+			[]any{},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectQuery(testdata.FmtSQLRegex(`
@@ -1330,7 +1330,7 @@ func TestFilterModel(t *testing.T) {
 					},
 				},
 			},
-			[]interface{}{},
+			[]any{},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectQuery(testdata.FmtSQLRegex(`
@@ -1369,7 +1369,7 @@ func TestFilterModel(t *testing.T) {
 					},
 				},
 			},
-			[]interface{}{},
+			[]any{},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectQuery(testdata.FmtSQLRegex(`
@@ -1423,7 +1423,7 @@ func TestFilterModel(t *testing.T) {
 					},
 				},
 			},
-			[]interface{}{
+			[]any{
 				testdata.ParentModel{
 					ID:             parentID,
 					OrganizationID: orgID,
@@ -1563,7 +1563,7 @@ func TestFilterModel(t *testing.T) {
 					FilterValue: "Lego",
 				},
 			},
-			[]interface{}{},
+			[]any{},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectQuery(testdata.FmtSQLRegex(`
@@ -1598,7 +1598,7 @@ func TestFilterModel(t *testing.T) {
 					},
 				},
 			},
-			[]interface{}{},
+			[]any{},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectQuery(testdata.FmtSQLRegex(`
@@ -1633,7 +1633,7 @@ func TestFilterModel(t *testing.T) {
 					},
 				},
 			},
-			[]interface{}{},
+			[]any{},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectQuery(testdata.FmtSQLRegex(`
@@ -1672,7 +1672,7 @@ func TestFilterModel(t *testing.T) {
 					},
 				},
 			},
-			[]interface{}{},
+			[]any{},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectQuery(testdata.FmtSQLRegex(`
@@ -1711,7 +1711,7 @@ func TestFilterModel(t *testing.T) {
 					},
 				},
 			},
-			[]interface{}{},
+			[]any{},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectQuery(testdata.FmtSQLRegex(`
@@ -1741,7 +1741,7 @@ func TestFilterModel(t *testing.T) {
 				FilterModel:  testdata.ToyModel{},
 				FieldFilters: tags.FieldFilter{},
 			},
-			[]interface{}{},
+			[]any{},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectQuery(testdata.FmtSQLRegex(`
@@ -1774,7 +1774,7 @@ func TestFilterModel(t *testing.T) {
 					FilterValue: []string{"Lego", "Matchbox Car", "Nintendo"},
 				},
 			},
-			[]interface{}{},
+			[]any{},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectQuery(testdata.FmtSQLRegex(`
@@ -1808,7 +1808,7 @@ func TestFilterModel(t *testing.T) {
 				},
 				SelectFields: []string{"ID", "Name"},
 			},
-			[]interface{}{},
+			[]any{},
 			func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
 				mock.ExpectQuery(testdata.FmtSQLRegex(`
@@ -1847,7 +1847,7 @@ func TestFilterModel(t *testing.T) {
 					},
 				},
 			},
-			[]interface{}{
+			[]any{
 				testdata.ParentModel{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
@@ -1917,7 +1917,7 @@ func TestFilterModel(t *testing.T) {
 					},
 				},
 			},
-			[]interface{}{
+			[]any{
 				testdata.ParentModel{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,

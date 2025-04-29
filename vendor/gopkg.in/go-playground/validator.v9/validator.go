@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-// per validate contruct
+// per validate construct
 type validate struct {
 	v              *Validate
 	top            reflect.Value
@@ -94,7 +94,6 @@ func (v *validate) validateStruct(ctx context.Context, parent reflect.Value, cur
 
 // traverseField validates any field, be it a struct or single field, ensures it's validity and passes it along to be validated via it's tag options
 func (v *validate) traverseField(ctx context.Context, parent reflect.Value, current reflect.Value, ns []byte, structNs []byte, cf *cField, ct *cTag) {
-
 	var typ reflect.Type
 	var kind reflect.Kind
 
@@ -112,16 +111,13 @@ func (v *validate) traverseField(ctx context.Context, parent reflect.Value, curr
 		}
 
 		if ct.hasTag {
-
-			v.str1 = string(append(ns, cf.altName...))
-
-			if v.v.hasTagNameFunc {
-				v.str2 = string(append(structNs, cf.name...))
-			} else {
-				v.str2 = v.str1
-			}
-
 			if kind == reflect.Invalid {
+				v.str1 = string(append(ns, cf.altName...))
+				if v.v.hasTagNameFunc {
+					v.str2 = string(append(structNs, cf.name...))
+				} else {
+					v.str2 = v.str1
+				}
 				v.errs = append(v.errs,
 					&fieldError{
 						v:              v.v,
@@ -135,27 +131,33 @@ func (v *validate) traverseField(ctx context.Context, parent reflect.Value, curr
 						kind:           kind,
 					},
 				)
-
 				return
 			}
 
-			v.errs = append(v.errs,
-				&fieldError{
-					v:              v.v,
-					tag:            ct.aliasTag,
-					actualTag:      ct.tag,
-					ns:             v.str1,
-					structNs:       v.str2,
-					fieldLen:       uint8(len(cf.altName)),
-					structfieldLen: uint8(len(cf.name)),
-					value:          current.Interface(),
-					param:          ct.param,
-					kind:           kind,
-					typ:            current.Type(),
-				},
-			)
-
-			return
+			v.str1 = string(append(ns, cf.altName...))
+			if v.v.hasTagNameFunc {
+				v.str2 = string(append(structNs, cf.name...))
+			} else {
+				v.str2 = v.str1
+			}
+			if !ct.runValidationWhenNil {
+				v.errs = append(v.errs,
+					&fieldError{
+						v:              v.v,
+						tag:            ct.aliasTag,
+						actualTag:      ct.tag,
+						ns:             v.str1,
+						structNs:       v.str2,
+						fieldLen:       uint8(len(cf.altName)),
+						structfieldLen: uint8(len(cf.name)),
+						value:          current.Interface(),
+						param:          ct.param,
+						kind:           kind,
+						typ:            current.Type(),
+					},
+				)
+				return
+			}
 		}
 
 	case reflect.Struct:
@@ -213,8 +215,8 @@ func (v *validate) traverseField(ctx context.Context, parent reflect.Value, curr
 		CONTINUE:
 			// if len == 0 then validating using 'Var' or 'VarWithValue'
 			// Var - doesn't make much sense to do it that way, should call 'Struct', but no harm...
-			// VarWithField - this allows for validating against each field withing the struct against a specific value
-			//                pretty handly in certain situations
+			// VarWithField - this allows for validating against each field within the struct against a specific value
+			//                pretty handy in certain situations
 			if len(cf.name) > 0 {
 				ns = append(append(ns, cf.altName...), '.')
 				structNs = append(append(structNs, cf.name...), '.')

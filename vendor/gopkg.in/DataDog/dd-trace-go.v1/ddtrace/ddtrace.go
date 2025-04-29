@@ -1,3 +1,8 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016 Datadog, Inc.
+
 // Package ddtrace contains the interfaces that specify the implementations of Datadog's
 // tracing library, as well as a set of sub-packages containing various implementations:
 // our native implementation ("tracer"), a wrapper that can be used with Opentracing
@@ -8,7 +13,34 @@
 // with by accessing the subdirectories of this package: https://godoc.org/gopkg.in/DataDog/dd-trace-go.v1/ddtrace#pkg-subdirectories.
 package ddtrace // import "gopkg.in/DataDog/dd-trace-go.v1/ddtrace"
 
-import "time"
+import (
+	"context"
+	"time"
+
+	"gopkg.in/DataDog/dd-trace-go.v1/internal/log"
+)
+
+// SpanContextW3C represents a SpanContext with an additional method to allow
+// access of the 128-bit trace id of the span, if present.
+type SpanContextW3C interface {
+	SpanContext
+
+	// TraceID128 returns the hex-encoded 128-bit trace ID that this context is carrying.
+	// The string will be exactly 32 bytes and may include leading zeroes.
+	TraceID128() string
+
+	// TraceID128 returns the raw bytes of the 128-bit trace ID that this context is carrying.
+	TraceID128Bytes() [16]byte
+}
+
+// SpanContextWithLinks represents a SpanContext with additional methods for
+// access to the SpanLinks on the span context, if present.
+type SpanContextWithLinks interface {
+	SpanContext
+
+	// SpanLinks returns a copy of the span links on the SpanContext.
+	SpanLinks() []SpanLink
+}
 
 // Tracer specifies an implementation of the Datadog tracer which allows starting
 // and propagating spans. The official implementation if exposed as functions
@@ -25,8 +57,7 @@ type Tracer interface {
 	// Inject injects a span context into the given carrier.
 	Inject(context SpanContext, carrier interface{}) error
 
-	// Stop stops the active tracer and sets the global tracer to a no-op. Calls to
-	// Stop should be idempotent.
+	// Stop stops the tracer. Calls to Stop should be idempotent.
 	Stop()
 }
 
@@ -72,6 +103,25 @@ type SpanContext interface {
 	ForeachBaggageItem(handler func(k, v string) bool)
 }
 
+// SpanLink represents a reference to a span that exists outside of the trace.
+//
+//go:generate msgp -unexported -marshal=false -o=span_link_msgp.go -tests=false
+
+type SpanLink struct {
+	// TraceID represents the low 64 bits of the linked span's trace id. This field is required.
+	TraceID uint64 `msg:"trace_id" json:"trace_id"`
+	// TraceIDHigh represents the high 64 bits of the linked span's trace id. This field is only set if the linked span's trace id is 128 bits.
+	TraceIDHigh uint64 `msg:"trace_id_high,omitempty" json:"trace_id_high"`
+	// SpanID represents the linked span's span id.
+	SpanID uint64 `msg:"span_id" json:"span_id"`
+	// Attributes is a mapping of keys to string values. These values are used to add additional context to the span link.
+	Attributes map[string]string `msg:"attributes,omitempty" json:"attributes"`
+	// Tracestate is the tracestate of the linked span. This field is optional.
+	Tracestate string `msg:"tracestate,omitempty" json:"tracestate"`
+	// Flags represents the W3C trace flags of the linked span. This field is optional.
+	Flags uint32 `msg:"flags,omitempty" json:"flags"`
+}
+
 // StartSpanOption is a configuration option that can be used with a Tracer's StartSpan method.
 type StartSpanOption func(cfg *StartSpanConfig)
 
@@ -88,6 +138,15 @@ type FinishConfig struct {
 	// Error holds an optional error that should be set on the span before
 	// finishing.
 	Error error
+
+	// NoDebugStack will prevent any set errors from generating an attached stack trace tag.
+	NoDebugStack bool
+
+	// StackFrames specifies the number of stack frames to be attached in spans that finish with errors.
+	StackFrames uint
+
+	// SkipStackFrames specifies the offset at which to start reporting stack frames from the stack.
+	SkipStackFrames uint
 }
 
 // StartSpanConfig holds the configuration for starting a new span. It is usually passed
@@ -105,4 +164,26 @@ type StartSpanConfig struct {
 	// Tags holds a set of key/value pairs that should be set as metadata on the
 	// new span.
 	Tags map[string]interface{}
+
+	// SpanID will be the SpanID of the Span, overriding the random number that would
+	// be generated. If no Parent SpanContext is present, then this will also set the
+	// TraceID to the same value.
+	SpanID uint64
+
+	// Context is the parent context where the span should be stored.
+	Context context.Context
+
+	// SpanLink represents a causal relationship between two spans. A span can have multiple links.
+	SpanLinks []SpanLink
+}
+
+// Logger implementations are able to log given messages that the tracer or profiler might output.
+type Logger interface {
+	// Log prints the given message.
+	Log(msg string)
+}
+
+// UseLogger sets l as the logger for all tracer and profiler logs.
+func UseLogger(l Logger) {
+	log.UseLogger(l)
 }
