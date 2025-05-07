@@ -36,5 +36,5 @@ jobs:
     - name: Golint
       uses: dominikh/staticcheck-action@v1.3.1
       with:
-        version: "latest"
+        version: "2025.1.1"
         install-go: false
