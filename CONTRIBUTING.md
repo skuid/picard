@@ -20,6 +20,6 @@ Before submitting changes, please follow these guidelines:
 2. Open an issue to discuss a new feature.
 3. If discussion ends up recommending the feature, fork this repository.
 4. Implement the new feature in your fork.
-5. If you add new dependencies, please update `go.mod` and run `go get` and then `go mod vendor`.
+5. If you add new dependencies, please update `go.mod` and run `go get`.
 6. Write tests.
 7. Create an upstream pull request against the skuid/picard repository, and make sure Github Actions CI checks pass.
