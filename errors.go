@@ -70,6 +70,10 @@ func (e *ForeignKeyError) Error() string {
 	return fmt.Sprintf("%s: Table '%s', Foreign Key '%s', Key '%s'", e.Err, e.Table, e.KeyColumn, e.Key)
 }
 
+func (e *ForeignKeyError) Unwrap() error {
+	return e.Err
+}
+
 // GetFieldName returns the Related Field Name property
 func (e *ForeignKeyError) GetFieldName() string {
 	return e.FieldName
@@ -99,4 +103,8 @@ func NewQueryError(err error, query string) *QueryError {
 
 func (e *QueryError) Error() string {
 	return fmt.Sprintf("%s: Query: %s", e.Err, e.Query)
+}
+
+func (e *QueryError) Unwrap() error {
+	return e.Err
 }

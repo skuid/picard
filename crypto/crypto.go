@@ -26,15 +26,6 @@ func GetEncryptionKey() ([]byte, error) {
 	return encryptionKey, nil
 }
 
-func GenerateNewEncryptionKey() ([]byte, error) {
-	key := make([]byte, 32)
-	_, err := rand.Read(key)
-	if err != nil {
-		return nil, err
-	}
-	return key, nil
-}
-
 func EncryptBytes(v []byte) ([]byte, error) {
 	if encryptionKey == nil {
 		return nil, errors.New("no encryption key set for picard")

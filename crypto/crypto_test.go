@@ -87,41 +87,6 @@ func TestGetEncryptionKey(t *testing.T) {
 		})
 	}
 }
-func TestGenerateNewEncryptionKey(t *testing.T) {
-	testCases := []struct {
-		description string
-		readerValue string
-		shouldError bool
-	}{
-		// Happy Path
-		{
-			"Should generate key with no error",
-			"the-key-has-to-be-32-bytes-long!",
-			false,
-		},
-		// Sad Path
-		{
-			"Should return error on any error condition (too few bytes in this case)",
-			"y no 32 bytes to spare",
-			true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.description, func(t *testing.T) {
-			oldReader := rand.Reader
-			rand.Reader = strings.NewReader(tc.readerValue)
-			key, err := GenerateNewEncryptionKey()
-			rand.Reader = oldReader
-			if tc.shouldError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, key, []byte(tc.readerValue))
-			}
-		})
-	}
-}
 
 func TestEncrypt(t *testing.T) {
 	testCases := []struct {
