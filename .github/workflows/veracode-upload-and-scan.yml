@@ -29,18 +29,12 @@ jobs:
         rsync -av ./ veracode_artifact/src/ \
           --exclude '.git*' \
           --exclude '.github*' \
-          --exclude 'tests/*' \
-          --exclude 'samples/*' \
-          --exclude 'scripts/*' \
-          --exclude 'setup/*' \
-          --exclude 'docs/*' \
-          --exclude 'pgdata12*' \
-          --exclude '*.rdb' \
-          --exclude '*.png' \
-          --exclude '*.css' \
-          --exclude '*.html' \
-          --exclude '*.js' \
-          --exclude '*.map' \
+          --exclude 'examples/*' \
+          --exclude 'testdata/*' \
+          --exclude 'picard_test/*' \
+          --exclude '*_test.go' \
+          --exclude 'Makefile' \
+          --exclude 'LICENSE' \
           --exclude 'veracode_artifact/*'
         cp go.mod go.sum veracode_artifact/src/
         rsync -av vendor/ veracode_artifact/src/vendor/
