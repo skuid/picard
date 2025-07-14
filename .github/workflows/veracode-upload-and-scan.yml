@@ -30,7 +30,6 @@ jobs:
           --exclude '.git*' \
           --exclude '.github*' \
           --exclude 'examples/*' \
-          --exclude 'testdata/*' \
           --exclude 'picard_test/*' \
           --exclude '*_test.go' \
           --exclude 'Makefile' \
