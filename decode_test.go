@@ -183,7 +183,7 @@ func TestUnmarshal(t *testing.T) {
 	}
 }
 
-func TestUnmarshal_CustomOmit(t *testing.T) {
+func TestMarshal_CustomOmit(t *testing.T) {
 
 	jsonIter := GetDecoder(&decoding.Config{
 		TagKey: "json",
