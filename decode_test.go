@@ -3,6 +3,8 @@ package picard
 import (
 	"testing"
 
+	jsoniter "github.com/json-iterator/go"
+	"github.com/skuid/picard/decoding"
 	"github.com/skuid/picard/metadata"
 	"github.com/skuid/picard/testdata"
 	"github.com/stretchr/testify/assert"
@@ -179,4 +181,32 @@ func TestUnmarshal(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMarshal_CustomOmit(t *testing.T) {
+
+	jsonIter := GetDecoder(&decoding.Config{
+		TagKey: "json",
+		OmitLogic: func(binding *jsoniter.Binding) bool {
+			metadataTag, hasMetadataTag := binding.Field.Tag().Lookup("json")
+			if !hasMetadataTag {
+				return true
+			}
+			if metadataTag == "name" {
+				return true
+			}
+			return false
+		},
+	})
+	obj := testdata.TestObject{
+		Metadata: metadata.Metadata{
+			DefinedFields: []string{"ID", "Name"},
+		},
+		ID:   "anotherID",
+		Name: "anotherName",
+	}
+	result, err := jsonIter.Marshal(&obj)
+	assert.NoError(t, err, "Marshal should succeed")
+	assert.NotContains(t, string(result), "anotherName", "Name field should be omitted from Marshal")
+
 }

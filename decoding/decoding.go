@@ -17,7 +17,8 @@ import (
 
 // Config specifies options for the picard decoder
 type Config struct {
-	TagKey string
+	TagKey    string
+	OmitLogic func(*jsoniter.Binding) bool
 }
 
 // JsonIter Extension for metadata marshalling/unmarshalling
@@ -29,13 +30,8 @@ type picardExtension struct {
 
 func (extension *picardExtension) UpdateStructDescriptor(structDescriptor *jsoniter.StructDescriptor) {
 	for _, binding := range structDescriptor.Fields {
-		metadataTag, hasMetadataTag := binding.Field.Tag().Lookup(extension.config.TagKey)
-		if hasMetadataTag {
-			options := strings.Split(metadataTag, ",")[1:]
-			if stringutil.StringSliceContainsKey(options, "omitretrieve") {
-				// Don't do bindings for tags that have the "omitretrieve" option
-				binding.ToNames = []string{}
-			}
+		if extension.config.OmitLogic != nil && extension.config.OmitLogic(binding) {
+			binding.ToNames = []string{}
 		}
 	}
 	extension.structDesc = structDescriptor
@@ -109,6 +105,16 @@ func GetDecoder(config *Config) jsoniter.API {
 	}
 	if config.TagKey == "" {
 		config.TagKey = "json"
+	}
+	if config.OmitLogic == nil {
+		config.OmitLogic = func(binding *jsoniter.Binding) bool {
+			metadataTag, hasMetadataTag := binding.Field.Tag().Lookup(config.TagKey)
+			if hasMetadataTag {
+				options := strings.Split(metadataTag, ",")[1:]
+				return stringutil.StringSliceContainsKey(options, "omitretrieve")
+			}
+			return false
+		}
 	}
 	api := jsoniter.Config{
 		EscapeHTML:             true,
