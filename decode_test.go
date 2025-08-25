@@ -193,7 +193,6 @@ func TestMarshal_CustomOmit(t *testing.T) {
 				return true
 			}
 			if metadataTag == "name" {
-				println("Omitting field", binding.Field.Name())
 				return true
 			}
 			return false
