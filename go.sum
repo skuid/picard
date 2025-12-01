@@ -166,8 +166,6 @@ github.com/rogpeppe/go-internal v1.13.1 h1:KvO1DLK/DRN07sQ1LQKScxyZJuNnedQ5/wKSR
 github.com/rogpeppe/go-internal v1.13.1/go.mod h1:uMEvuHeurkdAXX61udpOXGD/AzZDWNMNyH2VO9fmH0o=
 github.com/ryanuber/go-glob v1.0.0 h1:iQh3xXAumdQ+4Ufa5b25cRpC5TYKlno6hsv6Cb3pkBk=
 github.com/ryanuber/go-glob v1.0.0/go.mod h1:807d1WSdnB0XRJzKNil9Om6lcp/3a0v4qIHxIXzX/Yc=
-github.com/satori/go.uuid v1.2.0 h1:0uYX9dsZ2yD7q2RtLRtPSdGDWzjeM3TbMJP9utgA0ww=
-github.com/satori/go.uuid v1.2.0/go.mod h1:dA0hQrYB0VpLJoorglMZABFdXlWrHn1NEOzdhQKdks0=
 github.com/secure-systems-lab/go-securesystemslib v0.9.0 h1:rf1HIbL64nUpEIZnjLZ3mcNEL9NBPB0iuVjyxvq3LZc=
 github.com/secure-systems-lab/go-securesystemslib v0.9.0/go.mod h1:DVHKMcZ+V4/woA/peqr+L0joiRXbPpQ042GgJckkFgw=
 github.com/shirou/gopsutil/v4 v4.25.3 h1:SeA68lsu8gLggyMbmCn8cmp97V1TI9ld9sVzAUcKcKE=

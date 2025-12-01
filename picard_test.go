@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
-	uuid "github.com/satori/go.uuid"
 	"github.com/skuid/picard/metadata"
 	"github.com/skuid/picard/testdata"
 	"github.com/stretchr/testify/assert"
@@ -285,7 +285,7 @@ func TestDeployments(t *testing.T) {
 				helper := testObjectHelper
 				returnData := [][]driver.Value{
 					{
-						uuid.NewV4().String(),
+						uuid.NewString(),
 						"Simple",
 						nil,
 					},
@@ -1738,8 +1738,8 @@ func TestDeployments(t *testing.T) {
 			testdata.ChildTestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				childUUID := uuid.NewV4().String()
-				parentUUID := uuid.NewV4().String()
+				childUUID := uuid.NewString()
+				parentUUID := uuid.NewString()
 				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
 				returnData := [][]driver.Value{
 					{
@@ -1779,7 +1779,7 @@ func TestDeployments(t *testing.T) {
 			testdata.ChildTestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				parentUUID := uuid.NewV4().String()
+				parentUUID := uuid.NewString()
 				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
 				lookupKeys := []string{"ChildItem"}
 				returnData := [][]driver.Value{}
@@ -1821,7 +1821,7 @@ func TestDeployments(t *testing.T) {
 			testdata.ChildTestObjectWithKeyMap{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				parentUUID := uuid.NewV4().String()
+				parentUUID := uuid.NewString()
 				fixtures := fixturesAbstract.([]testdata.ChildTestObjectWithKeyMap)
 				lookupKeys := []string{"ChildItem|Simple"}
 				returnData := [][]driver.Value{}
@@ -1863,8 +1863,8 @@ func TestDeployments(t *testing.T) {
 			testdata.ChildTestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				parentUUID := uuid.NewV4().String()
-				optionalParentUUID := uuid.NewV4().String()
+				parentUUID := uuid.NewString()
+				optionalParentUUID := uuid.NewString()
 				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
 				lookupKeys := []string{"ChildItem"}
 				returnData := [][]driver.Value{}
