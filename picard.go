@@ -28,12 +28,12 @@ const separator = "|"
 
 // ORM interface describes the behavior API of any picard ORM
 type ORM interface {
-	FilterModel(FilterRequest) ([]interface{}, error)
-	SaveModel(model interface{}) error
-	CreateModel(model interface{}) error
-	DeleteModel(model interface{}) (int64, error)
-	Deploy(data interface{}) error
-	DeployMultiple(data []interface{}) error
+	FilterModel(FilterRequest) ([]any, error)
+	SaveModel(model any) error
+	CreateModel(model any) error
+	DeleteModel(model any) (int64, error)
+	Deploy(data any) error
+	DeployMultiple(data []any) error
 	StartTransaction() (*sql.Tx, error)
 	Commit() error
 	Rollback() error
@@ -94,7 +94,7 @@ func (p *PersistenceORM) Rollback() error {
 }
 
 // Decode decodes a reader using a specified decoder, but also writes metadata to picard StructMetadata
-func Decode(body io.Reader, destination interface{}) error {
+func Decode(body io.Reader, destination any) error {
 	bytes, err := io.ReadAll(body)
 	if err != nil {
 		return err
@@ -112,7 +112,7 @@ func GetDecoder(config *decoding.Config) jsoniter.API {
 }
 
 //// example code, unused
-//func getStructValue(v interface{}) (reflect.Value, error) {
+//func getStructValue(v any) (reflect.Value, error) {
 //	value := reflect.Indirect(reflect.ValueOf(v))
 //	if value.Kind() != reflect.Struct {
 //		return value, errors.New("models must be structs")
@@ -122,14 +122,14 @@ func GetDecoder(config *decoding.Config) jsoniter.API {
 
 // Deploy is the public method to start a Picard deployment. Send in a table name and a slice of structs
 // and it will attempt a deployment.
-func (p PersistenceORM) Deploy(data interface{}) error {
-	deploys := make([]interface{}, 1)
+func (p PersistenceORM) Deploy(data any) error {
+	deploys := make([]any, 1)
 	deploys[0] = data
 	return p.DeployMultiple(deploys)
 }
 
 // DeployMultiple allows for doing multiple deployments in the same transaction
-func (p PersistenceORM) DeployMultiple(data []interface{}) error {
+func (p PersistenceORM) DeployMultiple(data []any) error {
 	if p.transaction == nil {
 		tx, err := GetConnection().Begin()
 		if err != nil {
@@ -149,7 +149,7 @@ func (p PersistenceORM) DeployMultiple(data []interface{}) error {
 	return nil
 }
 
-func (p PersistenceORM) upsert(data interface{}, deleteFilters interface{}) error {
+func (p PersistenceORM) upsert(data any, deleteFilters any) error {
 
 	tableMetadata, err := tags.GetTableMetadata(data)
 	if err != nil {
@@ -226,7 +226,7 @@ func (p PersistenceORM) upsert(data interface{}, deleteFilters interface{}) erro
 			compoundObjectKey := getObjectKeyReflect(resultValue, lookupsToUse)
 			if _, ok := updateKeyMap[compoundObjectKey]; !ok {
 				deletes = append(deletes, dbchange.Change{
-					Changes: map[string]interface{}{
+					Changes: map[string]any{
 						tableMetadata.GetPrimaryKeyColumnName(): getObjectProperty(resultValue, tableMetadata.GetPrimaryKeyFieldName()),
 					},
 					Type: dbchange.Delete,
@@ -393,7 +393,7 @@ func (p PersistenceORM) performInserts(inserts []dbchange.Change, insertsHavePri
 	return nil
 }
 
-func (p PersistenceORM) getExistingObjectByID(tableMetadata *tags.TableMetadata, IDValue interface{}) (map[string]interface{}, error) {
+func (p PersistenceORM) getExistingObjectByID(tableMetadata *tags.TableMetadata, IDValue any) (map[string]any, error) {
 	tableName := tableMetadata.GetTableName()
 	IDColumn := tableMetadata.GetPrimaryKeyColumnName()
 	multitenancyColumn := tableMetadata.GetMultitenancyKeyColumnName()
@@ -431,11 +431,11 @@ func getAssociations(tableMetadata *tags.TableMetadata) []tags.Association {
 }
 
 func (p PersistenceORM) checkForExisting(
-	data interface{},
+	data any,
 	tableMetadata *tags.TableMetadata,
 	foreignKey *tags.ForeignKey,
 ) (
-	map[string]interface{},
+	map[string]any,
 	[]tags.Lookup,
 	error,
 ) {
@@ -447,7 +447,7 @@ func (p PersistenceORM) checkForExisting(
 	lookupObjectKeys := getLookupObjectKeys(data, lookupsToUse, foreignKey)
 
 	if len(lookupObjectKeys) == 0 || len(lookupsToUse) == 0 {
-		return map[string]interface{}{}, lookupsToUse, nil
+		return map[string]any{}, lookupsToUse, nil
 	}
 
 	query := squirrel.Select(fmt.Sprintf("%v.%v", tableName, primaryKeyColumnName))
@@ -546,7 +546,7 @@ func getMatchObjectProperty(baseObjectProperty string, relatedFieldName string, 
 	return getNewBaseObjectProperty(baseObjectProperty, relatedFieldName) + "." + matchObjectProperty
 }
 
-func getLookupsForDeploy(data interface{}, tableMetadata *tags.TableMetadata, foreignKey *tags.ForeignKey, tableAliasCache map[string]string) []tags.Lookup {
+func getLookupsForDeploy(data any, tableMetadata *tags.TableMetadata, foreignKey *tags.ForeignKey, tableAliasCache map[string]string) []tags.Lookup {
 	lookupsToUse := []tags.Lookup{}
 	tableName := tableMetadata.GetTableName()
 	primaryKeyColumnName := tableMetadata.GetPrimaryKeyColumnName()
@@ -646,7 +646,7 @@ func hasForeignKeyData(item reflect.Value, foreignKey tags.ForeignKey) bool {
 	return hasData
 }
 
-func getLookupObjectKeys(data interface{}, lookupsToUse []tags.Lookup, foreignKey *tags.ForeignKey) []string {
+func getLookupObjectKeys(data any, lookupsToUse []tags.Lookup, foreignKey *tags.ForeignKey) []string {
 	keys := []string{}
 	keyMap := map[string]bool{}
 	s := reflect.ValueOf(data)
@@ -744,7 +744,7 @@ func (p PersistenceORM) performChildUpserts(changeObjects []dbchange.Change, tab
 
 		var data reflect.Value
 		var deleteFiltersValue reflect.Value
-		var deleteFilters interface{}
+		var deleteFilters any
 		index := 0
 
 		if child.FieldKind == reflect.Slice {
@@ -838,7 +838,7 @@ func (p PersistenceORM) performChildUpserts(changeObjects []dbchange.Change, tab
 // queries and creates a set of inserts, updates, and deletes to be
 // performed on the database.
 func (p PersistenceORM) generateChanges(
-	data interface{},
+	data any,
 	tableMetadata *tags.TableMetadata,
 ) (
 	*dbchange.ChangeSet,
@@ -877,10 +877,10 @@ func (p PersistenceORM) generateChanges(
 
 		object := lookupResults[objectKey]
 
-		var existingObj map[string]interface{}
+		var existingObj map[string]any
 
 		if object != nil {
-			existingObj = object.(map[string]interface{})
+			existingObj = object.(map[string]any)
 		}
 		// TODO: Implement Delete Conditions
 		shouldDelete := false
@@ -941,7 +941,7 @@ func (p PersistenceORM) generateChanges(
 	}, nil
 }
 
-func serializeJSONBColumns(columns []string, returnObject map[string]interface{}) error {
+func serializeJSONBColumns(columns []string, returnObject map[string]any) error {
 	for _, column := range columns {
 		value := returnObject[column]
 
@@ -960,7 +960,7 @@ func serializeJSONBColumns(columns []string, returnObject map[string]interface{}
 	return nil
 }
 
-func serializeJSONBColumn(value interface{}) (interface{}, error) {
+func serializeJSONBColumn(value any) (any, error) {
 	// No value to process
 	if value == nil || value == "" {
 		return value, nil
@@ -994,11 +994,11 @@ func isFieldDefinedOnStruct(modelMetadata metadata.Metadata, fieldName string, d
 
 func (p PersistenceORM) processObject(
 	metadataObject reflect.Value,
-	databaseObject map[string]interface{},
+	databaseObject map[string]any,
 	foreignKeys []tags.ForeignKey,
 	tableMetadata *tags.TableMetadata,
 ) (dbchange.Change, error) {
-	returnObject := map[string]interface{}{}
+	returnObject := map[string]any{}
 
 	isUpdate := databaseObject != nil
 
@@ -1006,7 +1006,7 @@ func (p PersistenceORM) processObject(
 	modelMetadata := metadata.GetMetadataFromPicardStruct(metadataObject)
 
 	for _, field := range tableMetadata.GetFields() {
-		var returnValue interface{}
+		var returnValue any
 
 		// Don't ever update the primary key or the multitenancy key or "create triggered" audit fields
 		if isUpdate && !field.IncludeInUpdate() {
@@ -1099,7 +1099,7 @@ func (p PersistenceORM) processObject(
 		lookupData, foundLookupData := foreignKey.LookupResults[key]
 
 		if foundLookupData {
-			lookupDataInterface := lookupData.(map[string]interface{})
+			lookupDataInterface := lookupData.(map[string]any)
 			lookupKeyColumnName := foreignKey.TableMetadata.GetPrimaryKeyColumnName()
 			returnObject[foreignKey.KeyColumn] = lookupDataInterface[lookupKeyColumnName]
 		} else {
@@ -1128,7 +1128,7 @@ func (p PersistenceORM) processObject(
 	}, nil
 }
 
-func getObjectKey(objects map[string]interface{}, tableName string, lookups []tags.Lookup, tableAliasCache map[string]string) string {
+func getObjectKey(objects map[string]any, tableName string, lookups []tags.Lookup, tableAliasCache map[string]string) string {
 	keyValue := []string{}
 	for _, lookup := range lookups {
 		tableToUse := tableName
@@ -1185,7 +1185,7 @@ func getObjectProperty(value reflect.Value, lookupString string) string {
 	}
 }
 
-func getQueryResults(rows *sql.Rows) ([]map[string]interface{}, error) {
+func getQueryResults(rows *sql.Rows) ([]map[string]any, error) {
 	defer rows.Close()
 
 	cols, err := rows.Columns()
@@ -1194,13 +1194,13 @@ func getQueryResults(rows *sql.Rows) ([]map[string]interface{}, error) {
 		return nil, err
 	}
 
-	results := []map[string]interface{}{}
+	results := []map[string]any{}
 
 	for rows.Next() {
-		// Create a slice of interface{}'s to represent each column,
+		// Create a slice of any's to represent each column,
 		// and a second slice to contain pointers to each item in the columns slice.
-		columns := make([]interface{}, len(cols))
-		columnPointers := make([]interface{}, len(cols))
+		columns := make([]any, len(cols))
+		columnPointers := make([]any, len(cols))
 		for i := range columns {
 			columnPointers[i] = &columns[i]
 		}
@@ -1212,7 +1212,7 @@ func getQueryResults(rows *sql.Rows) ([]map[string]interface{}, error) {
 
 		// Create our map, and retrieve the value for each column from the pointers slice,
 		// storing it in the map with the name of the column as the key.
-		m := make(map[string]interface{})
+		m := make(map[string]any)
 		for i, colName := range cols {
 			val := columns[i]
 			reflectValue := reflect.ValueOf(val)
@@ -1233,14 +1233,14 @@ func getQueryResults(rows *sql.Rows) ([]map[string]interface{}, error) {
 	return results, nil
 }
 
-func getLookupQueryResults(rows *sql.Rows, tableName string, lookups []tags.Lookup, tableAliasCache map[string]string) (map[string]interface{}, error) {
+func getLookupQueryResults(rows *sql.Rows, tableName string, lookups []tags.Lookup, tableAliasCache map[string]string) (map[string]any, error) {
 
 	results, err := getQueryResults(rows)
 	if err != nil {
 		return nil, err
 	}
 
-	resultsMap := map[string]interface{}{}
+	resultsMap := map[string]any{}
 
 	for _, v := range results {
 		resultsMap[getObjectKey(v, tableName, lookups, tableAliasCache)] = v
@@ -1249,8 +1249,8 @@ func getLookupQueryResults(rows *sql.Rows, tableName string, lookups []tags.Look
 	return resultsMap, nil
 }
 
-func getColumnValues(columnNames []string, data map[string]interface{}) []interface{} {
-	columnValues := []interface{}{}
+func getColumnValues(columnNames []string, data map[string]any) []any {
+	columnValues := []any{}
 	for _, columnName := range columnNames {
 		columnValue, hasValue := data[columnName]
 		if hasValue {

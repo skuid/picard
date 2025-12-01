@@ -14,7 +14,7 @@ import (
 
 // DeleteModel will delete models that match the provided struct, ignoring zero values.
 // Returns the number of rows affected or an error.
-func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
+func (porm PersistenceORM) DeleteModel(model any) (int64, error) {
 
 	metadata, err := tags.GetTableMetadata(model)
 	if err != nil {
@@ -37,7 +37,7 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 
 	dSQL := tbl.DeleteSQL()
 
-	lookupPks := make([]interface{}, 0)
+	lookupPks := make([]any, 0)
 	if hasAssociations {
 		results, err := porm.FilterModel(FilterRequest{
 			FilterModel:  model,
@@ -79,7 +79,7 @@ func (porm PersistenceORM) DeleteModel(model interface{}) (int64, error) {
 	return results.RowsAffected()
 }
 
-func hasAssociations(model interface{}, metadata *tags.TableMetadata) (bool, error) {
+func hasAssociations(model any, metadata *tags.TableMetadata) (bool, error) {
 	val, err := stringutil.GetStructValue(model)
 	if err != nil {
 		return false, err

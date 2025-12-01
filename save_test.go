@@ -21,7 +21,7 @@ func TestCreateModel(t *testing.T) {
 	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
 	testCases := []struct {
 		description         string
-		giveValue           interface{}
+		giveValue           any
 		expectationFunction func(sqlmock.Sqlmock)
 		wantErr             error
 	}{
@@ -136,7 +136,7 @@ func TestSaveModel(t *testing.T) {
 	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
 	testCases := []struct {
 		description         string
-		giveValue           interface{}
+		giveValue           any
 		expectationFunction func(sqlmock.Sqlmock)
 		wantErr             error
 	}{
@@ -379,7 +379,7 @@ func TestJSONBSaveModel(t *testing.T) {
 	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
 	testCases := []struct {
 		description         string
-		giveValue           interface{}
+		giveValue           any
 		expectationFunction func(sqlmock.Sqlmock)
 		wantErr             string
 	}{
@@ -512,7 +512,7 @@ func TestEncryptedSaveModel(t *testing.T) {
 	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
 	testCases := []struct {
 		description         string
-		giveValue           interface{}
+		giveValue           any
 		expectationFunction func(sqlmock.Sqlmock)
 		wantErr             string
 	}{
@@ -668,7 +668,7 @@ func TestUpdateModel(t *testing.T) {
 	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
 	testCases := []struct {
 		description         string
-		giveValue           interface{}
+		giveValue           any
 		expectationFunction func(sqlmock.Sqlmock)
 		wantErr             error
 	}{
@@ -736,7 +736,7 @@ func TestInsertModel(t *testing.T) {
 	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
 	testCases := []struct {
 		description         string
-		giveValue           interface{}
+		giveValue           any
 		expectationFunction func(sqlmock.Sqlmock)
 		wantErr             error
 	}{
@@ -826,7 +826,7 @@ func TestSetPrimaryKeyFromInsertResult(t *testing.T) {
 				PrimaryKeyField string `picard:"primary_key,column=primary_key_column"`
 			}{})),
 			dbchange.Change{
-				Changes: map[string]interface{}{
+				Changes: map[string]any{
 					"primary_key_column": "00000000-0000-0000-0000-000000000001",
 				},
 			},
@@ -842,7 +842,7 @@ func TestSetPrimaryKeyFromInsertResult(t *testing.T) {
 				PrimaryKeyField string `picard:"primary_key,column=another_pk_column"`
 			}{})),
 			dbchange.Change{
-				Changes: map[string]interface{}{
+				Changes: map[string]any{
 					"another_pk_column": "00000000-0000-0000-0000-000000000002",
 				},
 			},
@@ -858,7 +858,7 @@ func TestSetPrimaryKeyFromInsertResult(t *testing.T) {
 				PrimaryKeyField string `picard:"column=primary_key_column"`
 			}{})),
 			dbchange.Change{
-				Changes: map[string]interface{}{
+				Changes: map[string]any{
 					"primary_key_column": "00000000-0000-0000-0000-000000000001",
 				},
 			},

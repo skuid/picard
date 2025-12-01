@@ -9,17 +9,17 @@ import (
 )
 
 // SaveModel performs an upsert operation for the provided model.
-func (p PersistenceORM) SaveModel(model interface{}) error {
+func (p PersistenceORM) SaveModel(model any) error {
 	return p.persistModel(model, false)
 }
 
 // CreateModel performs an insert operation for the provided model.
-func (p PersistenceORM) CreateModel(model interface{}) error {
+func (p PersistenceORM) CreateModel(model any) error {
 	return p.persistModel(model, true)
 }
 
 // persistModel performs an upsert operation for the provided model.
-func (p PersistenceORM) persistModel(model interface{}, alwaysInsert bool) error {
+func (p PersistenceORM) persistModel(model any, alwaysInsert bool) error {
 	// This makes modelValue a reflect.Value of model whether model is a pointer or not.
 	modelValue := reflect.Indirect(reflect.ValueOf(model))
 	if modelValue.Kind() != reflect.Struct {
@@ -54,7 +54,7 @@ func (p PersistenceORM) persistModel(model interface{}, alwaysInsert bool) error
 	return nil
 }
 
-func (p PersistenceORM) updateModel(modelValue reflect.Value, tableMetadata *tags.TableMetadata, primaryKeyValue interface{}) error {
+func (p PersistenceORM) updateModel(modelValue reflect.Value, tableMetadata *tags.TableMetadata, primaryKeyValue any) error {
 	existingObject, err := p.getExistingObjectByID(tableMetadata, primaryKeyValue)
 	if err != nil {
 		return err
@@ -69,7 +69,7 @@ func (p PersistenceORM) updateModel(modelValue reflect.Value, tableMetadata *tag
 	return p.performUpdates([]dbchange.Change{change}, tableMetadata)
 }
 
-func (p PersistenceORM) insertModel(modelValue reflect.Value, tableMetadata *tags.TableMetadata, primaryKeyValue interface{}) error {
+func (p PersistenceORM) insertModel(modelValue reflect.Value, tableMetadata *tags.TableMetadata, primaryKeyValue any) error {
 	change, err := p.processObject(modelValue, nil, nil, tableMetadata)
 	if err != nil {
 		return err

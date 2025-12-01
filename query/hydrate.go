@@ -18,7 +18,7 @@ import (
 Hydrate takes the rows and pops them into the correct struct, in the correct
 order. This is usually called after you've built and executed the query model.
 */
-func Hydrate(filterModel interface{}, tblAlias string, aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows, meta *tags.TableMetadata) ([]*reflect.Value, error) {
+func Hydrate(filterModel any, tblAlias string, aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows, meta *tags.TableMetadata) ([]*reflect.Value, error) {
 	modelVal, err := stringutil.GetStructValue(filterModel)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func Hydrate(filterModel interface{}, tblAlias string, aliasMap map[string]qp.Fi
 
 func hydrate(
 	typ reflect.Type,
-	mapped map[string]map[string]interface{},
+	mapped map[string]map[string]any,
 	alias string,
 	aliasMap map[string]qp.FieldDescriptor,
 	refPath string,
@@ -106,7 +106,7 @@ func hydrate(
 	return &hydratedModel, nil
 }
 
-func setFieldValue(model *reflect.Value, field tags.FieldMetadata, value interface{}) error {
+func setFieldValue(model *reflect.Value, field tags.FieldMetadata, value any) error {
 	reflectedValue := reflect.ValueOf(value)
 
 	if reflectedValue.IsValid() {
@@ -216,11 +216,9 @@ This function would return something like:
 	"t1.address": {
 		"city": "Chattanooga"
 	}
-
-
 */
-func mapRows2Cols(aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows) ([]map[string]map[string]interface{}, error) {
-	results := make([]map[string]map[string]interface{}, 0)
+func mapRows2Cols(aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows) ([]map[string]map[string]any, error) {
+	results := make([]map[string]map[string]any, 0)
 
 	cols, err := rows.Columns()
 	if err != nil {
@@ -228,8 +226,8 @@ func mapRows2Cols(aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows) ([]map
 	}
 
 	for rows.Next() {
-		columns := make([]interface{}, len(cols))
-		columnPointers := make([]interface{}, len(cols))
+		columns := make([]any, len(cols))
+		columnPointers := make([]any, len(cols))
 		for i := range columns {
 			columnPointers[i] = &columns[i]
 		}
@@ -239,7 +237,7 @@ func mapRows2Cols(aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows) ([]map
 			return nil, err
 		}
 
-		result := make(map[string]map[string]interface{})
+		result := make(map[string]map[string]any)
 
 		// Create our map, and retrieve the value for each column from the pointers slice,
 		// storing it in the map with the name of the column as the key.
@@ -248,7 +246,7 @@ func mapRows2Cols(aliasMap map[string]qp.FieldDescriptor, rows *sql.Rows) ([]map
 			aliasedTbl := fmt.Sprintf(qp.AliasedField, tmap.Alias, tmap.Table)
 
 			if result[aliasedTbl] == nil {
-				result[aliasedTbl] = make(map[string]interface{})
+				result[aliasedTbl] = make(map[string]any)
 			}
 
 			val := columns[i]

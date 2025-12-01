@@ -94,7 +94,7 @@ func insertData(p picard.ORM) error {
 }
 
 // getAllBlogs grabs all blogs and eager logads Tag association in Tags field, ordering by Name in descending order
-func getAllBlogs(p picard.ORM) ([]interface{}, error) {
+func getAllBlogs(p picard.ORM) ([]any, error) {
 	blogs, err := p.FilterModel(picard.FilterRequest{
 		FilterModel: Blog{},
 		Associations: []tags.Association{
@@ -121,7 +121,7 @@ func getAllBlogs(p picard.ORM) ([]interface{}, error) {
  * For Blog associations, the related Tag associations are fetched and added to the Tags field.
  * Only the ID and Name fields are retrieved for Users, Blogs, and Tags
  */
-func getUser(p picard.ORM, name string) ([]interface{}, error) {
+func getUser(p picard.ORM, name string) ([]any, error) {
 	filter := User{
 		Name: name,
 	}
@@ -152,7 +152,7 @@ func getUser(p picard.ORM, name string) ([]interface{}, error) {
 	return users, nil
 }
 
-func getBlog(p picard.ORM, name string) ([]interface{}, error) {
+func getBlog(p picard.ORM, name string) ([]any, error) {
 	blog, err := p.FilterModel(picard.FilterRequest{
 		FilterModel: Blog{
 			Name: name,
@@ -170,7 +170,7 @@ func getBlog(p picard.ORM, name string) ([]interface{}, error) {
 }
 
 //lint:ignore U1000 example code
-func getBlogs(p picard.ORM) ([]interface{}, error) {
+func getBlogs(p picard.ORM) ([]any, error) {
 	blogs, err := p.FilterModel(picard.FilterRequest{
 		FilterModel: Blog{},
 		FieldFilters: tags.OrFilterGroup{

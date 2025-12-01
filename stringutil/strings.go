@@ -32,7 +32,7 @@ func GetValueFromLookupString(value reflect.Value, lookupString string) reflect.
 }
 
 // GetStructValue returns the reflected value of a struct interface
-func GetStructValue(v interface{}) (reflect.Value, error) {
+func GetStructValue(v any) (reflect.Value, error) {
 	value := reflect.Indirect(reflect.ValueOf(v))
 	if value.Kind() != reflect.Struct {
 		return value, errors.New("models must be structs")
@@ -42,7 +42,7 @@ func GetStructValue(v interface{}) (reflect.Value, error) {
 
 // GetFilterType returns the type of the interface if it is a struct
 // If it is a slice, it returns the type of the elements inside the struct
-func GetFilterType(v interface{}) (reflect.Type, error) {
+func GetFilterType(v any) (reflect.Type, error) {
 	value := reflect.Indirect(reflect.ValueOf(v))
 	kind := value.Kind()
 	if kind == reflect.Struct {

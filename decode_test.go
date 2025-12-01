@@ -15,8 +15,8 @@ func TestUnmarshal(t *testing.T) {
 	testCases := []struct {
 		testDescription string
 		inData          []byte
-		inStruct        interface{}
-		outStruct       interface{}
+		inStruct        any
+		outStruct       any
 		outErrMsg       string
 	}{
 		{

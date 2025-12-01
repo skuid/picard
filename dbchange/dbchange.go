@@ -23,7 +23,7 @@ const (
 
 // Change structure
 type Change struct {
-	Changes       map[string]interface{}
+	Changes       map[string]any
 	OriginalValue reflect.Value
 	Key           string
 	Type          Type

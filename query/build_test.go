@@ -12,10 +12,10 @@ func TestQueryBuilder(t *testing.T) {
 	orgID := "00000000-0000-0000-0000-000000000001"
 	testCases := []struct {
 		desc         string
-		model        interface{}
+		model        any
 		assoc        []tags.Association
 		expected     string
-		expectedArgs []interface{}
+		expectedArgs []any
 	}{
 		{
 			"should return a single table with a few columns",
@@ -33,7 +33,7 @@ func TestQueryBuilder(t *testing.T) {
 				FROM parentmodel AS t0
 				WHERE t0.organization_id = $1 AND t0.name = $2
 			`),
-			[]interface{}{
+			[]any{
 				orgID,
 				"pops",
 			},
@@ -66,7 +66,7 @@ func TestQueryBuilder(t *testing.T) {
 					t0.organization_id = $2 AND
 					t0.name = $3
 			`),
-			[]interface{}{
+			[]any{
 				orgID,
 				orgID,
 				"a_field",
@@ -121,7 +121,7 @@ func TestQueryBuilder(t *testing.T) {
 					t0.organization_id = $4 AND
 					t0.name = $5
 			`),
-			[]interface{}{
+			[]any{
 				orgID,
 				orgID,
 				orgID,
@@ -152,7 +152,7 @@ func TestQueryBuilder(t *testing.T) {
 					t0.organization_id = $2 AND
 					t1.name = $3
 			`),
-			[]interface{}{
+			[]any{
 				orgID,
 				orgID,
 				"my parent",
