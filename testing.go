@@ -16,7 +16,7 @@ import (
 	"github.com/skuid/picard/testdata"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/google/uuid"
+	"github.com/gofrs/uuid/v5"
 )
 
 // Test structs for JSONB tests
@@ -198,8 +198,9 @@ func GetReturnDataForLookup(expect ExpectationHelper, foundObjects any) [][]driv
 		s := reflect.ValueOf(foundObjects)
 		for i := 0; i < s.Len(); i++ {
 			object := s.Index(i)
+			uuidValue, _ := uuid.NewV4()
 			returnItem := []driver.Value{
-				uuid.NewString(),
+				uuidValue.String(),
 			}
 			for _, lookup := range expect.LookupFields {
 				field := object.FieldByName(lookup)
@@ -299,8 +300,9 @@ func ExpectInsert(mock *sqlmock.Sqlmock, expect ExpectationHelper, columnNames [
 
 	returnData := [][]driver.Value{}
 	for range columnNames {
+		uuidValue, _ := uuid.NewV4()
 		returnData = append(returnData, []driver.Value{
-			uuid.NewString(),
+			uuidValue.String(),
 		})
 	}
 
@@ -329,8 +331,9 @@ func ExpectInsert(mock *sqlmock.Sqlmock, expect ExpectationHelper, columnNames [
 		expectedArgs = append(expectedArgs, nonNullInsertValues...)
 		valueStrings = append(valueStrings, strings.Join(valueParams, ","))
 
+		returnValue, _ := uuid.NewV4()
 		returnData = append(returnData, []driver.Value{
-			uuid.NewString(),
+			returnValue.String(),
 		})
 	}
 

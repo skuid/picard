@@ -5,8 +5,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/gofrs/uuid/v5"
+
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/skuid/picard/metadata"
 	"github.com/skuid/picard/testdata"
@@ -283,9 +284,10 @@ func TestDeployments(t *testing.T) {
 			100,
 			func(mock *sqlmock.Sqlmock, fixtures any) {
 				helper := testObjectHelper
+				uuidValue, _ := uuid.NewV4()
 				returnData := [][]driver.Value{
 					{
-						uuid.NewString(),
+						uuidValue.String(),
 						"Simple",
 						nil,
 					},
@@ -1738,12 +1740,12 @@ func TestDeployments(t *testing.T) {
 			testdata.ChildTestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
-				childUUID := uuid.NewString()
-				parentUUID := uuid.NewString()
+				childUUID, _ := uuid.NewV4()
+				parentUUID, _ := uuid.NewV4()
 				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
 				returnData := [][]driver.Value{
 					{
-						childUUID,
+						childUUID.String(),
 						"ChildItem",
 					},
 				}
@@ -1753,7 +1755,7 @@ func TestDeployments(t *testing.T) {
 				// Expect the foreign key lookup next
 				ExpectLookup(mock, testObjectHelper, []string{"Simple|"}, [][]driver.Value{
 					{
-						parentUUID,
+						parentUUID.String(),
 						"Simple",
 						"",
 					},
@@ -1767,7 +1769,7 @@ func TestDeployments(t *testing.T) {
 				}, [][]driver.Value{
 					{
 						testChildObjectWithLookupHelper.GetFixtureValue(fixtures, 0, "Name"),
-						parentUUID,
+						parentUUID.String(),
 					},
 				}, returnData)
 			},
@@ -1779,7 +1781,7 @@ func TestDeployments(t *testing.T) {
 			testdata.ChildTestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
-				parentUUID := uuid.NewString()
+				parentUUID, _ := uuid.NewV4()
 				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
 				lookupKeys := []string{"ChildItem"}
 				returnData := [][]driver.Value{}
@@ -1788,7 +1790,7 @@ func TestDeployments(t *testing.T) {
 				for _, fixture := range fixtures {
 					childObjects = append(childObjects, testdata.ChildTestObject{
 						Name:     fixture.Name,
-						ParentID: parentUUID,
+						ParentID: parentUUID.String(),
 					})
 				}
 
@@ -1797,7 +1799,7 @@ func TestDeployments(t *testing.T) {
 				// Expect the foreign key lookup next
 				ExpectLookup(mock, testObjectHelper, []string{"Simple|"}, [][]driver.Value{
 					{
-						parentUUID,
+						parentUUID.String(),
 						"Simple",
 						"",
 					},
@@ -1808,7 +1810,7 @@ func TestDeployments(t *testing.T) {
 						sampleOrgID,
 						testChildObjectWithLookupHelper.GetFixtureValue(childObjects, 0, "Name"),
 						nil,
-						parentUUID,
+						parentUUID.String(),
 						nil,
 					},
 				})
@@ -1821,7 +1823,7 @@ func TestDeployments(t *testing.T) {
 			testdata.ChildTestObjectWithKeyMap{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
-				parentUUID := uuid.NewString()
+				parentUUID, _ := uuid.NewV4()
 				fixtures := fixturesAbstract.([]testdata.ChildTestObjectWithKeyMap)
 				lookupKeys := []string{"ChildItem|Simple"}
 				returnData := [][]driver.Value{}
@@ -1830,7 +1832,7 @@ func TestDeployments(t *testing.T) {
 				for _, fixture := range fixtures {
 					childObjects = append(childObjects, testdata.ChildTestObjectWithKeyMap{
 						Name:     fixture.Name,
-						ParentID: parentUUID,
+						ParentID: parentUUID.String(),
 					})
 				}
 
@@ -1839,7 +1841,7 @@ func TestDeployments(t *testing.T) {
 				// Expect the foreign key lookup next
 				ExpectLookup(mock, testObjectHelper, []string{"Simple|"}, [][]driver.Value{
 					{
-						parentUUID,
+						parentUUID.String(),
 						"Simple",
 						"",
 					},
@@ -1849,7 +1851,7 @@ func TestDeployments(t *testing.T) {
 						sampleOrgID,
 						testChildObjectWithLookupHelper.GetFixtureValue(childObjects, 0, "Name"),
 						nil,
-						parentUUID,
+						parentUUID.String(),
 						nil,
 					},
 				})
@@ -1863,8 +1865,8 @@ func TestDeployments(t *testing.T) {
 			testdata.ChildTestObject{},
 			100,
 			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
-				parentUUID := uuid.NewString()
-				optionalParentUUID := uuid.NewString()
+				parentUUID, _ := uuid.NewV4()
+				optionalParentUUID, _ := uuid.NewV4()
 				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
 				lookupKeys := []string{"ChildItem"}
 				returnData := [][]driver.Value{}
@@ -1873,8 +1875,8 @@ func TestDeployments(t *testing.T) {
 				for _, fixture := range fixtures {
 					childObjects = append(childObjects, testdata.ChildTestObject{
 						Name:             fixture.Name,
-						ParentID:         parentUUID,
-						OptionalParentID: optionalParentUUID,
+						ParentID:         parentUUID.String(),
+						OptionalParentID: optionalParentUUID.String(),
 					})
 				}
 
@@ -1883,7 +1885,7 @@ func TestDeployments(t *testing.T) {
 				// Expect the foreign key lookup next
 				ExpectLookup(mock, testObjectHelper, []string{"Simple|"}, [][]driver.Value{
 					{
-						parentUUID,
+						parentUUID.String(),
 						"Simple",
 						"",
 					},
@@ -1892,7 +1894,7 @@ func TestDeployments(t *testing.T) {
 				// Expect the foreign key lookup next
 				ExpectLookup(mock, testObjectHelper, []string{"Simple2|"}, [][]driver.Value{
 					{
-						optionalParentUUID,
+						optionalParentUUID.String(),
 						"Simple2",
 						"",
 					},
@@ -1902,8 +1904,8 @@ func TestDeployments(t *testing.T) {
 						sampleOrgID,
 						testChildObjectWithLookupHelper.GetFixtureValue(childObjects, 0, "Name"),
 						nil,
-						parentUUID,
-						optionalParentUUID,
+						parentUUID.String(),
+						optionalParentUUID.String(),
 					},
 				})
 			},
