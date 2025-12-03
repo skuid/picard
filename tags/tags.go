@@ -236,7 +236,7 @@ SQL translation in WHERE clause grouping:
 */
 type FieldFilter struct {
 	FieldName      string
-	FilterValue    interface{}
+	FilterValue    any
 	FilterOperator string
 }
 
@@ -298,7 +298,7 @@ type Lookup struct {
 	MatchDBColumn       string
 	MatchObjectProperty string
 	JoinKey             string
-	Value               interface{}
+	Value               any
 	SubQuery            []Lookup
 	SubQueryForeignKey  string
 	SubQueryMetadata    *TableMetadata
@@ -324,7 +324,7 @@ type ForeignKey struct {
 	RelatedFieldName string
 	Required         bool
 	NeedsLookup      bool
-	LookupResults    map[string]interface{}
+	LookupResults    map[string]any
 	LookupsUsed      []Lookup
 	KeyMapField      string
 }
@@ -593,7 +593,7 @@ func (tm TableMetadata) GetField(fieldName string) FieldMetadata {
 }
 
 // GetTableMetadata function
-func GetTableMetadata(data interface{}) (*TableMetadata, error) {
+func GetTableMetadata(data any) (*TableMetadata, error) {
 	// Verify that we've been passed valid input
 	t := reflect.TypeOf(data)
 	var tableMetadata *TableMetadata

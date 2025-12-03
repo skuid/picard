@@ -15,7 +15,7 @@ func TestDeleteModel(t *testing.T) {
 	testPerformedByValue := "00000000-0000-0000-0000-000000000002"
 	testCases := []struct {
 		description            string
-		giveModel              interface{}
+		giveModel              any
 		expectationFunction    func(sqlmock.Sqlmock)
 		wantReturnRowsAffected int64
 		wantErr                string

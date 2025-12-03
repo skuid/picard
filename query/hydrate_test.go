@@ -23,11 +23,11 @@ func TestHydrate(t *testing.T) {
 	orgID := "00000000-0000-0000-0000-000000000001"
 	testCases := []struct {
 		desc     string
-		model    interface{}
+		model    any
 		tblAlias string
 		aliasMap map[string]qp.FieldDescriptor
 		rows     *sqlmock.Rows
-		expected []interface{}
+		expected []any
 	}{
 		{
 			"should hydrate a single table with a few columns",
@@ -62,7 +62,7 @@ func TestHydrate(t *testing.T) {
 					orgID,
 					"pops",
 				),
-			[]interface{}{
+			[]any{
 				field{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
@@ -108,7 +108,7 @@ func TestHydrate(t *testing.T) {
 					orgID,
 					nil,
 				),
-			[]interface{}{
+			[]any{
 				field{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
@@ -160,7 +160,7 @@ func TestHydrate(t *testing.T) {
 					"pops",
 					hashedSecret,
 				),
-			[]interface{}{
+			[]any{
 				field{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,
@@ -296,7 +296,7 @@ func TestHydrate(t *testing.T) {
 					orgID,                                  // t3.organization_id
 					"a_referenced_object",                  // t3.name
 				),
-			[]interface{}{
+			[]any{
 				field{
 					ID:             "00000000-0000-0000-0000-000000000002",
 					OrganizationID: orgID,

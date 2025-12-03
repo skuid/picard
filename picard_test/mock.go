@@ -11,20 +11,20 @@ import (
 
 // MockORM can be used to test client functionality that calls picard.ORM behavior.
 type MockORM struct {
-	FilterModelReturns       []interface{}
+	FilterModelReturns       []any
 	FilterModelError         error
 	FilterModelCalledWith    picard.FilterRequest
 	SaveModelError           error
-	SaveModelCalledWith      interface{}
+	SaveModelCalledWith      any
 	CreateModelError         error
-	CreateModelCalledWith    interface{}
+	CreateModelCalledWith    any
 	DeployError              error
-	DeployCalledWith         interface{}
+	DeployCalledWith         any
 	DeployMultipleError      error
-	DeployMultipleCalledWith []interface{}
+	DeployMultipleCalledWith []any
 	DeleteModelRowsAffected  int64
 	DeleteModelError         error
-	DeleteModelCalledWith    interface{}
+	DeleteModelCalledWith    any
 	StartTransactionReturns  *sql.Tx
 	StartTransactionError    error
 	CommitError              error
@@ -32,7 +32,7 @@ type MockORM struct {
 }
 
 // FilterModel simply returns an error or return objects when set on the MockORM
-func (morm *MockORM) FilterModel(request picard.FilterRequest) ([]interface{}, error) {
+func (morm *MockORM) FilterModel(request picard.FilterRequest) ([]any, error) {
 	morm.FilterModelCalledWith = request
 	if morm.FilterModelError != nil {
 		return nil, morm.FilterModelError
@@ -41,31 +41,31 @@ func (morm *MockORM) FilterModel(request picard.FilterRequest) ([]interface{}, e
 }
 
 // SaveModel returns the error stored in MockORM, and records the call value
-func (morm *MockORM) SaveModel(model interface{}) error {
+func (morm *MockORM) SaveModel(model any) error {
 	morm.SaveModelCalledWith = model
 	return morm.SaveModelError
 }
 
 // CreateModel returns the error stored in MockORM, and records the call value
-func (morm *MockORM) CreateModel(model interface{}) error {
+func (morm *MockORM) CreateModel(model any) error {
 	morm.CreateModelCalledWith = model
 	return morm.CreateModelError
 }
 
 // DeleteModel returns the rows affected number & error stored in MockORM, and records the call value
-func (morm *MockORM) DeleteModel(data interface{}) (int64, error) {
+func (morm *MockORM) DeleteModel(data any) (int64, error) {
 	morm.DeleteModelCalledWith = data
 	return morm.DeleteModelRowsAffected, morm.DeleteModelError
 }
 
 // Deploy returns the error stored in MockORM, and records the call value
-func (morm *MockORM) Deploy(data interface{}) error {
+func (morm *MockORM) Deploy(data any) error {
 	morm.DeployCalledWith = data
 	return morm.DeployError
 }
 
 // DeployMultiple returns the error stored in MockORM, and records the call value
-func (morm *MockORM) DeployMultiple(data []interface{}) error {
+func (morm *MockORM) DeployMultiple(data []any) error {
 	morm.DeployMultipleCalledWith = data
 	return morm.DeployMultipleError
 }
@@ -114,7 +114,7 @@ func (multi *MultiMockORM) next() (*MockORM, error) {
 }
 
 // FilterModel simply returns an error or return objects when set on the MockORM
-func (multi *MultiMockORM) FilterModel(request picard.FilterRequest) ([]interface{}, error) {
+func (multi *MultiMockORM) FilterModel(request picard.FilterRequest) ([]any, error) {
 	if len(multi.TypeMap) > 0 {
 		typeof := reflect.TypeOf(request.FilterModel)
 		typename := typeof.Name()
@@ -130,7 +130,7 @@ func (multi *MultiMockORM) FilterModel(request picard.FilterRequest) ([]interfac
 }
 
 // SaveModel returns the error stored in MockORM, and records the call value
-func (multi *MultiMockORM) SaveModel(model interface{}) error {
+func (multi *MultiMockORM) SaveModel(model any) error {
 	next, err := multi.next()
 	if err != nil {
 		return err
@@ -139,7 +139,7 @@ func (multi *MultiMockORM) SaveModel(model interface{}) error {
 }
 
 // CreateModel returns the error stored in MockORM, and records the call value
-func (multi *MultiMockORM) CreateModel(model interface{}) error {
+func (multi *MultiMockORM) CreateModel(model any) error {
 	next, err := multi.next()
 	if err != nil {
 		return err
@@ -148,7 +148,7 @@ func (multi *MultiMockORM) CreateModel(model interface{}) error {
 }
 
 // DeleteModel returns the rows affected number & error stored in MockORM, and records the call value
-func (multi *MultiMockORM) DeleteModel(data interface{}) (int64, error) {
+func (multi *MultiMockORM) DeleteModel(data any) (int64, error) {
 	next, err := multi.next()
 	if err != nil {
 		return 0, err
@@ -157,7 +157,7 @@ func (multi *MultiMockORM) DeleteModel(data interface{}) (int64, error) {
 }
 
 // Deploy returns the error stored in MockORM, and records the call value
-func (multi *MultiMockORM) Deploy(data interface{}) error {
+func (multi *MultiMockORM) Deploy(data any) error {
 	next, err := multi.next()
 	if err != nil {
 		return err
@@ -166,7 +166,7 @@ func (multi *MultiMockORM) Deploy(data interface{}) error {
 }
 
 // DeployMultiple returns the error stored in MockORM, and records the call value
-func (multi *MultiMockORM) DeployMultiple(data []interface{}) error {
+func (multi *MultiMockORM) DeployMultiple(data []any) error {
 	next, err := multi.next()
 	if err != nil {
 		return err

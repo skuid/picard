@@ -64,7 +64,7 @@ func TestQueryColumns(t *testing.T) {
 
 type whereTest struct {
 	field string
-	val   interface{}
+	val   any
 }
 
 func TestQueryWheres(t *testing.T) {
@@ -148,7 +148,7 @@ func TestQueryWheres(t *testing.T) {
 
 			assert.Equal(tc.expected, actual, "Expected the resulting SQL to match expected")
 
-			expectedArgs := make([]interface{}, 0, len(tc.wheres))
+			expectedArgs := make([]any, 0, len(tc.wheres))
 
 			for _, where := range tc.wheres {
 				expectedArgs = append(expectedArgs, where.val)
@@ -179,7 +179,7 @@ func TestQueryJoins(t *testing.T) {
 		tblMt        whereTest
 		wheres       []whereTest
 		expected     string
-		expectedArgs []interface{}
+		expectedArgs []any
 	}{{
 		"should create the proper SQL for a simple table select with columns and two joins",
 		[]string{
@@ -247,7 +247,7 @@ func TestQueryJoins(t *testing.T) {
 				JOIN table_b AS t1 ON (t1.my_id = t0.col_two AND t1.col_mt = $1)
 				WHERE t0.tbl_mt = $2
 			`),
-			[]interface{}{
+			[]any{
 				"12345",
 				"12345",
 			},
@@ -290,7 +290,7 @@ func TestQueryJoins(t *testing.T) {
 				RIGHT JOIN table_c AS t2 ON t2.table_b_id = t0.id
 				WHERE t0.col_four = $1
 			`),
-			[]interface{}{
+			[]any{
 				"something col 4",
 			},
 		},
@@ -351,7 +351,7 @@ func TestQueryJoins(t *testing.T) {
 				WHERE t0.col_four = $1 AND
 					t1.b_col_three = $2
 			`),
-			[]interface{}{
+			[]any{
 				"something col 4",
 				333333,
 			},
@@ -428,7 +428,7 @@ func TestQueryJoins(t *testing.T) {
 				WHERE t0.col_four = $1 AND
 					t1.b_col_three = $2
 			`),
-			[]interface{}{
+			[]any{
 				"something col 4",
 				333333,
 			},

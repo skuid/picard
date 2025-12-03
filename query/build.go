@@ -14,7 +14,7 @@ import (
 Build takes the filter model and returns a query object. It takes the
 multitenancy value, current reflected value, and any tags
 */
-func Build(multitenancyVal, model interface{}, filters tags.Filterable, associations []tags.Association, selectFields []string, filterMetadata *tags.TableMetadata) (*qp.Table, error) {
+func Build(multitenancyVal, model any, filters tags.Filterable, associations []tags.Association, selectFields []string, filterMetadata *tags.TableMetadata) (*qp.Table, error) {
 
 	val, err := stringutil.GetStructValue(model)
 	if err != nil {
@@ -50,24 +50,24 @@ func getAssociation(associations []tags.Association, name string) (tags.Associat
 /*
 buildQuery is called recursively to create a Table object, which can be used
 to generate the SQL. It takes
-- multitenancyVal: this will be used as a WHERE on every table queried, including joins.
-- modelType: This is the reflected type of the struct used for this table's load. It
-			is used to figure out which columns to select, joins to add, and wheres.
-- modelVal: This is an instance of the struct, holding any lookup values
-- filters: Additional filters to add to this query. This allows for more complex conditions
-			than a simple modelFilter can provide.
-- associations: List of associations to load. For references, this will add the
-			join to the table at the correct level.
-- selectFields: List of fields to add to the select clause of the query. If this is null,
-			add all fields with columns specified to the query.
-- onlyJoin: If the association wasn't asked for, but there is a value in the related structure, just join but don't
-			add the fields to the select.
-- counter: because record keeping and aliasing is hard, we have to keep track
-			of which join we're currently looking at during the recursions.
-- filterMetadata: Metadata about struct that was passed in in modelVal
+  - multitenancyVal: this will be used as a WHERE on every table queried, including joins.
+  - modelType: This is the reflected type of the struct used for this table's load. It
+    is used to figure out which columns to select, joins to add, and wheres.
+  - modelVal: This is an instance of the struct, holding any lookup values
+  - filters: Additional filters to add to this query. This allows for more complex conditions
+    than a simple modelFilter can provide.
+  - associations: List of associations to load. For references, this will add the
+    join to the table at the correct level.
+  - selectFields: List of fields to add to the select clause of the query. If this is null,
+    add all fields with columns specified to the query.
+  - onlyJoin: If the association wasn't asked for, but there is a value in the related structure, just join but don't
+    add the fields to the select.
+  - counter: because record keeping and aliasing is hard, we have to keep track
+    of which join we're currently looking at during the recursions.
+  - filterMetadata: Metadata about struct that was passed in in modelVal
 */
 func buildQuery(
-	multitenancyVal interface{},
+	multitenancyVal any,
 	modelType reflect.Type,
 	modelVal *reflect.Value,
 	filters tags.Filterable,

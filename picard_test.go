@@ -5,9 +5,10 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/gofrs/uuid/v5"
+
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
 	_ "github.com/lib/pq"
-	uuid "github.com/satori/go.uuid"
 	"github.com/skuid/picard/metadata"
 	"github.com/skuid/picard/testdata"
 	"github.com/stretchr/testify/assert"
@@ -101,8 +102,8 @@ func TestSerializeJSONBColumns(t *testing.T) {
 	testCases := []struct {
 		testDescription string
 		giveColumns     []string
-		giveObject      map[string]interface{}
-		wantObject      map[string]interface{}
+		giveObject      map[string]any
+		wantObject      map[string]any
 		wantErrMsg      string
 	}{
 		{
@@ -110,7 +111,7 @@ func TestSerializeJSONBColumns(t *testing.T) {
 			giveColumns: []string{
 				"column_one",
 			},
-			giveObject: map[string]interface{}{
+			giveObject: map[string]any{
 				"column_one": testdata.TestSerializedObject{
 					Name:               "Matt",
 					Active:             true,
@@ -118,7 +119,7 @@ func TestSerializeJSONBColumns(t *testing.T) {
 				},
 				"column_two": "will not be serialized",
 			},
-			wantObject: map[string]interface{}{
+			wantObject: map[string]any{
 				"column_one": []byte(`{"name":"Matt","active":true}`),
 				"column_two": "will not be serialized",
 			},
@@ -141,7 +142,7 @@ func TestSerializeJSONBColumns(t *testing.T) {
 }
 
 // Loads in a fixture data source from file
-func loadTestObjects(names []string, structType interface{}) (interface{}, error) {
+func loadTestObjects(names []string, structType any) (any, error) {
 
 	fixtures, err := LoadFixturesFromFiles(names, "./testdata/", reflect.TypeOf(structType), "")
 	if err != nil {
@@ -157,9 +158,9 @@ func TestDeployments(t *testing.T) {
 	cases := []struct {
 		TestName            string
 		FixtureNames        []string
-		FixtureType         interface{}
+		FixtureType         any
 		BatchSize           int
-		ExpectationFunction func(*sqlmock.Sqlmock, interface{})
+		ExpectationFunction func(*sqlmock.Sqlmock, any)
 		WantErr             string
 	}{
 		{
@@ -167,7 +168,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"SimpleWithPrimaryKey"},
 			testdata.TestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
+			func(mock *sqlmock.Sqlmock, fixtures any) {
 				helper := testObjectWithPKHelper
 				returnData := GetReturnDataForLookup(helper, nil)
 				lookupKeys := GetLookupKeys(helper, fixtures)
@@ -196,7 +197,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"SimpleWithPrimaryKey"},
 			testdata.TestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
+			func(mock *sqlmock.Sqlmock, fixtures any) {
 				helper := testObjectWithPKHelper
 				returnData := GetReturnDataForLookup(helper, fixtures)
 				lookupKeys := GetLookupKeys(helper, fixtures)
@@ -220,7 +221,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"Simple"},
 			testdata.TestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
+			func(mock *sqlmock.Sqlmock, fixtures any) {
 				helper := testObjectHelper
 				returnData := GetReturnDataForLookup(helper, nil)
 				lookupKeys := GetLookupKeys(helper, fixtures)
@@ -248,7 +249,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"Simple"},
 			testdata.TestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
+			func(mock *sqlmock.Sqlmock, fixtures any) {
 				helper := testObjectHelper
 				returnData := GetReturnDataForLookup(helper, fixtures)
 				lookupKeys := GetLookupKeys(helper, fixtures)
@@ -273,7 +274,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"Empty"},
 			testdata.TestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixtures interface{}) {},
+			func(mock *sqlmock.Sqlmock, fixtures any) {},
 			"Key: 'TestObject.Name' Error:Field validation for 'Name' failed on the 'required' tag",
 		},
 		{
@@ -281,11 +282,12 @@ func TestDeployments(t *testing.T) {
 			[]string{"Simple"},
 			testdata.TestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
+			func(mock *sqlmock.Sqlmock, fixtures any) {
 				helper := testObjectHelper
+				uuidValue, _ := uuid.NewV4()
 				returnData := [][]driver.Value{
 					{
-						uuid.NewV4().String(),
+						uuidValue.String(),
 						"Simple",
 						nil,
 					},
@@ -312,7 +314,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"Simple", "Simple2"},
 			testdata.TestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
+			func(mock *sqlmock.Sqlmock, fixtures any) {
 				helper := testObjectHelper
 				returnData := GetReturnDataForLookup(helper, nil)
 				lookupKeys := GetLookupKeys(helper, fixtures)
@@ -353,7 +355,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"Simple", "Simple2"},
 			testdata.TestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
+			func(mock *sqlmock.Sqlmock, fixtures any) {
 				helper := testObjectHelper
 				returnData := GetReturnDataForLookup(helper, fixtures)
 				lookupKeys := GetLookupKeys(helper, fixtures)
@@ -385,7 +387,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"Simple", "Simple2"},
 			testdata.TestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
 				helper := testObjectHelper
 				fixtures := fixturesAbstract.([]testdata.TestObject)
 				returnData := GetReturnDataForLookup(helper, []testdata.TestObject{
@@ -428,7 +430,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"SimpleWithGrandChildren"},
 			testdata.ParentTestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
 				fixtures := fixturesAbstract.([]testdata.ParentTestObject)
 				insertRows := ExpectInsert(mock, parentObjectHelper, parentObjectHelper.GetInsertDBColumns(false), [][]driver.Value{
 					{
@@ -493,7 +495,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"SimpleWithChildren"},
 			testdata.TestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
 				fixtures := fixturesAbstract.([]testdata.TestObject)
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
 				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
@@ -549,7 +551,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"SimpleWithChildren"},
 			testdata.TestObject{},
 			1,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
 				fixtures := fixturesAbstract.([]testdata.TestObject)
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
 				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
@@ -613,7 +615,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"SimpleWithChildren"},
 			testdata.TestObjectWithOrphans{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
 				fixtures := fixturesAbstract.([]testdata.TestObjectWithOrphans)
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
 				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
@@ -669,7 +671,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"SimpleWithChildrenMap"},
 			testdata.TestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
 				fixtures := fixturesAbstract.([]testdata.TestObject)
 				returnData := GetReturnDataForLookup(testObjectHelper, nil)
 				lookupKeys := GetLookupKeys(testObjectHelper, fixtures)
@@ -720,7 +722,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"SimpleWithChildren"},
 			testdata.TestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
 				helper := testObjectHelper
 				fixtures := fixturesAbstract.([]testdata.TestObject)
 				returnData := GetReturnDataForLookup(helper, fixtures)
@@ -772,7 +774,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"SimpleWithChildren"},
 			testdata.TestObjectWithOrphans{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
 				helper := testObjectHelper
 				fixtures := fixturesAbstract.([]testdata.TestObjectWithOrphans)
 				returnData := GetReturnDataForLookup(helper, fixtures)
@@ -890,7 +892,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"SimpleWithChildrenAndChildrenMap"},
 			testdata.TestObjectWithOrphans{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
 				helper := testObjectHelper
 				fixtures := fixturesAbstract.([]testdata.TestObjectWithOrphans)
 				returnData := GetReturnDataForLookup(helper, fixtures)
@@ -1064,7 +1066,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"SimpleWithChildren"},
 			testdata.TestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
 				helper := testObjectHelper
 				fixtures := fixturesAbstract.([]testdata.TestObject)
 				returnData := GetReturnDataForLookup(helper, fixtures)
@@ -1113,7 +1115,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"SimpleWithChildrenAndChildrenMap"},
 			testdata.TestObjectWithOrphans{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
 				helper := testObjectHelper
 				fixtures := fixturesAbstract.([]testdata.TestObjectWithOrphans)
 				returnData := GetReturnDataForLookup(helper, fixtures)
@@ -1285,7 +1287,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"SimpleWithChildrenAndChildrenMap", "SimpleWithChildren2"},
 			testdata.TestObjectWithOrphans{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
 				helper := testObjectHelper
 				fixtures := fixturesAbstract.([]testdata.TestObjectWithOrphans)
 				returnData := GetReturnDataForLookup(helper, fixtures)
@@ -1478,7 +1480,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"SimpleWithChildrenAndChildrenMap", "SimpleWithChildren2"},
 			testdata.TestObjectWithOrphans{},
 			1,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
 				helper := testObjectHelper
 				fixtures := fixturesAbstract.([]testdata.TestObjectWithOrphans)
 				batch1Fixtures := []testdata.TestObjectWithOrphans{
@@ -1737,13 +1739,13 @@ func TestDeployments(t *testing.T) {
 			[]string{"ChildWithParentLookup"},
 			testdata.ChildTestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				childUUID := uuid.NewV4().String()
-				parentUUID := uuid.NewV4().String()
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
+				childUUID, _ := uuid.NewV4()
+				parentUUID, _ := uuid.NewV4()
 				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
 				returnData := [][]driver.Value{
 					{
-						childUUID,
+						childUUID.String(),
 						"ChildItem",
 					},
 				}
@@ -1753,7 +1755,7 @@ func TestDeployments(t *testing.T) {
 				// Expect the foreign key lookup next
 				ExpectLookup(mock, testObjectHelper, []string{"Simple|"}, [][]driver.Value{
 					{
-						parentUUID,
+						parentUUID.String(),
 						"Simple",
 						"",
 					},
@@ -1767,7 +1769,7 @@ func TestDeployments(t *testing.T) {
 				}, [][]driver.Value{
 					{
 						testChildObjectWithLookupHelper.GetFixtureValue(fixtures, 0, "Name"),
-						parentUUID,
+						parentUUID.String(),
 					},
 				}, returnData)
 			},
@@ -1778,8 +1780,8 @@ func TestDeployments(t *testing.T) {
 			[]string{"ChildWithParentLookup"},
 			testdata.ChildTestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				parentUUID := uuid.NewV4().String()
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
+				parentUUID, _ := uuid.NewV4()
 				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
 				lookupKeys := []string{"ChildItem"}
 				returnData := [][]driver.Value{}
@@ -1788,7 +1790,7 @@ func TestDeployments(t *testing.T) {
 				for _, fixture := range fixtures {
 					childObjects = append(childObjects, testdata.ChildTestObject{
 						Name:     fixture.Name,
-						ParentID: parentUUID,
+						ParentID: parentUUID.String(),
 					})
 				}
 
@@ -1797,7 +1799,7 @@ func TestDeployments(t *testing.T) {
 				// Expect the foreign key lookup next
 				ExpectLookup(mock, testObjectHelper, []string{"Simple|"}, [][]driver.Value{
 					{
-						parentUUID,
+						parentUUID.String(),
 						"Simple",
 						"",
 					},
@@ -1808,7 +1810,7 @@ func TestDeployments(t *testing.T) {
 						sampleOrgID,
 						testChildObjectWithLookupHelper.GetFixtureValue(childObjects, 0, "Name"),
 						nil,
-						parentUUID,
+						parentUUID.String(),
 						nil,
 					},
 				})
@@ -1820,8 +1822,8 @@ func TestDeployments(t *testing.T) {
 			[]string{"ChildWithParentLookupAndKeyMap"},
 			testdata.ChildTestObjectWithKeyMap{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				parentUUID := uuid.NewV4().String()
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
+				parentUUID, _ := uuid.NewV4()
 				fixtures := fixturesAbstract.([]testdata.ChildTestObjectWithKeyMap)
 				lookupKeys := []string{"ChildItem|Simple"}
 				returnData := [][]driver.Value{}
@@ -1830,7 +1832,7 @@ func TestDeployments(t *testing.T) {
 				for _, fixture := range fixtures {
 					childObjects = append(childObjects, testdata.ChildTestObjectWithKeyMap{
 						Name:     fixture.Name,
-						ParentID: parentUUID,
+						ParentID: parentUUID.String(),
 					})
 				}
 
@@ -1839,7 +1841,7 @@ func TestDeployments(t *testing.T) {
 				// Expect the foreign key lookup next
 				ExpectLookup(mock, testObjectHelper, []string{"Simple|"}, [][]driver.Value{
 					{
-						parentUUID,
+						parentUUID.String(),
 						"Simple",
 						"",
 					},
@@ -1849,7 +1851,7 @@ func TestDeployments(t *testing.T) {
 						sampleOrgID,
 						testChildObjectWithLookupHelper.GetFixtureValue(childObjects, 0, "Name"),
 						nil,
-						parentUUID,
+						parentUUID.String(),
 						nil,
 					},
 				})
@@ -1862,9 +1864,9 @@ func TestDeployments(t *testing.T) {
 			[]string{"ChildWithParentLookupAndOptionalLookup"},
 			testdata.ChildTestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
-				parentUUID := uuid.NewV4().String()
-				optionalParentUUID := uuid.NewV4().String()
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
+				parentUUID, _ := uuid.NewV4()
+				optionalParentUUID, _ := uuid.NewV4()
 				fixtures := fixturesAbstract.([]testdata.ChildTestObject)
 				lookupKeys := []string{"ChildItem"}
 				returnData := [][]driver.Value{}
@@ -1873,8 +1875,8 @@ func TestDeployments(t *testing.T) {
 				for _, fixture := range fixtures {
 					childObjects = append(childObjects, testdata.ChildTestObject{
 						Name:             fixture.Name,
-						ParentID:         parentUUID,
-						OptionalParentID: optionalParentUUID,
+						ParentID:         parentUUID.String(),
+						OptionalParentID: optionalParentUUID.String(),
 					})
 				}
 
@@ -1883,7 +1885,7 @@ func TestDeployments(t *testing.T) {
 				// Expect the foreign key lookup next
 				ExpectLookup(mock, testObjectHelper, []string{"Simple|"}, [][]driver.Value{
 					{
-						parentUUID,
+						parentUUID.String(),
 						"Simple",
 						"",
 					},
@@ -1892,7 +1894,7 @@ func TestDeployments(t *testing.T) {
 				// Expect the foreign key lookup next
 				ExpectLookup(mock, testObjectHelper, []string{"Simple2|"}, [][]driver.Value{
 					{
-						optionalParentUUID,
+						optionalParentUUID.String(),
 						"Simple2",
 						"",
 					},
@@ -1902,8 +1904,8 @@ func TestDeployments(t *testing.T) {
 						sampleOrgID,
 						testChildObjectWithLookupHelper.GetFixtureValue(childObjects, 0, "Name"),
 						nil,
-						parentUUID,
-						optionalParentUUID,
+						parentUUID.String(),
+						optionalParentUUID.String(),
 					},
 				})
 			},
@@ -1915,7 +1917,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"ChildWithParentLookup"},
 			testdata.ChildTestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
 				lookupKeys := []string{"ChildItem"}
 				returnData := [][]driver.Value{}
 
@@ -1932,7 +1934,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"ChildWithParentLookup", "ChildWithParentLookup2"},
 			testdata.ChildTestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
 				lookupKeys := []string{"ChildItem", "ChildItem2"}
 				returnData := [][]driver.Value{}
 
@@ -1949,7 +1951,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"ChildWithParentLookup", "ChildWithParentLookup"},
 			testdata.ChildTestObject{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixturesAbstract interface{}) {
+			func(mock *sqlmock.Sqlmock, fixturesAbstract any) {
 				lookupKeys := []string{"ChildItem"}
 				returnData := [][]driver.Value{}
 
@@ -1965,7 +1967,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"Sibling"},
 			testdata.SiblingJunctionModel{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
+			func(mock *sqlmock.Sqlmock, fixtures any) {
 				junctionHelper := siblingJunctionHelper
 				personHelper := personModelHelper
 				junctionReturnData := GetReturnDataForLookup(junctionHelper, nil)
@@ -2002,7 +2004,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"SiblingWithChildNestedKeyProvided"},
 			testdata.SiblingJunctionModel{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
+			func(mock *sqlmock.Sqlmock, fixtures any) {
 				junctionHelper := simpleSiblingJunctionHelper
 				personHelper := personModelHelper
 				personWithPKHelper := personModelWithIDHelper
@@ -2043,7 +2045,7 @@ func TestDeployments(t *testing.T) {
 			[]string{"SiblingWithChildKeyProvided"},
 			testdata.SiblingJunctionModel{},
 			100,
-			func(mock *sqlmock.Sqlmock, fixtures interface{}) {
+			func(mock *sqlmock.Sqlmock, fixtures any) {
 				junctionHelper := siblingJunctionHelperWithChildKey
 				personHelper := personModelHelper
 				junctionReturnData := GetReturnDataForLookup(junctionHelper, nil)

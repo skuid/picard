@@ -103,7 +103,7 @@ Example:
 	// SELECT t0.id, t0.field_b FROM table_a ...
 */
 type FilterRequest struct {
-	FilterModel  interface{}
+	FilterModel  any
 	FieldFilters tags.Filterable
 	Associations []tags.Association
 	OrderBy      []qp.OrderByRequest
@@ -152,7 +152,7 @@ func (p PersistenceORM) getMultiFilterResults(request FilterRequest, filterMetad
 
 	ors := sq.Or{}
 	var tbl *qp.Table
-	var filterModel interface{}
+	var filterModel any
 
 	for i := 0; i < modelVal.Len(); i++ {
 		val := modelVal.Index(i)
@@ -213,7 +213,7 @@ func (p PersistenceORM) getFilterResults(request FilterRequest, filterMetadata *
 }
 
 // FilterModel returns models that match the provided struct, ignoring zero values.
-func (p PersistenceORM) FilterModel(request FilterRequest) ([]interface{}, error) {
+func (p PersistenceORM) FilterModel(request FilterRequest) ([]any, error) {
 	filterModel := request.FilterModel
 	associations := request.Associations
 	if request.Runner == nil {
@@ -301,7 +301,7 @@ func (p PersistenceORM) FilterModel(request FilterRequest) ([]interface{}, error
 		}
 	}
 
-	ir := make([]interface{}, 0, len(results))
+	ir := make([]any, 0, len(results))
 	for _, r := range results {
 		ir = append(ir, r.Interface())
 	}
@@ -309,7 +309,7 @@ func (p PersistenceORM) FilterModel(request FilterRequest) ([]interface{}, error
 	return ir, nil
 }
 
-func populateChildResults(results []*reflect.Value, childResults []interface{}, child *tags.Child, filterMetadata *tags.TableMetadata) {
+func populateChildResults(results []*reflect.Value, childResults []any, child *tags.Child, filterMetadata *tags.TableMetadata) {
 	var parentGroupingCriteria []string
 	var childGroupingCriteria []string
 	if child.GroupingCriteria != nil {

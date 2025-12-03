@@ -139,14 +139,14 @@ func TestGetAllBlogs(t *testing.T) {
 
 	testCases := []struct {
 		desc              string
-		giveFilterReturns []interface{}
+		giveFilterReturns []any
 		giveFilterError   error
-		wantResults       []interface{}
+		wantResults       []any
 		wantError         error
 	}{
 		{
 			"retrieve all the blogs",
-			[]interface{}{
+			[]any{
 				Blog{
 					Name:   "Betazoid",
 					ID:     "00000000-0000-0000-0000-000000000001",
@@ -154,7 +154,7 @@ func TestGetAllBlogs(t *testing.T) {
 				},
 			},
 			nil,
-			[]interface{}{
+			[]any{
 				Blog{
 					Name:   "Betazoid",
 					ID:     "00000000-0000-0000-0000-000000000001",
@@ -165,9 +165,9 @@ func TestGetAllBlogs(t *testing.T) {
 		},
 		{
 			"fails to retrieve blogs",
-			[]interface{}(nil),
+			[]any(nil),
 			errors.New("Filter error"),
-			[]interface{}(nil),
+			[]any(nil),
 			errors.New("Filter error"),
 		},
 	}
@@ -250,9 +250,9 @@ func TestGetUser(t *testing.T) {
 				},
 			}
 
-			var filterReturns []interface{}
+			var filterReturns []any
 			if tc.wantReturns {
-				filterReturns = []interface{}{
+				filterReturns = []any{
 					mockUser,
 				}
 			}
@@ -263,7 +263,7 @@ func TestGetUser(t *testing.T) {
 			}
 			actualResults, actualErr := getUser(morm, tc.giveName)
 			if tc.wantReturns {
-				wantResults := []interface{}{
+				wantResults := []any{
 					mockUser,
 				}
 				if !reflect.DeepEqual(wantResults, actualResults) {
@@ -346,9 +346,9 @@ func TestGetBlog(t *testing.T) {
 				},
 			}
 
-			var filterReturns []interface{}
+			var filterReturns []any
 			if tc.wantReturns {
-				filterReturns = []interface{}{
+				filterReturns = []any{
 					mockBlog,
 				}
 			}
@@ -359,7 +359,7 @@ func TestGetBlog(t *testing.T) {
 			}
 			actualResults, actualErr := getBlog(morm, tc.giveName)
 			if tc.wantReturns {
-				wantResults := []interface{}{
+				wantResults := []any{
 					mockBlog,
 				}
 				if !reflect.DeepEqual(wantResults, actualResults) {

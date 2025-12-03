@@ -6,11 +6,11 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/Masterminds/squirrel v0.0.0-20170825200431-a6b93000bd21
+	github.com/gofrs/uuid/v5 v5.4.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/json-iterator/go v1.1.12
 	github.com/lib/pq v1.10.9
 	github.com/modern-go/reflect2 v1.0.2
-	github.com/satori/go.uuid v1.2.0
 	github.com/stretchr/testify v1.10.0
 	gopkg.in/DataDog/dd-trace-go.v1 v1.72.2
 	gopkg.in/go-playground/validator.v9 v9.31.0

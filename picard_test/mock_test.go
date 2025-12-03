@@ -12,14 +12,14 @@ import (
 func TestMockFilterModel(t *testing.T) {
 	testCases := []struct {
 		description     string
-		giveFilterModel interface{}
-		giveReturns     []interface{}
+		giveFilterModel any
+		giveReturns     []any
 		giveError       error
 	}{
 		{
 			"Should return error if present, regardless of returns set",
 			nil,
-			[]interface{}{
+			[]any{
 				"test 1",
 				"test 2",
 			},
@@ -28,7 +28,7 @@ func TestMockFilterModel(t *testing.T) {
 		{
 			"Should return set return interfaces",
 			nil,
-			[]interface{}{
+			[]any{
 				"test 1",
 				"test 2",
 			},
@@ -37,7 +37,7 @@ func TestMockFilterModel(t *testing.T) {
 		{
 			"Should set FilterModelCalledWith",
 			"test filter interface",
-			[]interface{}{
+			[]any{
 				"test 1",
 				"test 2",
 			},
@@ -73,7 +73,7 @@ func TestMockFilterModel(t *testing.T) {
 func TestMockSaveModel(t *testing.T) {
 	testCases := []struct {
 		description   string
-		giveSaveModel interface{}
+		giveSaveModel any
 		giveError     error
 	}{
 		{
@@ -109,7 +109,7 @@ func TestMockSaveModel(t *testing.T) {
 func TestMockCreateModel(t *testing.T) {
 	testCases := []struct {
 		description     string
-		giveCreateModel interface{}
+		giveCreateModel any
 		giveError       error
 	}{
 		{
@@ -145,7 +145,7 @@ func TestMockCreateModel(t *testing.T) {
 func TestMockDeleteModel(t *testing.T) {
 	testCases := []struct {
 		description      string
-		giveDeleteModel  interface{}
+		giveDeleteModel  any
 		giveRowsAffected int64
 		giveError        error
 	}{
@@ -175,7 +175,7 @@ func TestMockDeleteModel(t *testing.T) {
 func TestMockDeploy(t *testing.T) {
 	testCases := []struct {
 		description    string
-		giveDeployData interface{}
+		giveDeployData any
 		giveError      error
 	}{
 		{
@@ -224,7 +224,7 @@ func TestMultiMockFilter(t *testing.T) {
 			picard_test.MultiMockORM{
 				MockORMs: []picard_test.MockORM{
 					{
-						FilterModelReturns:    []interface{}{},
+						FilterModelReturns:    []any{},
 						FilterModelError:      nil,
 						FilterModelCalledWith: picard.FilterRequest{},
 					},
@@ -271,7 +271,7 @@ func TestMultiMockFilter(t *testing.T) {
 				result, err := mmorm.FilterModel(picard.FilterRequest{
 					FilterModel: callWith,
 				})
-				var expectedResult []interface{}
+				var expectedResult []any
 				assert.Equal(t, result, expectedResult)
 				assert.Equal(t, err, errors.New("mock Function was called but not expected"))
 			},

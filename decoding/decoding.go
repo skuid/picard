@@ -52,7 +52,7 @@ type structDecoder struct {
 }
 
 func (decoder *structDecoder) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
-	var obj interface{}
+	var obj any
 	iter.ReadVal(&obj)
 	if obj != nil {
 		// AC: I'm leaving the next line in as a comment because it took me hours of docs-reading to figure out
@@ -73,7 +73,7 @@ func (decoder *structDecoder) Decode(ptr unsafe.Pointer, iter *jsoniter.Iterator
 		// now get the field keys in the object
 		if reflect.TypeOf(obj).Kind() == reflect.Map && decoder.structDesc != nil {
 			var fields []string
-			fmap := obj.(map[string]interface{})
+			fmap := obj.(map[string]any)
 			for k := range fmap {
 				for _, binding := range decoder.structDesc.Fields {
 					sf, ok := binding.Field.Tag().Lookup(decoder.config.TagKey)

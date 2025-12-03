@@ -16,7 +16,7 @@ import (
 	"github.com/skuid/picard/testdata"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
-	uuid "github.com/satori/go.uuid"
+	"github.com/gofrs/uuid/v5"
 )
 
 // Test structs for JSONB tests
@@ -79,7 +79,7 @@ type modelOneArrayFieldJSONB struct {
 //}
 
 // LoadFixturesFromFiles creates a slice of structs from a slice of file names
-func LoadFixturesFromFiles(names []string, path string, loadType reflect.Type, jsonTagKey string) (interface{}, error) {
+func LoadFixturesFromFiles(names []string, path string, loadType reflect.Type, jsonTagKey string) (any, error) {
 
 	sliceOfStructs := reflect.New(reflect.SliceOf(loadType)).Elem()
 
@@ -103,7 +103,7 @@ func LoadFixturesFromFiles(names []string, path string, loadType reflect.Type, j
 
 // ExpectationHelper struct that contains expectations about a particular object
 type ExpectationHelper struct {
-	FixtureType      interface{}
+	FixtureType      any
 	TableMetadata    *tags.TableMetadata
 	LookupFrom       string
 	LookupSelect     string
@@ -143,7 +143,7 @@ func (eh ExpectationHelper) GetInsertDBColumns(includePrimaryKey bool) []string 
 //}
 
 // GetUpdateDBColumnsForFixture returnst the fields that should be updated for a particular fixture
-func (eh ExpectationHelper) GetUpdateDBColumnsForFixture(fixtures interface{}, index int) []string {
+func (eh ExpectationHelper) GetUpdateDBColumnsForFixture(fixtures any, index int) []string {
 	tableMetadata := eh.getTableMetadata()
 	definedColumns := []string{}
 	fixture := reflect.ValueOf(fixtures).Index(index)
@@ -160,7 +160,7 @@ func (eh ExpectationHelper) GetUpdateDBColumnsForFixture(fixtures interface{}, i
 }
 
 // GetFixtureValue returns the value of a particular field on a fixture
-func (eh ExpectationHelper) GetFixtureValue(fixtures interface{}, index int, fieldName string) driver.Value {
+func (eh ExpectationHelper) GetFixtureValue(fixtures any, index int, fieldName string) driver.Value {
 	tableMetadata := eh.getTableMetadata()
 	fieldMetadata := tableMetadata.GetField(fieldName)
 	fixture := reflect.ValueOf(fixtures).Index(index)
@@ -190,7 +190,7 @@ var sampleOrgID = "6ba7b810-9dbd-11d1-80b4-00c04fd430c8"
 var sampleUserID = "72c431ec-14ed-4d77-9948-cb92e816a3a7"
 
 // GetReturnDataForLookup creates sample return data from sample structs
-func GetReturnDataForLookup(expect ExpectationHelper, foundObjects interface{}) [][]driver.Value {
+func GetReturnDataForLookup(expect ExpectationHelper, foundObjects any) [][]driver.Value {
 
 	returnData := [][]driver.Value{}
 
@@ -198,8 +198,9 @@ func GetReturnDataForLookup(expect ExpectationHelper, foundObjects interface{}) 
 		s := reflect.ValueOf(foundObjects)
 		for i := 0; i < s.Len(); i++ {
 			object := s.Index(i)
+			uuidValue, _ := uuid.NewV4()
 			returnItem := []driver.Value{
-				uuid.NewV4().String(),
+				uuidValue.String(),
 			}
 			for _, lookup := range expect.LookupFields {
 				field := object.FieldByName(lookup)
@@ -215,7 +216,7 @@ func GetReturnDataForLookup(expect ExpectationHelper, foundObjects interface{}) 
 }
 
 // GetLookupKeys returns sample object keys from sample objects
-func GetLookupKeys(expect ExpectationHelper, objects interface{}) []string {
+func GetLookupKeys(expect ExpectationHelper, objects any) []string {
 
 	returnKeys := []string{}
 
@@ -299,8 +300,9 @@ func ExpectInsert(mock *sqlmock.Sqlmock, expect ExpectationHelper, columnNames [
 
 	returnData := [][]driver.Value{}
 	for range columnNames {
+		uuidValue, _ := uuid.NewV4()
 		returnData = append(returnData, []driver.Value{
-			uuid.NewV4().String(),
+			uuidValue.String(),
 		})
 	}
 
@@ -313,7 +315,7 @@ func ExpectInsert(mock *sqlmock.Sqlmock, expect ExpectationHelper, columnNames [
 		nonNullInsertValues := []driver.Value{}
 
 		for columnIndex := range columnNames {
-			var columnValue interface{}
+			var columnValue any
 			if columnIndex >= 0 && columnIndex < len(insertValue) {
 				columnValue = insertValue[columnIndex]
 			}
@@ -329,8 +331,9 @@ func ExpectInsert(mock *sqlmock.Sqlmock, expect ExpectationHelper, columnNames [
 		expectedArgs = append(expectedArgs, nonNullInsertValues...)
 		valueStrings = append(valueStrings, strings.Join(valueParams, ","))
 
+		returnValue, _ := uuid.NewV4()
 		returnData = append(returnData, []driver.Value{
-			uuid.NewV4().String(),
+			returnValue.String(),
 		})
 	}
 
@@ -386,7 +389,7 @@ func ExpectUpdate(mock *sqlmock.Sqlmock, expect ExpectationHelper, updateColumnN
 }
 
 // RunImportTest Runs a Test Object Import Test
-func RunImportTest(testObjects interface{}, testFunction func(*sqlmock.Sqlmock, interface{}), batchSize int) error {
+func RunImportTest(testObjects any, testFunction func(*sqlmock.Sqlmock, any), batchSize int) error {
 	// Open new mock database
 	db, mock, err := sqlmock.New()
 	if err != nil {

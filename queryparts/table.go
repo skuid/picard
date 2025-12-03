@@ -15,6 +15,7 @@ const (
 /*
 Table represents a select, and is the root of the structure. Start here to build
 a query by calling
+
 	tbl := New("my_table")
 */
 type Table struct {
@@ -23,7 +24,7 @@ type Table struct {
 	RefPath      string
 	Name         string
 	columns      []string
-	lookups      map[string]interface{}
+	lookups      map[string]any
 	Joins        []Join
 	Wheres       sql.And
 	MultiTenancy sql.Eq
@@ -44,7 +45,7 @@ func NewAliased(name string, alias string, refPath string) *Table {
 		RefPath: refPath,
 		Name:    name,
 		columns: make([]string, 0),
-		lookups: make(map[string]interface{}),
+		lookups: make(map[string]any),
 	}
 }
 
@@ -58,7 +59,7 @@ func (t *Table) AddColumns(cols []string) {
 /*
 AddWhere adds one where clause, WHERE {field} = {val}
 */
-func (t *Table) AddWhere(column string, val interface{}) {
+func (t *Table) AddWhere(column string, val any) {
 	t.Wheres = append(t.Wheres, sql.Eq{fmt.Sprintf(AliasedField, t.Alias, column): val})
 }
 
@@ -72,7 +73,7 @@ func (t *Table) AddWhereGroup(group sql.Sqlizer) {
 /*
 AddMultitenancyWhere creates a multitenancy WHERE condition
 */
-func (t *Table) AddMultitenancyWhere(column string, val interface{}) {
+func (t *Table) AddMultitenancyWhere(column string, val any) {
 	t.MultiTenancy = sql.Eq{
 		fmt.Sprintf(AliasedField, t.Alias, column): val,
 	}
@@ -167,7 +168,7 @@ func (t *Table) FieldAliases() map[string]FieldDescriptor {
 /*
 ToSQL returns the SQL statement, as it currently stands.
 */
-func (t *Table) ToSQL() (string, []interface{}, error) {
+func (t *Table) ToSQL() (string, []any, error) {
 	return t.BuildSQL().ToSql()
 }
 
