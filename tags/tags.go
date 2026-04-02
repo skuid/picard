@@ -263,6 +263,51 @@ func (ff FieldFilter) Apply(table *qp.Table, metadata *TableMetadata) squirrel.S
 	}
 }
 
+/*
+	NullFilter defines a filter that generates IS NULL or IS NOT NULL conditions.
+
+Example:
+
+	import "github.com/skuid/picard/tags"
+
+	tags.NullFilter{
+		FieldName: "ContainerID",
+		IsNull:    true,
+	}
+
+SQL translation in WHERE clause grouping:
+
+	t0.container_id IS NULL
+
+When IsNull is false:
+
+	t0.container_id IS NOT NULL
+*/
+type NullFilter struct {
+	FieldName string
+	IsNull    bool
+}
+
+// Apply applies the null filter, producing IS NULL or IS NOT NULL
+func (nf NullFilter) Apply(table *qp.Table, metadata *TableMetadata) squirrel.Sqlizer {
+	// Return early if no fieldname was provided in our filter
+	if nf.FieldName == "" {
+		return squirrel.Eq{}
+	}
+	fieldMetadata := metadata.GetField(nf.FieldName)
+	columnName := fieldMetadata.GetColumnName()
+	if columnName == "" {
+		return squirrel.Eq{}
+	}
+	expr := fmt.Sprintf(qp.AliasedField, table.Alias, columnName)
+	if nf.IsNull {
+		// squirrel.Eq{"column": nil} produces "column IS NULL"
+		return squirrel.Eq{expr: nil}
+	}
+	// squirrel.NotEq{"column": nil} produces "column IS NOT NULL"
+	return squirrel.NotEq{expr: nil}
+}
+
 // OrFilterGroup applies a group of filters using ors
 type OrFilterGroup []Filterable
 

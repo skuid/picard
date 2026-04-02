@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/skuid/picard/metadata"
+	qp "github.com/skuid/picard/queryparts"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -174,4 +175,123 @@ func TestGetStructTagsMap(t *testing.T) {
 			assert.Equal(t, resultMap, tc.wantMap)
 		})
 	}
+}
+
+type NullFilterTestModel struct {
+	metadata.Metadata `picard:"tablename=test_table"`
+	ID                string  `picard:"primary_key,column=id"`
+	ContainerID       *string `picard:"column=container_id"`
+	Name              string  `picard:"column=name"`
+}
+
+func nullFilterTestTable() (*qp.Table, *TableMetadata) {
+	table := qp.New("test_table")
+	tm := TableMetadataFromType(reflect.TypeOf(NullFilterTestModel{}))
+	return table, tm
+}
+
+func TestNullFilter_IsNull(t *testing.T) {
+	table, tm := nullFilterTestTable()
+
+	filter := NullFilter{
+		FieldName: "ContainerID",
+		IsNull:    true,
+	}
+
+	result := filter.Apply(table, tm)
+	sql, args, err := result.ToSql()
+	assert.NoError(t, err)
+	assert.Equal(t, table.Alias+".container_id IS NULL", sql)
+	assert.Empty(t, args)
+}
+
+func TestNullFilter_IsNotNull(t *testing.T) {
+	table, tm := nullFilterTestTable()
+
+	filter := NullFilter{
+		FieldName: "ContainerID",
+		IsNull:    false,
+	}
+
+	result := filter.Apply(table, tm)
+	sql, args, err := result.ToSql()
+	assert.NoError(t, err)
+	assert.Equal(t, table.Alias+".container_id IS NOT NULL", sql)
+	assert.Empty(t, args)
+}
+
+func TestNullFilter_EmptyFieldName(t *testing.T) {
+	table, tm := nullFilterTestTable()
+
+	filter := NullFilter{
+		FieldName: "",
+		IsNull:    true,
+	}
+
+	result := filter.Apply(table, tm)
+	sql, args, err := result.ToSql()
+	assert.NoError(t, err)
+	// Empty Eq{} produces empty SQL
+	assert.Empty(t, sql)
+	assert.Empty(t, args)
+}
+
+func TestNullFilter_InvalidFieldName(t *testing.T) {
+	table, tm := nullFilterTestTable()
+
+	filter := NullFilter{
+		FieldName: "NonExistentField",
+		IsNull:    true,
+	}
+
+	result := filter.Apply(table, tm)
+	// Should return empty Eq{} since field doesn't exist (columnName is "")
+	sql, args, err := result.ToSql()
+	assert.NoError(t, err)
+	assert.Empty(t, sql)
+	assert.Empty(t, args)
+}
+
+func TestNullFilter_ComposableWithOrFilterGroup(t *testing.T) {
+	table, tm := nullFilterTestTable()
+
+	filter := OrFilterGroup{
+		NullFilter{
+			FieldName: "ContainerID",
+			IsNull:    true,
+		},
+		NullFilter{
+			FieldName: "ContainerID",
+			IsNull:    false,
+		},
+	}
+
+	result := filter.Apply(table, tm)
+	sql, args, err := result.ToSql()
+	assert.NoError(t, err)
+	assert.Contains(t, sql, "container_id IS NULL")
+	assert.Contains(t, sql, "container_id IS NOT NULL")
+	assert.Empty(t, args)
+}
+
+func TestNullFilter_ComposableWithAndFilterGroup(t *testing.T) {
+	table, tm := nullFilterTestTable()
+
+	filter := AndFilterGroup{
+		NullFilter{
+			FieldName: "ContainerID",
+			IsNull:    true,
+		},
+		FieldFilter{
+			FieldName:   "Name",
+			FilterValue: "test",
+		},
+	}
+
+	result := filter.Apply(table, tm)
+	sql, args, err := result.ToSql()
+	assert.NoError(t, err)
+	assert.Contains(t, sql, "container_id IS NULL")
+	assert.Contains(t, sql, "name")
+	assert.Contains(t, args, "test")
 }
