@@ -46,7 +46,7 @@ jobs:
       run: unzip -l veracode_artifact/app.zip
 
     - name: Upload and Scan with Veracode
-      uses: veracode/veracode-uploadandscan-action@0.2.8
+      uses: veracode/veracode-uploadandscan-action@0.2.11
       with:
         appname: 'Nintex Apps Skuid - picard'
         createprofile: true
