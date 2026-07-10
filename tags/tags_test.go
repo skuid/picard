@@ -231,8 +231,7 @@ func TestNullFilter_EmptyFieldName(t *testing.T) {
 	result := filter.Apply(table, tm)
 	sql, args, err := result.ToSql()
 	assert.NoError(t, err)
-	// Empty Eq{} produces empty SQL
-	assert.Empty(t, sql)
+	assert.Equal(t, sql, "(1=1)")
 	assert.Empty(t, args)
 }
 
@@ -245,10 +244,9 @@ func TestNullFilter_InvalidFieldName(t *testing.T) {
 	}
 
 	result := filter.Apply(table, tm)
-	// Should return empty Eq{} since field doesn't exist (columnName is "")
 	sql, args, err := result.ToSql()
 	assert.NoError(t, err)
-	assert.Empty(t, sql)
+	assert.Equal(t, sql, "(1=1)")
 	assert.Empty(t, args)
 }
 

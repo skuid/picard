@@ -1752,6 +1752,7 @@ func TestFilterModel(t *testing.T) {
 						t0.parent_id AS "t0.parent_id"
 					FROM toymodel AS t0
 					WHERE t0.organization_id = $1
+					AND (1=1)
 				`)).
 					WithArgs(orgID).
 					WillReturnRows(
