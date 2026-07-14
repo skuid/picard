@@ -28,7 +28,7 @@ jobs:
         fi
 
     - name: Test
-      run: go test -race -timeout 3m -cover -v ./...
+      run: go test -race -timeout 3m -v ./...
 
     - name: Go vet
       run: go vet $(go list ./...)

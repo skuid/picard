@@ -181,7 +181,8 @@ func buildQuery(
 	tbl.AddColumns(cols)
 
 	if filters != nil && modelVal != nil {
-		tbl.AddWhereGroup(filters.Apply(tbl, filterMetadata))
+		whereGroup := filters.Apply(tbl, filterMetadata)
+		tbl.AddWhereGroup(whereGroup)
 	}
 
 	return tbl, nil

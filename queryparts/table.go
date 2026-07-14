@@ -67,6 +67,9 @@ func (t *Table) AddWhere(column string, val any) {
 AddWhereGroup adds a grouping of ORS or ANDs to the where clause
 */
 func (t *Table) AddWhereGroup(group sql.Sqlizer) {
+	if group == nil {
+		return
+	}
 	t.Wheres = append(t.Wheres, group)
 }
 
