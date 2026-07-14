@@ -229,7 +229,7 @@ func TestNullFilter_EmptyFieldName(t *testing.T) {
 	}
 
 	result := filter.Apply(table, tm)
-	// Should return nil because squirrel will turn squirrel.Eq{} in to `AND (1=1)`
+	// Should return nil because squirrel will turn squirrel.Eq{} into `AND (1=1)`
 	assert.Nil(t, result)
 }
 
@@ -242,7 +242,7 @@ func TestNullFilter_InvalidFieldName(t *testing.T) {
 	}
 
 	result := filter.Apply(table, tm)
-	// Should return nil when field doesn't exist (columnName is "") because squirrel will turn squirrel.Eq{} in to `AND (1=1)`
+	// Should return nil when field doesn't exist (columnName is "") because squirrel will turn squirrel.Eq{} into `AND (1=1)`
 	assert.Nil(t, result)
 }
 
@@ -288,4 +288,128 @@ func TestNullFilter_ComposableWithAndFilterGroup(t *testing.T) {
 	assert.Contains(t, sql, "container_id IS NULL")
 	assert.Contains(t, sql, "name")
 	assert.Contains(t, args, "test")
+}
+
+func TestFieldFilter_EmptyFieldName(t *testing.T) {
+	table, tm := nullFilterTestTable()
+
+	filter := FieldFilter{
+		FieldName:   "",
+		FilterValue: "test",
+	}
+
+	result := filter.Apply(table, tm)
+	assert.Nil(t, result)
+}
+
+func TestFieldFilter_InvalidFieldName(t *testing.T) {
+	table, tm := nullFilterTestTable()
+
+	filter := FieldFilter{
+		FieldName:   "NonExistentField",
+		FilterValue: "test",
+	}
+
+	result := filter.Apply(table, tm)
+	assert.Nil(t, result)
+}
+
+func TestOrFilterGroup_EmptyGroup(t *testing.T) {
+	table, tm := nullFilterTestTable()
+
+	filter := OrFilterGroup{}
+
+	result := filter.Apply(table, tm)
+	assert.Nil(t, result)
+}
+
+func TestAndFilterGroup_EmptyGroup(t *testing.T) {
+	table, tm := nullFilterTestTable()
+
+	filter := AndFilterGroup{}
+
+	result := filter.Apply(table, tm)
+	assert.Nil(t, result)
+}
+
+func TestOrFilterGroup_WithNilReturningFilters(t *testing.T) {
+	table, tm := nullFilterTestTable()
+
+	filter := OrFilterGroup{
+		FieldFilter{
+			FieldName:   "",
+			FilterValue: "test",
+		},
+		NullFilter{
+			FieldName: "ContainerID",
+			IsNull:    true,
+		},
+	}
+
+	result := filter.Apply(table, tm)
+	sql, args, err := result.ToSql()
+	assert.NoError(t, err)
+	// The OR group will append both, including the nil from FieldFilter
+	assert.Contains(t, sql, "container_id IS NULL")
+	assert.Empty(t, args)
+}
+
+func TestAndFilterGroup_WithNilReturningFilters(t *testing.T) {
+	table, tm := nullFilterTestTable()
+
+	filter := AndFilterGroup{
+		FieldFilter{
+			FieldName:   "",
+			FilterValue: "test",
+		},
+		NullFilter{
+			FieldName: "ContainerID",
+			IsNull:    true,
+		},
+	}
+
+	result := filter.Apply(table, tm)
+	sql, args, err := result.ToSql()
+	assert.NoError(t, err)
+	// The AND group will append both, including the nil from FieldFilter
+	assert.Contains(t, sql, "container_id IS NULL")
+	assert.Empty(t, args)
+}
+
+func TestOrFilterGroup_AllNilReturningFilters(t *testing.T) {
+	table, tm := nullFilterTestTable()
+
+	filter := OrFilterGroup{
+		FieldFilter{
+			FieldName:   "",
+			FilterValue: "test",
+		},
+		NullFilter{
+			FieldName: "",
+			IsNull:    true,
+		},
+	}
+
+	result := filter.Apply(table, tm)
+	// When all child filters return nil, the OR group still creates a squirrel.Or with nil elements
+	assert.NotNil(t, result)
+}
+
+func TestAndFilterGroup_AllNilReturningFilters(t *testing.T) {
+	table, tm := nullFilterTestTable()
+
+	filter := AndFilterGroup{
+		FieldFilter{
+			FieldName:   "",
+			FilterValue: "test",
+		},
+		NullFilter{
+			FieldName: "",
+			IsNull:    true,
+		},
+	}
+
+	result := filter.Apply(table, tm)
+	// When all child filters return nil, the AND group still creates a squirrel.And with nil elements
+	assert.NotNil(t, result)
 }

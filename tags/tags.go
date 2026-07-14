@@ -248,6 +248,9 @@ func (ff FieldFilter) Apply(table *qp.Table, metadata *TableMetadata) squirrel.S
 	}
 	fieldMetadata := metadata.GetField(ff.FieldName)
 	columnName := fieldMetadata.GetColumnName()
+	if columnName == "" {
+		return nil
+	}
 	expr := fmt.Sprintf(qp.AliasedField, table.Alias, columnName)
 	switch ff.FilterOperator {
 	case "<":
@@ -318,7 +321,11 @@ func (ofg OrFilterGroup) Apply(table *qp.Table, metadata *TableMetadata) squirre
 	}
 	ors := squirrel.Or{}
 	for _, filter := range ofg {
-		ors = append(ors, filter.Apply(table, metadata))
+		fieldFilter := filter.Apply(table, metadata)
+		if fieldFilter == nil {
+			continue
+		}
+		ors = append(ors, fieldFilter)
 	}
 	return ors
 }
@@ -333,7 +340,11 @@ func (afg AndFilterGroup) Apply(table *qp.Table, metadata *TableMetadata) squirr
 	}
 	ands := squirrel.And{}
 	for _, filter := range afg {
-		ands = append(ands, filter.Apply(table, metadata))
+		fieldFilter := filter.Apply(table, metadata)
+		if fieldFilter == nil {
+			continue
+		}
+		ands = append(ands, fieldFilter)
 	}
 	return ands
 }
