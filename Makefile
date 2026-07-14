@@ -8,11 +8,14 @@ WD = $(shell basename $(dir $(abspath $(dir $$PWD))))
 
 
 test:
-	# @make service
-	@go test -cover ./...
-	
+	@go test ./...
+
 testv:
-	@go test -v -cover ./...
-	
+	@go test -v ./...
+
 build:
 	@go build -o picard
+
+update:
+	@go get -u ./...
+	@go mod tidy

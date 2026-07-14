@@ -244,7 +244,7 @@ type FieldFilter struct {
 func (ff FieldFilter) Apply(table *qp.Table, metadata *TableMetadata) squirrel.Sqlizer {
 	// Return early if no fieldname was provided in our filter
 	if ff.FieldName == "" {
-		return squirrel.Eq{}
+		return nil
 	}
 	fieldMetadata := metadata.GetField(ff.FieldName)
 	columnName := fieldMetadata.GetColumnName()
@@ -292,12 +292,12 @@ type NullFilter struct {
 func (nf NullFilter) Apply(table *qp.Table, metadata *TableMetadata) squirrel.Sqlizer {
 	// Return early if no fieldname was provided in our filter
 	if nf.FieldName == "" {
-		return squirrel.Eq{}
+		return nil
 	}
 	fieldMetadata := metadata.GetField(nf.FieldName)
 	columnName := fieldMetadata.GetColumnName()
 	if columnName == "" {
-		return squirrel.Eq{}
+		return nil
 	}
 	expr := fmt.Sprintf(qp.AliasedField, table.Alias, columnName)
 	if nf.IsNull {
@@ -313,6 +313,9 @@ type OrFilterGroup []Filterable
 
 // Apply applies the filter
 func (ofg OrFilterGroup) Apply(table *qp.Table, metadata *TableMetadata) squirrel.Sqlizer {
+	if len(ofg) == 0 {
+		return nil
+	}
 	ors := squirrel.Or{}
 	for _, filter := range ofg {
 		ors = append(ors, filter.Apply(table, metadata))
@@ -325,6 +328,9 @@ type AndFilterGroup []Filterable
 
 // Apply applies the filter
 func (afg AndFilterGroup) Apply(table *qp.Table, metadata *TableMetadata) squirrel.Sqlizer {
+	if len(afg) == 0 {
+		return nil
+	}
 	ands := squirrel.And{}
 	for _, filter := range afg {
 		ands = append(ands, filter.Apply(table, metadata))

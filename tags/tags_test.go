@@ -229,11 +229,8 @@ func TestNullFilter_EmptyFieldName(t *testing.T) {
 	}
 
 	result := filter.Apply(table, tm)
-	sql, args, err := result.ToSql()
-	assert.NoError(t, err)
-	// Empty Eq{} produces empty SQL
-	assert.Empty(t, sql)
-	assert.Empty(t, args)
+	// Should return nil because squirrel will turn squirrel.Eq{} in to `AND (1=1)`
+	assert.Nil(t, result)
 }
 
 func TestNullFilter_InvalidFieldName(t *testing.T) {
@@ -245,11 +242,8 @@ func TestNullFilter_InvalidFieldName(t *testing.T) {
 	}
 
 	result := filter.Apply(table, tm)
-	// Should return empty Eq{} since field doesn't exist (columnName is "")
-	sql, args, err := result.ToSql()
-	assert.NoError(t, err)
-	assert.Empty(t, sql)
-	assert.Empty(t, args)
+	// Should return nil when field doesn't exist (columnName is "") because squirrel will turn squirrel.Eq{} in to `AND (1=1)`
+	assert.Nil(t, result)
 }
 
 func TestNullFilter_ComposableWithOrFilterGroup(t *testing.T) {
